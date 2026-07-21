@@ -1,13 +1,8 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Alert } from "react-native";
 import { useAuth } from "./AuthContext";
 import { api } from "../services/api";
 import { Plan } from "../constants/plans";
-
-const STORAGE_KEY = "@vibematch_plans";
-const REQUESTS_KEY = "@vibematch_request_statuses";
-const REMARKS_KEY = "@vibematch_rejection_remarks";
 
 interface CreatePlanInput {
   activityId: string;
@@ -21,6 +16,11 @@ interface CreatePlanInput {
   description?: string;
   maxParticipants?: number;
   imageUrl?: string;
+  kind?: "HANGOUT" | "EVENT" | "TRAVEL";
+  destination?: string;
+  endDate?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 interface PlansContextType {
@@ -43,27 +43,15 @@ const PlansContext = createContext<PlansContextType | null>(null);
 
 export function PlansProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const [localPlans, setLocalPlans] = useState<Plan[]>([]);
-  const [requestStatuses, setRequestStatuses] = useState<Record<string, "none" | "pending" | "accepted" | "rejected">>({});
-  const [rejectionRemarks, setRejectionRemarks] = useState<Record<string, string>>({});
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [requestStatuses, setRequestStatuses] = useState<
+    Record<string, "none" | "pending" | "accepted" | "rejected">
+  >({});
   const [loading, setLoading] = useState(true);
-
-  // Load from Storage on mount
-  useEffect(() => {
-    AsyncStorage.multiGet([STORAGE_KEY, REQUESTS_KEY, REMARKS_KEY]).then(([plans, requests, remarks]) => {
-      if (plans[1]) setLocalPlans(JSON.parse(plans[1]));
-      if (requests[1]) setRequestStatuses(JSON.parse(requests[1]));
-      if (remarks[1]) setRejectionRemarks(JSON.parse(remarks[1]));
-    });
-  }, []);
-
-  const persistLocal = async (plans: Plan[]) => {
-    setLocalPlans(plans);
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(plans));
-  };
 
   const refresh = useCallback(async () => {
     if (!user) {
+      setPlans([]);
       setLoading(false);
       return;
     }
@@ -73,13 +61,20 @@ export function PlansProvider({ children }: { children: ReactNode }) {
         api.getMyPlans(user.id),
         api.getNearbyPlans(user.id),
       ]);
-      if (mine?.length || nearby?.length) {
-        await persistLocal([...(mine || []), ...(nearby || [])].filter(
-          (p, i, arr) => arr.findIndex((x) => x.id === p.id) === i
-        ));
+      const merged = [...(mine || []), ...(nearby || [])].filter(
+        (p, i, arr) => arr.findIndex((x) => x.id === p.id) === i
+      );
+      setPlans(merged);
+
+      const statuses: Record<string, "none" | "pending" | "accepted" | "rejected"> = {};
+      for (const p of merged) {
+        if (p.creatorId === user.id || p.participants?.some((x) => x.id === user.id)) {
+          statuses[p.id] = "accepted";
+        }
       }
+      setRequestStatuses(statuses);
     } catch {
-      // keep local
+      // keep previous
     } finally {
       setLoading(false);
     }
@@ -89,8 +84,10 @@ export function PlansProvider({ children }: { children: ReactNode }) {
     refresh();
   }, [refresh]);
 
-  const myPlans = localPlans.filter((p) => p.creatorId === user?.id);
-  const nearbyPlans = localPlans.filter((p) => p.creatorId !== user?.id);
+  const myPlans = plans.filter(
+    (p) => p.creatorId === user?.id || p.participants?.some((x) => x.id === user?.id)
+  );
+  const nearbyPlans = plans.filter((p) => p.creatorId !== user?.id);
 
   const createPlan = async (input: CreatePlanInput): Promise<Plan> => {
     if (!user) throw new Error("Login required");
@@ -109,86 +106,46 @@ export function PlansProvider({ children }: { children: ReactNode }) {
       customTime: input.customTime,
     });
     const title = `${input.emoji} ${input.activityName} Plan`;
-    const description = input.description?.trim() || undefined;
-    const hasSchedule = Boolean(
-      input.timeId || input.dateId || input.customDate || input.customTime
-    );
 
-    let plan: Plan | null = null;
-    try {
-      plan = await api.createPlan({
-        title,
-        description,
-        location: input.location || undefined,
-        scheduledAt: scheduledAt.toISOString(),
-        maxParticipants: input.maxParticipants || 8,
-        creatorId: user.id,
-        activity: input.activityName,
-        imageUrl: input.imageUrl,
-        distance: 1.2,
-      });
-    } catch {
-      // local fallback
-    }
+    const plan = await api.createPlan({
+      title,
+      description: input.description?.trim() || undefined,
+      location: input.location || input.destination || undefined,
+      destination: input.destination,
+      scheduledAt: scheduledAt.toISOString(),
+      endDate: input.endDate,
+      maxParticipants: input.maxParticipants || 8,
+      activity: input.activityName,
+      imageUrl: input.imageUrl,
+      distance: 1.2,
+      kind: input.kind || "HANGOUT",
+      latitude: input.latitude,
+      longitude: input.longitude,
+    });
 
-    if (!plan) {
-      plan = {
-        id: `local-${Date.now()}`,
-        title,
-        description,
-        location: input.location || undefined,
-        distance: 1.2,
-        scheduledAt: scheduledAt.toISOString(),
-        time: scheduledAt.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }),
-        timeLabel: hasSchedule ? `${dateLabel} · ${timeLabel}` : "Anytime · Flexible",
-        maxParticipants: input.maxParticipants || 8,
-        going: 1,
-        activity: input.activityName,
-        badge: "New",
-        color: "#8A56FF",
-        imageUrl: input.imageUrl,
-        creatorId: user.id,
-        creatorName: user.name,
-        participants: [{ id: user.id, name: user.name, avatarUrl: undefined }],
-        requests: [], // Start with empty requests
-      };
-    }
+    if (!plan) throw new Error("Could not create plan. Check your connection.");
 
-    const finalPlan = plan as Plan;
-    const updatedPlans = [finalPlan, ...localPlans.filter((p) => p.id !== finalPlan.id)];
-    await persistLocal(updatedPlans);
-
+    setPlans((prev) => [plan, ...prev.filter((p) => p.id !== plan.id)]);
+    setRequestStatuses((s) => ({ ...s, [plan.id]: "accepted" }));
     return plan;
   };
 
-  // Join plan immediately via API (honest join — no fake timer)
   const joinPlan = async (planId: string) => {
     if (!user) throw new Error("Login required");
     if (requestStatuses[planId] === "accepted") return;
 
-    const plan = localPlans.find((p) => p.id === planId);
+    const plan = plans.find((p) => p.id === planId);
     const planTitle = plan ? plan.title : "the plan";
 
-    // Optimistic pending while request in flight
-    const pendingStatuses = { ...requestStatuses, [planId]: "pending" as const };
-    setRequestStatuses(pendingStatuses);
-    await AsyncStorage.setItem(REQUESTS_KEY, JSON.stringify(pendingStatuses));
+    setRequestStatuses((s) => ({ ...s, [planId]: "pending" }));
 
     try {
       const res = await api.joinPlan(planId);
-      if (!res) {
-        const reverted = { ...requestStatuses, [planId]: "none" as const };
-        setRequestStatuses(reverted);
-        await AsyncStorage.setItem(REQUESTS_KEY, JSON.stringify(reverted));
-        throw new Error("Could not join plan. Please try again.");
-      }
+      if (!res) throw new Error("Could not join plan. Please try again.");
 
-      const accepted = { ...requestStatuses, [planId]: "accepted" as const };
-      setRequestStatuses(accepted);
-      await AsyncStorage.setItem(REQUESTS_KEY, JSON.stringify(accepted));
-
-      setLocalPlans((prevPlans) => {
-        const updated = prevPlans.map((p) => {
+      setRequestStatuses((s) => ({ ...s, [planId]: "accepted" }));
+      setPlans((prev) =>
+        prev.map((p) => {
           if (p.id !== planId) return p;
           const already = p.participants?.some((x) => x.id === user.id);
           return {
@@ -198,138 +155,74 @@ export function PlansProvider({ children }: { children: ReactNode }) {
               ? p.participants
               : [...(p.participants || []), { id: user.id, name: user.name, avatarUrl: undefined }],
           };
+        })
+      );
+
+      try {
+        await api.addJarItem({
+          title: `Joined ${planTitle}`,
+          type: "PLAN",
+          description: plan?.location || undefined,
+          meta: plan?.activity,
         });
-        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-        return updated;
-      });
+      } catch {
+        // jar save is best-effort
+      }
 
       Alert.alert("You're in!", `Joined "${planTitle}" successfully.`);
     } catch (err) {
-      const reverted = { ...requestStatuses, [planId]: "none" as const };
-      setRequestStatuses(reverted);
-      await AsyncStorage.setItem(REQUESTS_KEY, JSON.stringify(reverted));
+      setRequestStatuses((s) => ({ ...s, [planId]: "none" }));
       throw err instanceof Error ? err : new Error("Join failed");
     }
   };
 
-  const hasJoined = (planId: string) => requestStatuses[planId] === "accepted";
+  const hasJoined = (planId: string) => {
+    if (requestStatuses[planId] === "accepted") return true;
+    return plans.some((p) => p.id === planId && p.participants?.some((x) => x.id === user?.id));
+  };
+
   const getRequestStatus = (planId: string) => requestStatuses[planId] || "none";
 
-  // Owner accepting/rejecting a participant's request
-  const respondToRequest = async (planId: string, participantId: string, accept: boolean) => {
+  const respondToRequest = async (_planId: string, _participantId: string, _accept: boolean) => {
+    Alert.alert("Instant join", "Plans join instantly — no approval queue needed.");
+  };
+
+  const cancelJoinPlan = async (planId: string, _remark: string) => {
     if (!user) throw new Error("Login required");
-
-    setLocalPlans((prevPlans) => {
-      const updated = prevPlans.map((p) => {
+    await api.leavePlan(planId);
+    setRequestStatuses((s) => ({ ...s, [planId]: "none" }));
+    setPlans((prev) =>
+      prev.map((p) => {
         if (p.id !== planId) return p;
-
-        const filteredRequests = p.requests?.filter((r: any) => r.id !== participantId) || [];
-
-        if (accept) {
-          const alreadyParticipant = p.participants?.some((x) => x.id === participantId);
-          const requesterInfo = p.requests?.find((r: any) => r.id === participantId);
-
-          return {
-            ...p,
-            going: alreadyParticipant ? p.going : p.going + 1,
-            requests: filteredRequests,
-            participants: alreadyParticipant
-              ? p.participants
-              : [
-                  ...(p.participants || []),
-                  {
-                    id: participantId,
-                    name: requesterInfo?.name || "Attendee",
-                    avatarUrl: requesterInfo?.avatarUrl || null,
-                  },
-                ],
-          };
-        } else {
-          return {
-            ...p,
-            requests: filteredRequests,
-          };
-        }
-      });
-
-      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      return updated;
-    });
-
-    Alert.alert(
-      "Request Response",
-      accept ? "Request approved! The member is now part of the hangout." : "Request declined."
+        return {
+          ...p,
+          going: Math.max(1, p.going - 1),
+          participants: p.participants?.filter((pt) => pt.id !== user.id) || [],
+        };
+      })
     );
+    Alert.alert("Left", "You have left this hangout.");
+    await refresh();
   };
 
-  // Participant cancelling their join request / leaving
-  const cancelJoinPlan = async (planId: string, remark: string) => {
+  const removeParticipant = async (planId: string, targetUserId: string, remark: string) => {
     if (!user) throw new Error("Login required");
-
-    // Reset status to none
-    const newStatuses = { ...requestStatuses, [planId]: "none" as const };
-    setRequestStatuses(newStatuses);
-    await AsyncStorage.setItem(REQUESTS_KEY, JSON.stringify(newStatuses));
-
-    // Remove user from participants list
-    setLocalPlans((prevPlans) => {
-      const updated = prevPlans.map((p) => {
+    await api.kickFromPlan(planId, targetUserId, remark);
+    setPlans((prev) =>
+      prev.map((p) => {
         if (p.id !== planId) return p;
-        const filteredParticipants = p.participants?.filter((pt) => pt.id !== user.id) || [];
-        const wasGoing = p.participants?.some((pt) => pt.id === user.id);
         return {
           ...p,
-          going: wasGoing ? Math.max(1, p.going - 1) : p.going,
-          participants: filteredParticipants,
+          going: Math.max(1, p.going - 1),
+          participants: p.participants?.filter((pt) => pt.id !== targetUserId) || [],
         };
-      });
-      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      return updated;
-    });
-
-    // Save cancellation reason
-    const remarks = { ...rejectionRemarks, [planId]: `You cancelled: ${remark}` };
-    setRejectionRemarks(remarks);
-    await AsyncStorage.setItem(REMARKS_KEY, JSON.stringify(remarks));
-
-    Alert.alert("Success", "You have left this hangout.");
+      })
+    );
+    Alert.alert("Removed", "Participant removed from the hangout.");
+    await refresh();
   };
 
-  // Host removing a participant with a reason/remark
-  const removeParticipant = async (planId: string, userId: string, remark: string) => {
-    if (!user) throw new Error("Login required");
-
-    setLocalPlans((prevPlans) => {
-      const updated = prevPlans.map((p) => {
-        if (p.id !== planId) return p;
-        const filteredParticipants = p.participants?.filter((pt) => pt.id !== userId) || [];
-        const wasGoing = p.participants?.some((pt) => pt.id === userId);
-        return {
-          ...p,
-          going: wasGoing ? Math.max(1, p.going - 1) : p.going,
-          participants: filteredParticipants,
-        };
-      });
-      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      return updated;
-    });
-
-    // If the removed user is the current user (on this simulator), update their request status
-    if (userId === user.id) {
-      const newStatuses = { ...requestStatuses, [planId]: "rejected" as const };
-      setRequestStatuses(newStatuses);
-      await AsyncStorage.setItem(REQUESTS_KEY, JSON.stringify(newStatuses));
-    }
-
-    // Save removal remark
-    const remarks = { ...rejectionRemarks, [planId]: `Removed by Host: ${remark}` };
-    setRejectionRemarks(remarks);
-    await AsyncStorage.setItem(REMARKS_KEY, JSON.stringify(remarks));
-
-    Alert.alert("Removed", `Participant has been removed with remark: "${remark}"`);
-  };
-
-  const getRejectionRemark = (planId: string) => rejectionRemarks[planId] || "";
+  const getRejectionRemark = () => "";
 
   return (
     <PlansContext.Provider

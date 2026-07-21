@@ -18,12 +18,30 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import Animated, { FadeInDown, ZoomIn } from "react-native-reanimated";
-import GlassCard from "../components/vibe/GlassCard";
 import TabBar from "../components/TabBar";
 import { VibeColors, VibeFonts } from "../constants/vibeTheme";
 import { Radius, Spacing } from "../constants/theme";
 
 const { width } = Dimensions.get("window");
+
+/** Premium dark + light Events palette */
+const T = {
+  bg: "#EEE9F8",
+  card: "#FFFBFE",
+  ink: "#1A1F36",
+  muted: "#6B7280",
+  faint: "#9CA3AF",
+  border: "#E4DFF0",
+  purple: "#8B5CF6",
+  purpleDeep: "#7C3AED",
+  pink: "#EC4899",
+  softPurple: "#EDE7FF",
+  dark: "#0F0B1A",
+  darkSoft: "#1A1230",
+  darkCard: "#16122A",
+  cta: ["#8B5CF6", "#EC4899"] as const,
+  hero: ["#0F0B1A", "#1A1230", "#2A1854"] as const,
+};
 
 interface EventItem {
   id: string;
@@ -352,83 +370,95 @@ export default function ExploreEventsScreen() {
 
   return (
     <View style={styles.root}>
-      <StatusBar style="dark" />
- 
-      {/* Background glowing orbs */}
+      <StatusBar style="light" />
+
       <View style={[styles.orb, styles.orb1]} />
       <View style={[styles.orb, styles.orb2]} />
- 
-      {/* City Landmarks Header Backdrop */}
+
+      <View style={styles.headerWrap}>
       <ImageBackground
-        source={{ uri: "https://images.unsplash.com/photo-1596176530529-78163a4f7af2?w=800&q=80" }} // Faded Nagpur structure dome backdrop
+        source={{ uri: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=900&q=80" }}
         style={styles.headerBackdrop}
         imageStyle={styles.headerBackdropImage}
       >
         <LinearGradient
-          colors={["rgba(247,245,252,0.15)", "rgba(247,245,252,0.45)", "#F7F5FC"]}
+          colors={["rgba(15,11,26,0.5)", "rgba(15,11,26,0.88)", T.dark]}
           style={StyleSheet.absoluteFillObject}
         />
- 
+
         <SafeAreaView style={styles.safeHeader} edges={["top"]}>
-          {/* Top Bar with actions */}
           <View style={styles.topBar}>
             <TouchableOpacity style={styles.backArrowBtn} onPress={() => router.back()}>
-              <Ionicons name="arrow-back" size={20} color="#1F1A3A" />
+              <Ionicons name="arrow-back" size={20} color="#fff" />
             </TouchableOpacity>
- 
+
+            <View style={styles.brandPill}>
+              <Ionicons name="sparkles" size={11} color="#E9D5FF" />
+              <Text style={styles.brandPillText}>EVENTS</Text>
+            </View>
+
             <View style={styles.topRightActions}>
+              <TouchableOpacity style={styles.bellBtn} onPress={() => router.push("/events-map")}>
+                <Ionicons name="map" size={18} color="#fff" />
+              </TouchableOpacity>
+
               <TouchableOpacity style={styles.bellBtn}>
-                <Ionicons name="notifications" size={18} color="#1F1A3A" />
+                <Ionicons name="notifications" size={18} color="#fff" />
                 <View style={styles.bellBadge}>
                   <Text style={styles.bellBadgeText}>3</Text>
                 </View>
               </TouchableOpacity>
- 
+
               <TouchableOpacity style={styles.settingsBtn} onPress={() => setShowCreateModal(true)}>
-                <Ionicons name="options-outline" size={16} color="#1F1A3A" />
+                <Ionicons name="add" size={18} color="#fff" />
               </TouchableOpacity>
             </View>
           </View>
- 
-          {/* Hey Mayur Greeting */}
+
           <View style={styles.greetingBlock}>
-            <Text style={styles.greetingText}>Hey Mayur! 👋</Text>
+            <Text style={styles.greetingText}>Hey Mayur</Text>
+            <Text style={styles.greetingSub}>Tonight&apos;s vibes are loading…</Text>
           </View>
- 
-          {/* Heading Title */}
+
           <View style={styles.titleBlock}>
             <Text style={styles.gradientHeadingText}>Events in My City</Text>
-            <Text style={styles.subtextCaption}>Discover • Connect • Vibe</Text>
-          </View>
- 
-          {/* Search bar row */}
-          <View style={styles.searchRow}>
-            {/* Location selector side-by-side with Search box */}
-            <View style={styles.locationSearchPill}>
-              <Ionicons name="location" size={12} color="#C084FC" />
-              <Text style={styles.locationText}>Nagpur</Text>
-              <Ionicons name="chevron-down" size={10} color="rgba(31, 26, 58, 0.4)" />
+            <View style={styles.titleMetaRow}>
+              <Text style={styles.subtextCaption}>Discover · Connect · Hangout</Text>
+              <View style={styles.liveCountPill}>
+                <View style={styles.liveDot} />
+                <Text style={styles.liveCountText}>{filteredEvents.length} live</Text>
+              </View>
             </View>
- 
+          </View>
+
+          <View style={styles.searchRow}>
+            <View style={styles.locationSearchPill}>
+              <Ionicons name="location" size={12} color="#C4B5FD" />
+              <Text style={styles.locationText}>Nagpur</Text>
+              <Ionicons name="chevron-down" size={10} color="rgba(255,255,255,0.45)" />
+            </View>
+
             <View style={styles.searchBox}>
-              <Ionicons name="search" size={14} color="rgba(31, 26, 58, 0.4)" />
+              <Ionicons name="search" size={14} color="rgba(255,255,255,0.4)" />
               <TextInput
-                placeholder="Search events, people..."
-                placeholderTextColor="rgba(31, 26, 58, 0.4)"
+                placeholder="Search events…"
+                placeholderTextColor="rgba(255,255,255,0.35)"
                 style={styles.searchInput}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
               />
             </View>
             <TouchableOpacity style={styles.filterGearBtn} onPress={() => setShowCreateModal(true)}>
+              <LinearGradient colors={[...T.cta]} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
               <Ionicons name="add" size={20} color="#fff" />
             </TouchableOpacity>
           </View>
         </SafeAreaView>
       </ImageBackground>
+      <View style={styles.heroCurve} />
+      </View>
 
-      {/* Main scrolling section container */}
-      <View style={{ flex: 1 }}>
+      <View style={styles.bodySheet}>
 
           {/* Horizontal scroll tags */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagsScroll} contentContainerStyle={styles.tagsContent}>
@@ -439,14 +469,14 @@ export default function ExploreEventsScreen() {
                 onPress={() => setActiveFilter(f.id)}
               >
                 {activeFilter === f.id ? (
-                  <LinearGradient colors={["#8A56FF", "#FF4B81"]} style={styles.tagChipGrad}>
+                  <LinearGradient colors={[...T.cta]} style={styles.tagChipGrad}>
                     <Ionicons name={f.icon as any} size={12} color="#fff" />
                     <Text style={styles.tagChipTextActive}>{f.label}</Text>
                   </LinearGradient>
                 ) : (
                   <View style={styles.tagChipInner}>
-                    <Ionicons name={f.icon as any} size={12} color={f.id === "Free Hang" ? "#22C55E" : "rgba(31, 26, 58, 0.4)"} />
-                    <Text style={[styles.tagChipText, f.id === "Free Hang" && { color: "#22C55E" }]}>{f.label}</Text>
+                    <Ionicons name={f.icon as any} size={12} color={f.id === "Free Hang" ? "#16A34A" : T.muted} />
+                    <Text style={[styles.tagChipText, f.id === "Free Hang" && { color: "#16A34A" }]}>{f.label}</Text>
                   </View>
                 )}
               </TouchableOpacity>
@@ -465,7 +495,7 @@ export default function ExploreEventsScreen() {
                 onPress={() => setSelectedSubTab(tab)}
               >
                 <View style={styles.subTabLabelRow}>
-                  {isActive && <Ionicons name={iconMap[tab] as any} size={13} color="#FF4B81" style={{ marginRight: 4 }} />}
+                  {isActive && <Ionicons name={iconMap[tab] as any} size={13} color={T.pink} style={{ marginRight: 4 }} />}
                   <Text style={[styles.subTabText, isActive && styles.subTabTextActive]}>
                     {tab}
                   </Text>
@@ -478,132 +508,146 @@ export default function ExploreEventsScreen() {
 
         {/* EVENTS LIST SCROLLVIEW */}
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.listContent}>
-          {filteredEvents.map((item) => (
+          {/* Featured strip */}
+          <LinearGradient
+            colors={["#1A1230", "#2A1854", "#8B5CF6"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.featuredStrip}
+          >
+            <View style={styles.featuredStripLeft}>
+              <Text style={styles.featuredEyebrow}>TONIGHT</Text>
+              <Text style={styles.featuredTitle}>Hot hangouts near you</Text>
+            </View>
+            <Pressable onPress={() => router.push("/events-map")} style={styles.featuredMapBtn}>
+              <Ionicons name="map" size={14} color={T.purpleDeep} />
+              <Text style={styles.featuredMapText}>Map</Text>
+            </Pressable>
+          </LinearGradient>
+
+          {filteredEvents.map((item, index) => (
+            <Animated.View key={item.id} entering={FadeInDown.delay(index * 80).springify().damping(15)}>
             <TouchableOpacity
-              key={item.id}
               onPress={() => handleEventPress(item)}
-              activeOpacity={0.92}
+              activeOpacity={0.93}
             >
-              <GlassCard style={styles.eventCard} lightMode={true}>
-              <View style={styles.cardMainRow}>
-                
-                {/* Left Thumbnail visual with badges overlay */}
-                <View style={styles.cardLeftThumb}>
-                  <Image source={{ uri: item.imageUrl }} style={styles.thumbImg} />
-                  
-                  {/* Top-Left green FREE HANG badge */}
-                  <View style={styles.freeHangBadge}>
-                    <Text style={styles.freeHangText}>FREE HANG</Text>
+              <View style={styles.eventCard}>
+                {/* Full-bleed hero media */}
+                <View style={styles.cardHero}>
+                  <Image source={{ uri: item.imageUrl }} style={styles.cardHeroImg} />
+                  <LinearGradient
+                    colors={["rgba(15,11,26,0.15)", "rgba(15,11,26,0.35)", "rgba(15,11,26,0.92)"]}
+                    style={styles.cardHeroFade}
+                  />
+
+                  <View style={styles.cardHeroTop}>
+                    <View style={styles.freeHangBadge}>
+                      <Ionicons name="leaf" size={9} color="#fff" />
+                      <Text style={styles.freeHangText}>FREE</Text>
+                    </View>
+                    <View style={styles.categoryHeroBadge}>
+                      <Text style={styles.categoryHeroText}>{item.category}</Text>
+                    </View>
                   </View>
 
-                  {/* Bottom counters overlay */}
-                  <View style={styles.countersRow}>
-                    <View style={styles.counterItem}>
-                      <Ionicons name="people" size={10} color="#fff" />
-                      <Text style={styles.counterText}>{item.goingCount} Going</Text>
-                    </View>
-                    <View style={styles.counterItem}>
-                      <Ionicons name="chatbubble" size={10} color="#fff" />
-                      <Text style={styles.counterText}>{item.commentCount}</Text>
+                  <View style={styles.cardHeroBottom}>
+                    <Text style={styles.cardHeroTitle} numberOfLines={2}>{item.title}</Text>
+                    <View style={styles.cardHeroMeta}>
+                      <Ionicons name="location" size={12} color="#E9D5FF" />
+                      <Text style={styles.cardHeroLoc} numberOfLines={1}>{item.location}</Text>
                     </View>
                   </View>
                 </View>
 
-                {/* Right Details content */}
-                <View style={styles.cardRightDetails}>
-                  {/* Creator row */}
+                {/* Light details panel */}
+                <View style={styles.cardBody}>
                   <View style={styles.creatorRow}>
                     <Image source={{ uri: item.creatorAvatar }} style={styles.creatorAvatar} />
                     <View style={styles.creatorMeta}>
                       <View style={styles.creatorNameRow}>
                         <Text style={styles.creatorName}>{item.creatorName}</Text>
-                        {item.isVerified && (
-                          <Ionicons name="checkmark-circle" size={12} color="#8A56FF" style={{ marginLeft: 3 }} />
-                        )}
+                        {item.isVerified ? (
+                          <Ionicons name="checkmark-circle" size={13} color={T.purple} style={{ marginLeft: 4 }} />
+                        ) : null}
                       </View>
-                      <Text style={styles.creatorTimeAgo}>{item.creatorTimeAgo} • 🌐</Text>
+                      <Text style={styles.creatorTimeAgo}>Host · {item.creatorTimeAgo}</Text>
                     </View>
-
-                    <View style={styles.creatorActions}>
-                      <TouchableOpacity style={styles.cardActionIcon}>
-                        <Ionicons name="bookmark-outline" size={16} color="rgba(31, 26, 58, 0.4)" />
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.cardActionIcon}>
-                        <Ionicons name="ellipsis-vertical" size={16} color="rgba(31, 26, 58, 0.4)" />
-                      </TouchableOpacity>
+                    <View style={styles.goingStack}>
+                      <Text style={styles.goingStackNum}>{item.goingCount}</Text>
+                      <Text style={styles.goingStackLabel}>going</Text>
                     </View>
                   </View>
 
-                  {/* Title & Emojis */}
-                  <Text style={styles.eventTitle}>{item.title}</Text>
+                  <Text style={styles.eventDesc} numberOfLines={2}>{item.description}</Text>
 
-                  {/* Location with Pin */}
-                  <View style={styles.locationRow}>
-                    <Ionicons name="location" size={12} color="#C084FC" />
-                    <Text style={styles.locationVal} numberOfLines={1}>{item.location}</Text>
-                  </View>
-
-                  {/* Tags row */}
                   <View style={styles.tagsCapsulesRow}>
-                    {item.tags.map((tag, idx) => (
+                    {item.tags.slice(0, 3).map((tag, idx) => (
                       <View key={idx} style={styles.tagCapsule}>
                         <Text style={styles.tagCapsuleText}>{tag}</Text>
                       </View>
                     ))}
                   </View>
 
-                  {/* Tagline Description */}
-                  <Text style={styles.eventDesc} numberOfLines={2}>{item.description}</Text>
+                  <View style={styles.cardFooter}>
+                    <View style={styles.footerCapsule}>
+                      <Ionicons name="calendar-outline" size={13} color={T.purple} />
+                      <Text style={styles.footerCapsuleText}>{item.timeLabel}</Text>
+                    </View>
+                    <View style={styles.footerCapsule}>
+                      <Ionicons name="chatbubble-outline" size={12} color={T.muted} />
+                      <Text style={styles.footerCapsuleText}>{item.commentCount} chats</Text>
+                    </View>
+                    <TouchableOpacity style={styles.interestBtn}>
+                      <LinearGradient colors={[...T.cta]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.interestGrad}>
+                        <Text style={styles.interestBtnText}>I&apos;m In</Text>
+                        <Ionicons name="arrow-forward" size={12} color="#fff" />
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
-
-              {/* Card Footer row */}
-              <View style={styles.cardFooter}>
-                <View style={styles.footerCapsule}>
-                  <Ionicons name="calendar-outline" size={12} color="#C084FC" />
-                  <Text style={styles.footerCapsuleText}>{item.timeLabel}</Text>
-                </View>
-
-                <View style={styles.footerCapsule}>
-                  <Ionicons name="pricetag-outline" size={12} color="#22C55E" />
-                  <Text style={[styles.footerCapsuleText, { color: "#22C55E" }]}>Free Event</Text>
-                </View>
-
-                <TouchableOpacity style={styles.interestBtn}>
-                  <LinearGradient colors={["#8A56FF", "#FF4B81"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.interestGrad}>
-                    <Text style={styles.interestBtnText}>I'm Interested</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-              </GlassCard>
             </TouchableOpacity>
+            </Animated.View>
           ))}
 
           {/* Boost Your Event Promo Banner Footer */}
           <LinearGradient
-            colors={["#130D2E", "#2A1854", "#0C0620"]}
+            colors={[...T.hero]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={[styles.boostBanner, { borderWidth: 1.5, borderColor: "rgba(138, 86, 255, 0.4)", shadowColor: "#8A56FF", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.15, shadowRadius: 16, elevation: 4 }]}
+            style={styles.boostBanner}
           >
             <View style={styles.boostGrad}>
               <View style={styles.boostLeft}>
                 <View style={styles.crownCircle}>
-                  <Ionicons name="gift-outline" size={16} color="#FFD700" />
+                  <Ionicons name="diamond" size={16} color="#E9D5FF" />
                 </View>
                 <View style={styles.boostTextCol}>
                   <Text style={styles.boostTitle}>Boost Your Event</Text>
-                  <Text style={styles.boostSubtitle}>Get more people to see & join your event.</Text>
+                  <Text style={styles.boostSubtitle}>Get more joins with a premium push.</Text>
                 </View>
               </View>
               
               <TouchableOpacity style={styles.boostBtn}>
                 <LinearGradient colors={["#FFFFFF", "#F3E8FF"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.boostBtnGrad}>
-                  <Text style={[styles.boostBtnText, { color: "#2A1854" }]}>Boost Now</Text>
+                  <Text style={[styles.boostBtnText, { color: T.darkSoft }]}>Boost</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </View>
           </LinearGradient>
+
+          <Pressable style={styles.mapCta} onPress={() => router.push("/events-map")}>
+            <View style={styles.mapCtaInner}>
+              <View style={styles.mapCtaIcon}>
+                <Ionicons name="map" size={18} color={T.purple} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.mapCtaTitle}>Open Live Map</Text>
+                <Text style={styles.mapCtaSub}>See events & people around the city</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={T.purple} />
+            </View>
+          </Pressable>
         </ScrollView>
       </View>
 
@@ -852,56 +896,91 @@ export default function ExploreEventsScreen() {
       </Modal>
 
       {/* Main TabBar */}
-      <TabBar />
+      <TabBar dark={false} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#F7F5FC" },
+  root: { flex: 1, backgroundColor: T.bg },
   safe: { flex: 1 },
   orb: { position: "absolute", borderRadius: 999 },
-  orb1: { width: 220, height: 220, top: -60, right: -70, backgroundColor: "rgba(138,86,255,0.12)" },
-  orb2: { width: 200, height: 200, bottom: 80, left: -80, backgroundColor: "rgba(255,75,129,0.08)" },
- 
-  // City Backdrop Header Area
+  orb1: { width: 220, height: 220, top: 180, right: -70, backgroundColor: "rgba(139,92,246,0.12)" },
+  orb2: { width: 200, height: 200, bottom: 80, left: -80, backgroundColor: "rgba(236,72,153,0.08)" },
+
+  headerWrap: { backgroundColor: T.dark, zIndex: 2 },
   headerBackdrop: { width: "100%", overflow: "hidden" },
-  headerBackdropImage: { opacity: 0.25, resizeMode: "cover" }, // Lower opacity so it blends perfectly in light mode!
-  safeHeader: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.md },
+  headerBackdropImage: { opacity: 0.45, resizeMode: "cover" },
+  heroCurve: {
+    height: 22,
+    backgroundColor: T.bg,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    marginTop: -20,
+  },
+  bodySheet: { flex: 1, backgroundColor: T.bg, marginTop: -4 },
+  safeHeader: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.lg },
   topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: Spacing.xs },
-  backArrowBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: "rgba(31, 26, 58, 0.05)",
+  brandPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "rgba(255,255,255,0.1)",
     borderWidth: 1,
-    borderColor: "rgba(31, 26, 58, 0.08)",
+    borderColor: "rgba(233,213,255,0.25)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  brandPillText: { color: "#E9D5FF", fontSize: 10, fontFamily: VibeFonts.bold, letterSpacing: 1 },
+  backArrowBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
     alignItems: "center",
     justifyContent: "center",
   },
   greetingBlock: { marginTop: Spacing.md },
-  greetingText: { color: "#1F1A3A", fontSize: 16, fontFamily: VibeFonts.bold, letterSpacing: -0.3 },
+  greetingText: { color: "#fff", fontSize: 15, fontFamily: VibeFonts.bold, letterSpacing: -0.2 },
+  greetingSub: { color: "rgba(255,255,255,0.5)", fontSize: 12, fontFamily: VibeFonts.medium, marginTop: 2 },
   topRightActions: { flexDirection: "row", alignItems: "center", gap: Spacing.sm },
   settingsBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: "rgba(31, 26, 58, 0.05)",
+    width: 38,
+    height: 38,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.1)",
     borderWidth: 1,
-    borderColor: "rgba(31, 26, 58, 0.08)",
+    borderColor: "rgba(255,255,255,0.14)",
     alignItems: "center",
     justifyContent: "center",
   },
-  titleBlock: { marginTop: Spacing.md, gap: 2 },
-  gradientHeadingText: { fontSize: 32, fontFamily: VibeFonts.extraBold, color: "#1F1A3A", letterSpacing: -0.8 },
-  subtextCaption: { fontSize: 12, fontFamily: VibeFonts.bold, color: "rgba(31, 26, 58, 0.6)", letterSpacing: -0.2 },
-  bellBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: "rgba(31, 26, 58, 0.05)",
+  titleBlock: { marginTop: Spacing.sm, gap: 6 },
+  gradientHeadingText: { fontSize: 28, fontFamily: VibeFonts.extraBold, color: "#fff", letterSpacing: -0.8 },
+  titleMetaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  subtextCaption: { fontSize: 12, fontFamily: VibeFonts.semiBold, color: "rgba(233,213,255,0.7)", letterSpacing: -0.1 },
+  liveCountPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "rgba(34,197,94,0.18)",
     borderWidth: 1,
-    borderColor: "rgba(31, 26, 58, 0.08)",
+    borderColor: "rgba(74,222,128,0.35)",
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#4ADE80" },
+  liveCountText: { color: "#BBF7D0", fontSize: 10, fontFamily: VibeFonts.bold },
+  bellBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
     alignItems: "center",
     justifyContent: "center",
     position: "relative",
@@ -910,7 +989,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: -2,
     right: -2,
-    backgroundColor: "#FF4B81",
+    backgroundColor: T.pink,
     width: 14,
     height: 14,
     borderRadius: 7,
@@ -919,48 +998,44 @@ const styles = StyleSheet.create({
   },
   bellBadgeText: { color: "#fff", fontSize: 8, fontFamily: VibeFonts.bold },
 
-  // Search & Filter Box
   searchContainer: { paddingHorizontal: Spacing.lg, marginTop: Spacing.xs },
-  searchRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: Spacing.md },
+  searchRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: Spacing.md },
   locationSearchPill: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 3,
-    backgroundColor: "rgba(31, 26, 58, 0.05)",
+    gap: 4,
+    backgroundColor: "rgba(255,255,255,0.1)",
     borderWidth: 1,
-    borderColor: "rgba(31, 26, 58, 0.08)",
+    borderColor: "rgba(255,255,255,0.14)",
     paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingVertical: 9,
     borderRadius: Radius.full,
   },
-  locationText: { color: "#1F1A3A", fontSize: 11, fontFamily: VibeFonts.bold, letterSpacing: -0.2 },
+  locationText: { color: "#fff", fontSize: 11, fontFamily: VibeFonts.bold, letterSpacing: -0.2 },
   searchBox: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "rgba(31, 26, 58, 0.05)",
+    backgroundColor: "rgba(255,255,255,0.1)",
     borderWidth: 1,
-    borderColor: "rgba(31, 26, 58, 0.08)",
+    borderColor: "rgba(255,255,255,0.14)",
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 9,
     borderRadius: Radius.full,
   },
-  searchInput: { flex: 1, color: "#1F1A3A", fontSize: 12, fontFamily: VibeFonts.medium, padding: 0 },
+  searchInput: { flex: 1, color: "#fff", fontSize: 12, fontFamily: VibeFonts.medium, padding: 0 },
   filterGearBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: "#8A56FF",
-    borderWidth: 1,
-    borderColor: "rgba(138, 86, 255, 0.15)",
+    width: 38,
+    height: 38,
+    borderRadius: 14,
+    overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
   },
- 
-  // Horizontal Tags scroll
+
   tagsScroll: { marginTop: Spacing.sm, maxHeight: 52 },
-  tagsContent: { gap: Spacing.xs, paddingRight: Spacing.xl, paddingVertical: 4, alignItems: "center" },
+  tagsContent: { gap: Spacing.xs, paddingHorizontal: Spacing.lg, paddingVertical: 4, alignItems: "center" },
   tagChip: { borderRadius: Radius.full, overflow: "hidden" },
   tagChipGrad: {
     flexDirection: "row",
@@ -973,22 +1048,23 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "rgba(31, 26, 58, 0.05)",
+    backgroundColor: T.card,
     borderWidth: 1,
-    borderColor: "rgba(31, 26, 58, 0.08)",
+    borderColor: T.border,
     paddingHorizontal: 14,
     paddingVertical: 8,
+    borderRadius: Radius.full,
   },
-  tagChipText: { color: "rgba(31, 26, 58, 0.6)", fontSize: 11, fontFamily: VibeFonts.bold, letterSpacing: -0.2 },
+  tagChipText: { color: T.muted, fontSize: 11, fontFamily: VibeFonts.bold, letterSpacing: -0.2 },
   tagChipTextActive: { color: "#fff", fontSize: 11, fontFamily: VibeFonts.bold, letterSpacing: -0.2 },
-  tagChipActive: { borderWidth: 1, borderColor: "rgba(138, 86, 255, 0.15)" },
- 
-  // Sub Tabs (Popular, Recent, Following)
+  tagChipActive: { borderWidth: 0 },
+
   subTabsRow: {
     flexDirection: "row",
-    marginTop: Spacing.md,
+    marginTop: Spacing.sm,
+    marginHorizontal: Spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(31, 26, 58, 0.08)",
+    borderBottomColor: T.border,
   },
   subTabItem: {
     flex: 1,
@@ -998,107 +1074,207 @@ const styles = StyleSheet.create({
   },
   subTabItemActive: {},
   subTabLabelRow: { flexDirection: "row", alignItems: "center" },
-  subTabText: { color: "rgba(31, 26, 58, 0.45)", fontSize: 12, fontFamily: VibeFonts.bold, letterSpacing: -0.2 },
-  subTabTextActive: { color: "#1F1A3A" },
+  subTabText: { color: T.faint, fontSize: 12, fontFamily: VibeFonts.bold, letterSpacing: -0.2 },
+  subTabTextActive: { color: T.ink },
   subTabIndicator: {
     position: "absolute",
     bottom: 0,
-    height: 2,
-    width: 60,
-    backgroundColor: "#FF4B81",
-    borderRadius: 1,
+    height: 2.5,
+    width: 56,
+    backgroundColor: T.pink,
+    borderRadius: 2,
   },
- 
-  // Events Feed List Scroll
-  listContent: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, paddingBottom: 100 },
-  eventCard: { padding: Spacing.md, marginBottom: Spacing.md },
-  cardMainRow: { flexDirection: "row", gap: Spacing.md },
-  
-  // Left side image details
-  cardLeftThumb: { width: 110, height: 140, borderRadius: Radius.lg, overflow: "hidden", position: "relative" },
-  thumbImg: { width: "100%", height: "100%", resizeMode: "cover" },
-  freeHangBadge: {
-    position: "absolute",
-    top: 6,
-    left: 6,
-    backgroundColor: "rgba(34,197,94,0.9)",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: Radius.sm,
-  },
-  freeHangText: { color: "#fff", fontSize: 7, fontFamily: VibeFonts.bold },
-  countersRow: {
-    position: "absolute",
-    bottom: 6,
-    left: 6,
-    right: 6,
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  counterItem: {
+
+  listContent: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, paddingBottom: 110 },
+
+  featuredStrip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 3,
-    backgroundColor: "rgba(5,5,8,0.75)",
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-    borderRadius: 3,
+    justifyContent: "space-between",
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: "rgba(196,181,253,0.35)",
   },
-  counterText: { color: "#fff", fontSize: 7, fontFamily: VibeFonts.bold },
- 
-  // Right details elements
-  cardRightDetails: { flex: 1, gap: 3 },
-  creatorRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  creatorAvatar: { width: 28, height: 28, borderRadius: 14, borderWidth: 1, borderColor: "rgba(31,26,58,0.15)" },
+  featuredStripLeft: { flex: 1, paddingRight: 10 },
+  featuredEyebrow: {
+    fontSize: 9,
+    fontFamily: VibeFonts.bold,
+    color: "#E9D5FF",
+    letterSpacing: 1.2,
+    marginBottom: 2,
+  },
+  featuredTitle: { fontSize: 15, fontFamily: VibeFonts.extraBold, color: "#fff", letterSpacing: -0.3 },
+  featuredMapBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "#fff",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+  },
+  featuredMapText: { fontSize: 12, fontFamily: VibeFonts.bold, color: T.purpleDeep },
+
+  eventCard: {
+    marginBottom: Spacing.lg,
+    backgroundColor: T.card,
+    borderRadius: 26,
+    borderWidth: 1,
+    borderColor: T.border,
+    overflow: "hidden",
+    shadowColor: "#1A1230",
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 5,
+  },
+  cardHero: { height: 168, position: "relative" },
+  cardHeroImg: { width: "100%", height: "100%", resizeMode: "cover" },
+  cardHeroFade: { ...StyleSheet.absoluteFillObject },
+  cardHeroTop: {
+    position: "absolute",
+    top: 12,
+    left: 12,
+    right: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  freeHangBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(22,163,74,0.95)",
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  freeHangText: { color: "#fff", fontSize: 9, fontFamily: VibeFonts.bold, letterSpacing: 0.5 },
+  categoryHeroBadge: {
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.28)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  categoryHeroText: { color: "#fff", fontSize: 10, fontFamily: VibeFonts.bold },
+  cardHeroBottom: {
+    position: "absolute",
+    left: 14,
+    right: 14,
+    bottom: 14,
+  },
+  cardHeroTitle: {
+    fontSize: 18,
+    fontFamily: VibeFonts.extraBold,
+    color: "#fff",
+    letterSpacing: -0.4,
+    marginBottom: 6,
+  },
+  cardHeroMeta: { flexDirection: "row", alignItems: "center", gap: 4 },
+  cardHeroLoc: { color: "rgba(255,255,255,0.8)", fontSize: 11, fontFamily: VibeFonts.medium, flex: 1 },
+
+  cardBody: { padding: 14, gap: 8 },
+  creatorRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  creatorAvatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 2,
+    borderColor: "#DDD6FE",
+  },
   creatorMeta: { flex: 1 },
   creatorNameRow: { flexDirection: "row", alignItems: "center" },
-  creatorName: { color: "#1F1A3A", fontSize: 11, fontFamily: VibeFonts.bold },
-  creatorTimeAgo: { color: "rgba(31, 26, 58, 0.6)", fontSize: 8, fontFamily: VibeFonts.medium },
-  creatorActions: { flexDirection: "row", gap: 4 },
-  cardActionIcon: { padding: 2 },
-  eventTitle: { fontSize: 14, fontFamily: VibeFonts.extraBold, color: "#1F1A3A", marginTop: 2, letterSpacing: -0.3 },
-  locationRow: { flexDirection: "row", alignItems: "center", gap: 3 },
-  locationVal: { color: "rgba(31, 26, 58, 0.6)", fontSize: 10, fontFamily: VibeFonts.medium, flex: 1 },
-  tagsCapsulesRow: { flexDirection: "row", gap: 4, flexWrap: "wrap", marginVertical: 2 },
-  tagCapsule: {
-    backgroundColor: "rgba(138,86,255,0.12)",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: Radius.full,
-    borderWidth: 0.5,
-    borderColor: "rgba(138,86,255,0.25)",
+  creatorName: { color: T.ink, fontSize: 13, fontFamily: VibeFonts.bold },
+  creatorTimeAgo: { color: T.faint, fontSize: 10, fontFamily: VibeFonts.medium, marginTop: 1 },
+  goingStack: {
+    alignItems: "center",
+    backgroundColor: T.softPurple,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
   },
-  tagCapsuleText: { color: "#C084FC", fontSize: 8, fontFamily: VibeFonts.bold },
-  eventDesc: { color: "rgba(31, 26, 58, 0.7)", fontSize: 10, fontFamily: VibeFonts.medium, lineHeight: 14 },
- 
-  // Card Bottom Row
+  goingStackNum: { fontSize: 13, fontFamily: VibeFonts.extraBold, color: T.purpleDeep },
+  goingStackLabel: { fontSize: 8, fontFamily: VibeFonts.bold, color: T.muted, textTransform: "uppercase" },
+  eventDesc: { color: T.muted, fontSize: 12, fontFamily: VibeFonts.medium, lineHeight: 17 },
+  tagsCapsulesRow: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
+  tagCapsule: {
+    backgroundColor: T.softPurple,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+  },
+  tagCapsuleText: { color: T.purpleDeep, fontSize: 10, fontFamily: VibeFonts.bold },
+
   cardFooter: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: Spacing.md,
-    paddingTop: Spacing.md,
-    borderTopWidth: 0.5,
-    borderTopColor: "rgba(31, 26, 58, 0.08)",
+    gap: 8,
+    marginTop: 4,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: T.border,
   },
   footerCapsule: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "rgba(31, 26, 58, 0.03)",
-    borderWidth: 0.5,
-    borderColor: "rgba(31, 26, 58, 0.08)",
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: Radius.md,
+    backgroundColor: "#F7F4FC",
+    borderWidth: 1,
+    borderColor: T.border,
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+    borderRadius: 10,
   },
-  footerCapsuleText: { color: "rgba(31, 26, 58, 0.6)", fontSize: 9, fontFamily: VibeFonts.bold },
-  interestBtn: { borderRadius: Radius.full, overflow: "hidden" },
-  interestGrad: { paddingHorizontal: 14, paddingVertical: 8 },
-  interestBtnText: { color: "#fff", fontSize: 9, fontFamily: VibeFonts.bold },
+  footerFree: { backgroundColor: "#ECFDF5", borderColor: "#BBF7D0" },
+  footerCapsuleText: { color: T.muted, fontSize: 10, fontFamily: VibeFonts.bold },
+  interestBtn: { marginLeft: "auto", borderRadius: Radius.full, overflow: "hidden" },
+  interestGrad: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  interestBtnText: { color: "#fff", fontSize: 11, fontFamily: VibeFonts.bold },
 
-  // Boost Your Event banner
-  boostBanner: { overflow: "hidden", marginTop: Spacing.md, borderRadius: Radius.lg },
+  // Legacy unused keys kept harmless for other refs
+  cardMainRow: { flexDirection: "row", gap: Spacing.md },
+  cardLeftThumb: { width: 108, height: 138, borderRadius: 18, overflow: "hidden" },
+  thumbImg: { width: "100%", height: "100%", resizeMode: "cover" },
+  thumbFade: { ...StyleSheet.absoluteFillObject },
+  countersRow: { position: "absolute", bottom: 8, left: 6, right: 6, flexDirection: "row" },
+  counterItem: { flexDirection: "row", alignItems: "center", gap: 3 },
+  counterText: { color: "#fff", fontSize: 8, fontFamily: VibeFonts.bold },
+  cardRightDetails: { flex: 1, gap: 4 },
+  creatorActions: { flexDirection: "row", gap: 4 },
+  cardActionIcon: { padding: 2 },
+  categoryMini: {
+    backgroundColor: T.softPurple,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  categoryMiniText: { fontSize: 9, fontFamily: VibeFonts.bold, color: T.purpleDeep },
+  eventTitle: { fontSize: 14, fontFamily: VibeFonts.extraBold, color: T.ink },
+  locationRow: { flexDirection: "row", alignItems: "center", gap: 3 },
+  locationVal: { color: T.muted, fontSize: 10, fontFamily: VibeFonts.medium, flex: 1 },
+
+  boostBanner: {
+    overflow: "hidden",
+    marginTop: Spacing.sm,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: "rgba(196,181,253,0.35)",
+  },
   boostGrad: {
     flexDirection: "row",
     alignItems: "center",
@@ -1108,24 +1284,46 @@ const styles = StyleSheet.create({
   },
   boostLeft: { flexDirection: "row", alignItems: "center", gap: Spacing.md, flex: 1 },
   crownCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(255,215,0,0.12)",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.1)",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "rgba(255,215,0,0.25)",
+    borderColor: "rgba(233,213,255,0.3)",
   },
   boostTextCol: { flex: 1, gap: 1 },
-  boostTitle: { color: "#fff", fontSize: 12, fontFamily: VibeFonts.bold, letterSpacing: -0.2 },
-  boostSubtitle: { color: "#D8B4FE", fontSize: 9, fontFamily: VibeFonts.medium },
+  boostTitle: { color: "#fff", fontSize: 13, fontFamily: VibeFonts.bold, letterSpacing: -0.2 },
+  boostSubtitle: { color: "#D8B4FE", fontSize: 10, fontFamily: VibeFonts.medium },
   boostBtn: { borderRadius: Radius.full, overflow: "hidden" },
-  boostBtnGrad: { paddingHorizontal: 12, paddingVertical: 7 },
-  boostBtnText: { fontSize: 9, fontFamily: VibeFonts.bold },
+  boostBtnGrad: { paddingHorizontal: 14, paddingVertical: 8 },
+  boostBtnText: { fontSize: 10, fontFamily: VibeFonts.bold },
+
+  mapCta: { marginTop: Spacing.md, marginBottom: Spacing.sm },
+  mapCtaInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: T.card,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: T.border,
+    padding: 14,
+  },
+  mapCtaIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: T.softPurple,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  mapCtaTitle: { fontSize: 14, fontFamily: VibeFonts.bold, color: T.ink },
+  mapCtaSub: { fontSize: 11, fontFamily: VibeFonts.medium, color: T.muted, marginTop: 1 },
 
   // Modal Sheet Form
-  modalOverlay: { flex: 1, backgroundColor: "rgba(31, 26, 58, 0.4)", justifyContent: "flex-end" },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(15,11,26,0.55)", justifyContent: "flex-end" },
   dismissOverlay: { ...StyleSheet.absoluteFillObject },
   modalSheet: {
     backgroundColor: "#FFFFFF",

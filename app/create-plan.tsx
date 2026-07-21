@@ -33,8 +33,12 @@ import Animated, {
 } from "react-native-reanimated";
 import { usePlans } from "../context/PlansContext";
 import { PLAN_ACTIVITIES, formatPlanSchedule } from "../constants/plans";
+import { CITIES, CityId, resolveCityId } from "../constants/mapEvents";
 import { VibeFonts } from "../constants/vibeTheme";
 import TabBar from "../components/TabBar";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useAuth } from "../context/AuthContext";
+import { api } from "../services/api";
 
 const friendsHangout3d = require("../assets/friends_hangout_3d.png");
 const { width: SCREEN_W } = Dimensions.get("window");
@@ -570,6 +574,7 @@ export default function CreatePlanScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { createPlan } = usePlans();
+  const { token } = useAuth();
   const [selectedVibe, setSelectedVibe] = useState("Lessgo");
   const [activityId, setActivityId] = useState("coffee");
   const [timeId, setTimeId] = useState<string | undefined>(undefined);
@@ -579,9 +584,30 @@ export default function CreatePlanScreen() {
   const [maxPeople, setMaxPeople] = useState(4);
   const [showCalendar, setShowCalendar] = useState(false);
   const [place, setPlace] = useState("");
+  const [planCityId, setPlanCityId] = useState<CityId>("nagpur");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    (async () => {
+      try {
+        const saved = await AsyncStorage.getItem("@vibely_map_city");
+        if (saved && CITIES.some((c) => c.id === saved)) {
+          setPlanCityId(saved as CityId);
+          return;
+        }
+        if (token) {
+          const res = (await api.getProfile(token)) as any;
+          const resolved = resolveCityId(res?.profile?.city);
+          if (resolved) setPlanCityId(resolved);
+        }
+      } catch {
+        /* keep default */
+      }
+    })();
+  }, [token]);
+
+  const planCity = CITIES.find((c) => c.id === planCityId) || CITIES[0];
   const activity = PLAN_ACTIVITIES.find((a) => a.id === activityId)!;
   const schedule = formatPlanSchedule({ timeId, dateId, customDate, customTime });
   const vibe = VIBE_ORBS.find((o) => o.id === selectedVibe) || VIBE_ORBS[0];
@@ -618,6 +644,15 @@ export default function CreatePlanScreen() {
     setSaving(true);
     const energyLabel = `[Vibe: ${selectedVibe}]`;
     try {
+      const placeText = place.trim();
+      // Always stamp city so Events Map can place the pin in the right city
+      const alreadyHasCity = !!resolveCityId(placeText);
+      const location = placeText
+        ? alreadyHasCity
+          ? placeText
+          : `${placeText}, ${planCity.name}`
+        : planCity.name;
+
       await createPlan({
         activityId,
         activityName: activity.name,
@@ -627,13 +662,24 @@ export default function CreatePlanScreen() {
         customDate: dateId === "custom" ? customDate || undefined : undefined,
         customTime: customTime || undefined,
         maxParticipants: maxPeople,
-        location: place.trim() || undefined,
+        location,
         description: description.trim() ? `${energyLabel} ${description.trim()}` : energyLabel,
         imageUrl: activity.image,
       });
-      Alert.alert("Plan Live! ✨", `${activity.name} plan is live. Nearby people can join.`, [
-        { text: "View Plans", onPress: () => router.replace("/hangout") },
-      ]);
+
+      await AsyncStorage.setItem("@vibely_map_city", planCityId);
+
+      Alert.alert(
+        "Plan Live! ✨",
+        `${activity.name} is live in ${planCity.name}. It will show on the ${planCity.name} Events Map.`,
+        [
+          {
+            text: "View on Map",
+            onPress: () => router.replace("/events-map"),
+          },
+          { text: "View Plans", onPress: () => router.replace("/hangout") },
+        ]
+      );
     } catch (e) {
       Alert.alert("Error", e instanceof Error ? e.message : "Could not create plan");
     } finally {
@@ -1016,13 +1062,36 @@ export default function CreatePlanScreen() {
 
             <View style={styles.whenDivider} />
 
+            <Text style={styles.cityPickLabel}>City on map</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.cityPickRow}
+            >
+              {CITIES.map((c) => {
+                const active = planCityId === c.id;
+                return (
+                  <Pressable
+                    key={c.id}
+                    onPress={() => setPlanCityId(c.id)}
+                    style={[styles.cityPickChip, active && styles.cityPickChipActive]}
+                  >
+                    <Text style={styles.cityPickEmoji}>{c.emoji}</Text>
+                    <Text style={[styles.cityPickText, active && styles.cityPickTextActive]}>
+                      {c.name}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
             <View style={styles.inputRowDark}>
               <Ionicons name="navigate" size={14} color="#FB7185" />
               <TextInput
                 style={styles.inputDark}
                 value={place}
                 onChangeText={setPlace}
-                placeholder="Place · cafe, park, mall..."
+                placeholder={`Place in ${planCity.name} · cafe, park, mall...`}
                 placeholderTextColor="rgba(226,232,240,0.35)"
               />
               {place.trim() ? (
@@ -1868,6 +1937,43 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "rgba(255,255,255,0.08)",
     marginVertical: 10,
+  },
+  cityPickLabel: {
+    fontSize: 11,
+    fontFamily: VibeFonts.bold,
+    color: "rgba(226,232,240,0.55)",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    marginBottom: 8,
+  },
+  cityPickRow: {
+    gap: 8,
+    paddingBottom: 12,
+  },
+  cityPickChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  cityPickChipActive: {
+    backgroundColor: "rgba(139,92,246,0.28)",
+    borderColor: "rgba(196,181,253,0.55)",
+  },
+  cityPickEmoji: { fontSize: 14 },
+  cityPickText: {
+    fontSize: 12,
+    fontFamily: VibeFonts.semiBold,
+    color: "rgba(226,232,240,0.55)",
+  },
+  cityPickTextActive: {
+    color: "#F8FAFC",
+    fontFamily: VibeFonts.bold,
   },
   noteRowDark: {
     alignItems: "flex-start",

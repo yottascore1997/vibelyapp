@@ -11,7 +11,8 @@ export default function TabsLayout() {
     pathname.includes("index") ||
     pathname.includes("profile") ||
     pathname.includes("hangout") ||
-    pathname.includes("discover");
+    pathname.includes("discover") ||
+    pathname.includes("chats");
 
   return (
     <View style={[styles.container, lightChrome && styles.containerLight]}>

@@ -21,7 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeInRight, FadeInUp, useSharedValue, useAnimatedStyle, withTiming, Easing, runOnJS, ZoomIn, withRepeat } from "react-native-reanimated";
 import NotificationBanner from "../../components/NotificationBanner";
 import PremiumScreen from "../../components/vibe/PremiumScreen";
-import AppHeader from "../../components/vibe/AppHeader";
+import PremiumHeader from "../../components/vibe/PremiumHeader";
 import SectionHeader from "../../components/vibe/SectionHeader";
 import GlassCard from "../../components/vibe/GlassCard";
 import PulseDot from "../../components/home/PulseDot";
@@ -45,6 +45,7 @@ const homeActivities = [
 const APP_FEATURES = [
   { id: "discover", title: "Discover", icon: "heart" as const, colors: ["#FF4B81", "#E11D48"] as const, route: "/(tabs)/discover" },
   { id: "hangout", title: "Hangout", icon: "cafe" as const, colors: ["#8A56FF", "#A855F7"] as const, route: "/hangout" },
+  { id: "map", title: "Events Map", icon: "map" as const, colors: ["#14B8A6", "#0D9488"] as const, route: "/events-map" },
   { id: "friends", title: "Friends", icon: "people" as const, colors: ["#22C55E", "#16A34A"] as const, route: "/reels" },
   { id: "travel", title: "Travel", icon: "airplane" as const, colors: ["#3B82F6", "#2563EB"] as const, route: "/travel" },
   { id: "events", title: "Events", icon: "calendar" as const, colors: ["#D4AF37", "#B8860B"] as const, route: "/explore-events" },
@@ -325,7 +326,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [search, setSearch] = useState("");
-  const { likesCount } = useMatches();
+  const { likesCount, conversations } = useMatches();
   const { user, token } = useAuth();
   const [myVibe, setMyVibe] = useState<"Lessgo" | "Maybe" | "Off grid">("Lessgo");
   const [bannerIndex, setBannerIndex] = useState(0);
@@ -499,10 +500,7 @@ export default function HomeScreen() {
     return "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop";
   };
 
-  const firstName = profile?.firstName || user?.name?.split(" ")[0] || "there";
-  const hour = new Date().getHours();
-  const dayPart =
-    hour < 12 ? "GOOD MORNING" : hour < 17 ? "GOOD AFTERNOON" : "GOOD EVENING";
+  const chatsUnread = conversations.reduce((sum, t) => sum + (t.unread || 0), 0);
 
   return (
     <View style={{ flex: 1, backgroundColor: Luxe.bg }}>
@@ -533,65 +531,61 @@ export default function HomeScreen() {
       />
       <View style={styles.coolOrb} />
 
-      <AppHeader variant="light" badgeCount={likesCount} />
+      <PremiumHeader
+        likesCount={likesCount}
+        chatsCount={chatsUnread}
+        avatarUrl={getAvatarUri()}
+        tagline="Find your vibe"
+      />
 
-      {/* Welcome hero */}
-      <Animated.View entering={FadeInUp.duration(500).springify()}>
+      {/* Live Status — replaces welcome hero */}
+      <Animated.View entering={FadeInUp.duration(450).springify()}>
+        <SectionHeader light title="Live Status" subtitle="Tell people if you're free" onAction={() => router.push("/(tabs)/vibes")} action="Open ›" />
         <LinearGradient
-          colors={[...Luxe.welcome]}
+          colors={["#FFFFFF", "#F8F4FF"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={styles.welcomeCard}
+          style={styles.vibeSelectorCard}
         >
-          <View style={styles.welcomeBlob} />
-          <View style={styles.welcomeLeft}>
-            <View style={styles.avatarContainer}>
-              <LinearGradient
-                colors={["#8B5CF6", "#EC4899"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.avatarGradientBorder}
-              >
-                <Image source={{ uri: getAvatarUri() }} style={styles.avatarImg} />
-              </LinearGradient>
-              <Pressable style={styles.editPenBtn} onPress={() => router.push("/edit-profile")}>
-                <Ionicons name="pencil" size={10} color="#fff" />
-              </Pressable>
-            </View>
-          </View>
-
-          <View style={styles.welcomeCenter}>
-            <View style={styles.welcomePill}>
-              <Ionicons name="sparkles" size={10} color={Luxe.purple} />
-              <Text style={styles.welcomeEyebrow}>{dayPart}</Text>
-            </View>
-            <Text style={styles.welcomeGreeting}>Hey, {firstName}</Text>
-            <Text style={styles.welcomeSub}>Date · Hangout · Travel · Friends</Text>
-            <View style={styles.scoreRow}>
-              <View style={styles.scoreBadge}>
-                <Ionicons name="flash" size={10} color={Luxe.purple} style={{ marginRight: 3 }} />
-                <Text style={styles.scoreBadgeText}>Vibe Score</Text>
+          <View style={styles.orbsRow}>
+            <Pressable style={styles.orbItem} onPress={() => handleOrbPress("Lessgo")}>
+              <View style={styles.orbWrapper}>
+                {myVibe === "Lessgo" && <View style={[styles.glowRing, { borderColor: "#22C55E", shadowColor: "#22C55E", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 8, elevation: 4 }]} />}
+                <LinearGradient colors={["#E6FDEE", "#4ADE80", "#16A34A"]} style={styles.glassOrb}>
+                  <View style={styles.shineSpot} />
+                </LinearGradient>
               </View>
-              <LinearGradient
-                colors={[...Luxe.cta]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.scoreValBox}
-              >
-                <Text style={styles.scoreValText}>78</Text>
-              </LinearGradient>
-              <Text style={styles.scoreStatus}>Elite</Text>
-            </View>
-          </View>
+              <Text style={[styles.orbTitle, { color: "#22C55E" }, myVibe === "Lessgo" && styles.orbTitleActive]}>
+                Lessgo
+              </Text>
+              <Text style={styles.orbSubtitle}>I'm up for anything!</Text>
+            </Pressable>
 
-          <View style={styles.welcomeRight}>
-            <Image source={require("../../assets/heart_3d_glow.png")} style={styles.heart3D} />
-            <View style={[styles.miniAvatar, styles.miniAvatarLeft]}>
-              <Image source={{ uri: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop" }} style={styles.miniAvatarImg} />
-            </View>
-            <View style={[styles.miniAvatar, styles.miniAvatarRight]}>
-              <Image source={{ uri: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop" }} style={styles.miniAvatarImg} />
-            </View>
+            <Pressable style={styles.orbItem} onPress={() => handleOrbPress("Maybe")}>
+              <View style={styles.orbWrapper}>
+                {myVibe === "Maybe" && <View style={[styles.glowRing, { borderColor: "#EAB308", shadowColor: "#EAB308", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 8, elevation: 4 }]} />}
+                <LinearGradient colors={["#FFFDEB", "#FDE047", "#CA8A04"]} style={styles.glassOrb}>
+                  <View style={styles.shineSpot} />
+                </LinearGradient>
+              </View>
+              <Text style={[styles.orbTitle, { color: "#EAB308" }, myVibe === "Maybe" && styles.orbTitleActive]}>
+                Maybe
+              </Text>
+              <Text style={styles.orbSubtitle}>Not sure yet</Text>
+            </Pressable>
+
+            <Pressable style={styles.orbItem} onPress={() => handleOrbPress("Off grid")}>
+              <View style={styles.orbWrapper}>
+                {myVibe === "Off grid" && <View style={[styles.glowRing, { borderColor: "#EF4444", shadowColor: "#EF4444", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 8, elevation: 4 }]} />}
+                <LinearGradient colors={["#FFEFEF", "#F87171", "#DC2626"]} style={styles.glassOrb}>
+                  <View style={styles.shineSpot} />
+                </LinearGradient>
+              </View>
+              <Text style={[styles.orbTitle, { color: "#EF4444" }, myVibe === "Off grid" && styles.orbTitleActive]}>
+                Off grid
+              </Text>
+              <Text style={styles.orbSubtitle}>Need my space</Text>
+            </Pressable>
           </View>
         </LinearGradient>
       </Animated.View>
@@ -713,58 +707,6 @@ export default function HomeScreen() {
       ) : (
         <Text style={styles.emptyText}>No users online right now</Text>
       )}
-
-      <SectionHeader light title="Live Status" subtitle="Tell people if you're free" onAction={() => router.push("/(tabs)/vibes")} action="Open ›" />
-      <LinearGradient
-        colors={["#FFFFFF", "#F8F4FF"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.vibeSelectorCard}
-      >
-        <View style={styles.orbsRow}>
-          {/* Green Orb: Lessgo */}
-          <Pressable style={styles.orbItem} onPress={() => handleOrbPress("Lessgo")}>
-            <View style={styles.orbWrapper}>
-              {myVibe === "Lessgo" && <View style={[styles.glowRing, { borderColor: "#22C55E", shadowColor: "#22C55E", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 8, elevation: 4 }]} />}
-              <LinearGradient colors={["#E6FDEE", "#4ADE80", "#16A34A"]} style={styles.glassOrb}>
-                <View style={styles.shineSpot} />
-              </LinearGradient>
-            </View>
-            <Text style={[styles.orbTitle, { color: "#22C55E" }, myVibe === "Lessgo" && styles.orbTitleActive]}>
-              Lessgo
-            </Text>
-            <Text style={styles.orbSubtitle}>I'm up for anything!</Text>
-          </Pressable>
-
-          {/* Yellow Orb: Maybe */}
-          <Pressable style={styles.orbItem} onPress={() => handleOrbPress("Maybe")}>
-            <View style={styles.orbWrapper}>
-              {myVibe === "Maybe" && <View style={[styles.glowRing, { borderColor: "#EAB308", shadowColor: "#EAB308", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 8, elevation: 4 }]} />}
-              <LinearGradient colors={["#FFFDEB", "#FDE047", "#CA8A04"]} style={styles.glassOrb}>
-                <View style={styles.shineSpot} />
-              </LinearGradient>
-            </View>
-            <Text style={[styles.orbTitle, { color: "#EAB308" }, myVibe === "Maybe" && styles.orbTitleActive]}>
-              Maybe
-            </Text>
-            <Text style={styles.orbSubtitle}>Not sure yet</Text>
-          </Pressable>
-
-          {/* Red Orb: Off grid */}
-          <Pressable style={styles.orbItem} onPress={() => handleOrbPress("Off grid")}>
-            <View style={styles.orbWrapper}>
-              {myVibe === "Off grid" && <View style={[styles.glowRing, { borderColor: "#EF4444", shadowColor: "#EF4444", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 8, elevation: 4 }]} />}
-              <LinearGradient colors={["#FFEFEF", "#F87171", "#DC2626"]} style={styles.glassOrb}>
-                <View style={styles.shineSpot} />
-              </LinearGradient>
-            </View>
-            <Text style={[styles.orbTitle, { color: "#EF4444" }, myVibe === "Off grid" && styles.orbTitleActive]}>
-              Off grid
-            </Text>
-            <Text style={styles.orbSubtitle}>Need my space</Text>
-          </Pressable>
-        </View>
-      </LinearGradient>
 
       {/* Today's Spontaneous Events Section */}
       {(() => {

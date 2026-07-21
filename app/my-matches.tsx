@@ -20,12 +20,27 @@ import GlassCard from "../components/vibe/GlassCard";
 import PremiumScreen from "../components/vibe/PremiumScreen";
 import TabBar from "../components/TabBar";
 import { useMatches } from "../context/MatchesContext";
-import { VibeColors, VibeFonts } from "../constants/vibeTheme";
+import { VibeFonts } from "../constants/vibeTheme";
 import { Radius, Spacing } from "../constants/theme";
 import { BlurView } from "expo-blur";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - Spacing.lg * 3.5) / 2;
+
+const T = {
+  bg: "#EEE9F8",
+  ink: "#1A1F36",
+  muted: "#6B7280",
+  faint: "#9CA3AF",
+  card: "#FFFBFE",
+  border: "#E4DFF0",
+  softPurple: "#EDE7FF",
+  purple: "#8B5CF6",
+  purpleDeep: "#7C3AED",
+  pink: "#EC4899",
+  cta: ["#8B5CF6", "#EC4899"] as const,
+  green: "#16A34A",
+};
 
 export default function MyMatchesScreen() {
   const router = useRouter();
@@ -47,34 +62,55 @@ export default function MyMatchesScreen() {
 
   return (
     <View style={styles.root}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
 
       <PremiumScreen
-        title="My Matches 💖"
-        subtitle={activeTab === "matches" ? `${matches.length} matched connections` : `${likesList.length} pending likes`}
+        lightMode={true}
+        title="My Matches"
+        subtitle={
+          activeTab === "matches"
+            ? `${matches.length} matched connections`
+            : `${likesList.length} pending likes`
+        }
         onBack={() => router.back()}
         heroImage="https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=800&fit=crop&q=80"
       >
-        {/* Custom Segmented Tabs */}
+        {/* Segmented tabs */}
         <View style={styles.tabContainer}>
           <TouchableOpacity
             style={[styles.tabItem, activeTab === "matches" && styles.tabItemActive]}
             onPress={() => setActiveTab("matches")}
+            activeOpacity={0.85}
           >
-            <Ionicons name="heart" size={15} color={activeTab === "matches" ? "#fff" : "#A7A7AF"} />
-            <Text style={[styles.tabText, activeTab === "matches" && styles.tabTextActive]}>
-              Matches ({matches.length})
-            </Text>
+            {activeTab === "matches" ? (
+              <LinearGradient colors={[...T.cta]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.tabItemFill}>
+                <Ionicons name="heart" size={15} color="#fff" />
+                <Text style={styles.tabTextActive}>Matches ({matches.length})</Text>
+              </LinearGradient>
+            ) : (
+              <View style={styles.tabItemFill}>
+                <Ionicons name="heart" size={15} color={T.faint} />
+                <Text style={styles.tabText}>Matches ({matches.length})</Text>
+              </View>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.tabItem, activeTab === "likes" && styles.tabItemActive]}
             onPress={() => setActiveTab("likes")}
+            activeOpacity={0.85}
           >
-            <Ionicons name="lock-closed" size={14} color={activeTab === "likes" ? "#D4AF37" : "#A7A7AF"} />
-            <Text style={[styles.tabText, activeTab === "likes" && styles.tabTextActive]}>
-              Likes Received ({likesList.length})
-            </Text>
+            {activeTab === "likes" ? (
+              <LinearGradient colors={[...T.cta]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.tabItemFill}>
+                <Ionicons name="lock-closed" size={14} color="#fff" />
+                <Text style={styles.tabTextActive}>Likes ({likesList.length})</Text>
+              </LinearGradient>
+            ) : (
+              <View style={styles.tabItemFill}>
+                <Ionicons name="lock-closed" size={14} color={T.faint} />
+                <Text style={styles.tabText}>Likes ({likesList.length})</Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -82,15 +118,17 @@ export default function MyMatchesScreen() {
           matches.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Animated.View entering={ZoomIn.duration(500)} style={styles.emptyCardWrap}>
-                <GlassCard style={styles.emptyCard}>
-                  <Ionicons name="heart-dislike-outline" size={60} color="#FF4B81" style={{ marginBottom: 16 }} />
+                <GlassCard lightMode style={styles.emptyCard}>
+                  <View style={styles.emptyIconWrap}>
+                    <Ionicons name="heart-dislike-outline" size={36} color={T.pink} />
+                  </View>
                   <Text style={styles.emptyTitle}>No matches yet</Text>
                   <Text style={styles.emptyDesc}>
-                    Swipe right on the dating feed. When someone likes you back, it's a match!
+                    Swipe right on Discover. When someone likes you back, it&apos;s a match!
                   </Text>
                   <Pressable onPress={() => router.push("/(tabs)/discover")}>
                     <LinearGradient
-                      colors={["#8A56FF", "#FF4B81"]}
+                      colors={[...T.cta]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
                       style={styles.discoverBtn}
@@ -105,7 +143,7 @@ export default function MyMatchesScreen() {
           ) : (
             <View style={styles.gridContainer}>
               <Text style={styles.subtitle}>
-                Your matched profiles. Click to view details or start a chat! ⚡
+                Your matched profiles — tap to view details or start chatting.
               </Text>
 
               <View style={styles.grid}>
@@ -115,13 +153,10 @@ export default function MyMatchesScreen() {
                     entering={FadeInDown.delay(index * 60).springify().damping(12)}
                     style={styles.cardWrap}
                   >
-                    <Pressable
-                      style={styles.matchCard}
-                      onPress={() => setSelectedMatch(item)}
-                    >
+                    <Pressable style={styles.matchCard} onPress={() => setSelectedMatch(item)}>
                       <Image source={{ uri: item.avatarUrl }} style={styles.cardImage} />
                       <LinearGradient
-                        colors={["transparent", "rgba(5,5,8,0.95)"]}
+                        colors={["transparent", "rgba(26,31,54,0.92)"]}
                         style={styles.cardGradient}
                       />
 
@@ -130,125 +165,122 @@ export default function MyMatchesScreen() {
                           <Text style={styles.cardName} numberOfLines={1}>
                             {item.name}
                           </Text>
-                          {item.age && (
-                            <Text style={styles.cardAge}>, {item.age}</Text>
-                          )}
+                          {item.age ? <Text style={styles.cardAge}>, {item.age}</Text> : null}
                         </View>
-                        
+
                         <View style={styles.cityRow}>
-                          <Ionicons name="location" size={11} color="#C084FC" />
+                          <Ionicons name="location" size={11} color="#E9D5FF" />
                           <Text style={styles.cardCity} numberOfLines={1}>
                             {item.city || "Nagpur"}
                           </Text>
                         </View>
 
-                        {item.isVerified && (
+                        {item.isVerified ? (
                           <View style={styles.verifiedRow}>
-                            <Ionicons name="checkmark-circle" size={12} color="#8A56FF" />
+                            <Ionicons name="checkmark-circle" size={12} color="#C4B5FD" />
                             <Text style={styles.verifiedText}>Verified</Text>
                           </View>
-                        )}
+                        ) : null}
                       </View>
 
-                      {item.isOnline && (
+                      {item.isOnline ? (
                         <View style={styles.activePill}>
                           <View style={styles.pulseDot} />
                           <Text style={styles.activeText}>Active</Text>
                         </View>
-                      )}
+                      ) : null}
                     </Pressable>
                   </Animated.View>
                 ))}
               </View>
             </View>
           )
-        ) : (
-          likesList.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <Animated.View entering={ZoomIn.duration(500)} style={styles.emptyCardWrap}>
-                <GlassCard style={styles.emptyCard}>
-                  <Ionicons name="lock-closed" size={60} color="#D4AF37" style={{ marginBottom: 16 }} />
-                  <Text style={styles.emptyTitle}>No pending likes</Text>
-                  <Text style={styles.emptyDesc}>
-                    Keep swiping! When users find you on Discover and like you, their locked profiles will appear here.
-                  </Text>
-                  <Pressable onPress={() => router.push("/(tabs)/discover")}>
-                    <LinearGradient
-                      colors={["#8A56FF", "#FF4B81"]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.discoverBtn}
-                    >
-                      <Ionicons name="compass" size={16} color="#fff" />
-                      <Text style={styles.discoverBtnText}>Go to Discover</Text>
-                    </LinearGradient>
-                  </Pressable>
-                </GlassCard>
-              </Animated.View>
-            </View>
-          ) : (
-            <View style={styles.gridContainer}>
-              <Text style={styles.subtitle}>
-                These users liked you! Swipe right on them inside Discover to unlock the match instantly. 🔒
-              </Text>
-
-              <View style={styles.grid}>
-                {likesList.map((item, index) => (
-                  <Animated.View
-                    key={item.id}
-                    entering={FadeInDown.delay(index * 60).springify().damping(12)}
-                    style={styles.cardWrap}
+        ) : likesList.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Animated.View entering={ZoomIn.duration(500)} style={styles.emptyCardWrap}>
+              <GlassCard lightMode style={styles.emptyCard}>
+                <View style={[styles.emptyIconWrap, { backgroundColor: "#EDE7FF" }]}>
+                  <Ionicons name="lock-closed" size={32} color={T.purple} />
+                </View>
+                <Text style={styles.emptyTitle}>No pending likes</Text>
+                <Text style={styles.emptyDesc}>
+                  Keep swiping! When someone likes you on Discover, their locked profile will show here.
+                </Text>
+                <Pressable onPress={() => router.push("/(tabs)/discover")}>
+                  <LinearGradient
+                    colors={[...T.cta]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.discoverBtn}
                   >
-                    <Pressable
-                      style={styles.matchCard}
-                      onPress={() => setLockedModalProfile(item)}
-                    >
-                      <View style={{ width: "100%", height: "100%", overflow: "hidden", backgroundColor: "#0D0B18" }}>
-                        <Image source={{ uri: item.avatarUrl }} style={[styles.cardImage, { opacity: 0.15 }]} />
-                        <BlurView intensity={98} tint="dark" style={StyleSheet.absoluteFill} />
-                        <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(13,11,24,0.75)" }} />
-                      </View>
+                    <Ionicons name="compass" size={16} color="#fff" />
+                    <Text style={styles.discoverBtnText}>Go to Discover</Text>
+                  </LinearGradient>
+                </Pressable>
+              </GlassCard>
+            </Animated.View>
+          </View>
+        ) : (
+          <View style={styles.gridContainer}>
+            <Text style={styles.subtitle}>
+              These people liked you. Swipe right on them in Discover to unlock the match.
+            </Text>
 
-                      <View style={styles.lockOverlayContainer}>
-                        <Ionicons name="lock-closed" size={22} color="#D4AF37" />
-                        <Text style={styles.lockOverlayText}>Swipe to Reveal</Text>
-                      </View>
-
-                      <LinearGradient
-                        colors={["transparent", "rgba(5,5,8,0.95)"]}
-                        style={styles.cardGradient}
+            <View style={styles.grid}>
+              {likesList.map((item, index) => (
+                <Animated.View
+                  key={item.id}
+                  entering={FadeInDown.delay(index * 60).springify().damping(12)}
+                  style={styles.cardWrap}
+                >
+                  <Pressable style={styles.matchCard} onPress={() => setLockedModalProfile(item)}>
+                    <View style={styles.lockedImageWrap}>
+                      <Image
+                        source={{ uri: item.avatarUrl }}
+                        style={[styles.cardImage, { opacity: 0.2 }]}
                       />
+                      <BlurView intensity={90} tint="light" style={StyleSheet.absoluteFill} />
+                      <View style={styles.lockedScrim} />
+                    </View>
 
-                      <View style={styles.cardDetails}>
-                        <View style={styles.nameAgeRow}>
-                          <Text style={styles.cardName} numberOfLines={1}>
-                            {maskName(item.name)}
-                          </Text>
-                          {item.age && (
-                            <Text style={styles.cardAge}>, {item.age}</Text>
-                          )}
-                        </View>
-                        
-                        <View style={styles.cityRow}>
-                          <Ionicons name="location" size={11} color="rgba(255,255,255,0.4)" />
-                          <Text style={[styles.cardCity, { color: "rgba(255,255,255,0.4)" }]} numberOfLines={1}>
-                            Nagpur
-                          </Text>
-                        </View>
+                    <View style={styles.lockOverlayContainer}>
+                      <View style={styles.lockBadge}>
+                        <Ionicons name="lock-closed" size={18} color={T.purpleDeep} />
                       </View>
-                    </Pressable>
-                  </Animated.View>
-                ))}
-              </View>
+                      <Text style={styles.lockOverlayText}>Swipe to reveal</Text>
+                    </View>
+
+                    <LinearGradient
+                      colors={["transparent", "rgba(26,31,54,0.88)"]}
+                      style={styles.cardGradient}
+                    />
+
+                    <View style={styles.cardDetails}>
+                      <View style={styles.nameAgeRow}>
+                        <Text style={styles.cardName} numberOfLines={1}>
+                          {maskName(item.name)}
+                        </Text>
+                        {item.age ? <Text style={styles.cardAge}>, {item.age}</Text> : null}
+                      </View>
+
+                      <View style={styles.cityRow}>
+                        <Ionicons name="location" size={11} color="rgba(255,255,255,0.45)" />
+                        <Text style={[styles.cardCity, { color: "rgba(255,255,255,0.45)" }]} numberOfLines={1}>
+                          Nagpur
+                        </Text>
+                      </View>
+                    </View>
+                  </Pressable>
+                </Animated.View>
+              ))}
             </View>
-          )
+          </View>
         )}
       </PremiumScreen>
 
-      {/* Main Tabbar Navigation Footer */}
-      <TabBar />
+      <TabBar dark={false} />
 
-      {/* MATCH DETAILS MODAL SHEET */}
+      {/* Match details sheet */}
       <Modal
         visible={!!selectedMatch}
         transparent
@@ -257,54 +289,55 @@ export default function MyMatchesScreen() {
       >
         <View style={styles.modalOverlay}>
           <Pressable style={styles.dismissOverlay} onPress={() => setSelectedMatch(null)} />
-          
+
           <Animated.View entering={FadeInDown.duration(300)} style={styles.modalSheet}>
-            {selectedMatch && (
+            {selectedMatch ? (
               <>
-                {/* Profile Image View */}
                 <View style={styles.modalImageContainer}>
                   <Image source={{ uri: selectedMatch.avatarUrl }} style={styles.modalImage} />
                   <LinearGradient
-                    colors={["rgba(8,8,14,0.3)", "transparent", "rgba(8,8,14,0.95)"]}
+                    colors={["rgba(26,31,54,0.2)", "transparent", "rgba(26,31,54,0.92)"]}
                     style={styles.modalImageGradient}
                   />
 
-                  {/* Close Modal Button */}
                   <Pressable style={styles.closeModalBtn} onPress={() => setSelectedMatch(null)}>
-                    <Ionicons name="close" size={24} color="#fff" />
+                    <Ionicons name="close" size={22} color={T.ink} />
                   </Pressable>
 
-                  {/* Absolute Profile title */}
                   <View style={styles.modalTitleDetails}>
                     <View style={styles.modalNameRow}>
                       <Text style={styles.modalName}>{selectedMatch.name}</Text>
-                      {selectedMatch.age && <Text style={styles.modalAge}>, {selectedMatch.age}</Text>}
-                      {selectedMatch.isVerified && (
-                        <Ionicons name="checkmark-circle" size={18} color="#C084FC" style={{ marginLeft: 6 }} />
-                      )}
+                      {selectedMatch.age ? (
+                        <Text style={styles.modalAge}>, {selectedMatch.age}</Text>
+                      ) : null}
+                      {selectedMatch.isVerified ? (
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={18}
+                          color="#C4B5FD"
+                          style={{ marginLeft: 6 }}
+                        />
+                      ) : null}
                     </View>
 
                     <View style={styles.modalCityRow}>
-                      <Ionicons name="location-outline" size={12} color="rgba(255,255,255,0.7)" />
+                      <Ionicons name="location-outline" size={12} color="rgba(255,255,255,0.75)" />
                       <Text style={styles.modalCity}>{selectedMatch.city || "Nagpur"}</Text>
                     </View>
                   </View>
                 </View>
 
-                {/* Details Scroll Section */}
                 <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
-                  {/* Bio */}
-                  {selectedMatch.bio && (
+                  {selectedMatch.bio ? (
                     <View style={styles.detailSection}>
                       <Text style={styles.sectionLabel}>About Me</Text>
-                      <GlassCard style={styles.bioCard}>
+                      <GlassCard lightMode style={styles.bioCard}>
                         <Text style={styles.bioText}>{selectedMatch.bio}</Text>
                       </GlassCard>
                     </View>
-                  )}
+                  ) : null}
 
-                  {/* Interests */}
-                  {selectedMatch.interests && selectedMatch.interests.length > 0 && (
+                  {selectedMatch.interests && selectedMatch.interests.length > 0 ? (
                     <View style={styles.detailSection}>
                       <Text style={styles.sectionLabel}>Interests</Text>
                       <View style={styles.interestsGrid}>
@@ -313,24 +346,31 @@ export default function MyMatchesScreen() {
                             key={i}
                             style={[
                               styles.interestBadge,
-                              { backgroundColor: `${interest.color || "#8A56FF"}20`, borderColor: `${interest.color || "#8A56FF"}40` }
+                              {
+                                backgroundColor: `${interest.color || T.purple}18`,
+                                borderColor: `${interest.color || T.purple}40`,
+                              },
                             ]}
                           >
-                            <Text style={[styles.interestText, { color: interest.color || "#C084FC" }]}>
+                            <Text
+                              style={[
+                                styles.interestText,
+                                { color: interest.color || T.purpleDeep },
+                              ]}
+                            >
                               {interest.name}
                             </Text>
                           </View>
                         ))}
                       </View>
                     </View>
-                  )}
+                  ) : null}
                 </ScrollView>
 
-                {/* Bottom Action Footer */}
                 <SafeAreaView edges={["bottom"]} style={styles.modalFooter}>
                   <Pressable onPress={() => handleOpenChat(selectedMatch.id)} style={styles.chatBtnWrap}>
                     <LinearGradient
-                      colors={["#8A56FF", "#FF4B81"]}
+                      colors={[...T.cta]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
                       style={styles.chatGradientBtn}
@@ -341,12 +381,12 @@ export default function MyMatchesScreen() {
                   </Pressable>
                 </SafeAreaView>
               </>
-            )}
+            ) : null}
           </Animated.View>
         </View>
       </Modal>
 
-      {/* LOCKED LIKES PROFILE MODAL */}
+      {/* Locked likes modal */}
       <Modal
         visible={!!lockedModalProfile}
         transparent
@@ -356,15 +396,15 @@ export default function MyMatchesScreen() {
         <View style={styles.lockedOverlay}>
           <Pressable style={styles.dismissOverlay} onPress={() => setLockedModalProfile(null)} />
           <Animated.View entering={ZoomIn.duration(400).springify()} style={styles.lockedCard}>
-            <LinearGradient colors={["#1c102c", "#0d0b16"]} style={styles.lockedCardInner}>
+            <LinearGradient colors={["#FFFFFF", "#F8F4FF"]} style={styles.lockedCardInner}>
               <View style={styles.lockedIconCircle}>
-                <Ionicons name="lock-closed" size={32} color="#D4AF37" />
+                <Ionicons name="lock-closed" size={28} color={T.purple} />
               </View>
 
-              <Text style={styles.lockedModalTitle}>Match is Locked! 🔒</Text>
-              
+              <Text style={styles.lockedModalTitle}>Match is Locked</Text>
+
               <Text style={styles.lockedModalSub}>
-                Someone special from Nagpur liked your profile! Find them inside the Discover feed to match and unlock.
+                Someone from Nagpur liked your profile. Find them in Discover to match and unlock.
               </Text>
 
               <Pressable
@@ -375,7 +415,7 @@ export default function MyMatchesScreen() {
                 style={{ width: "100%" }}
               >
                 <LinearGradient
-                  colors={["#8A56FF", "#FF4B81"]}
+                  colors={[...T.cta]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.lockedActionBtn}
@@ -397,17 +437,16 @@ export default function MyMatchesScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: VibeColors.bg },
+  root: { flex: 1, backgroundColor: T.bg },
   gridContainer: { flex: 1 },
   subtitle: {
     fontSize: 12,
     fontFamily: VibeFonts.medium,
-    color: VibeColors.textMuted,
+    color: T.muted,
     lineHeight: 18,
     marginBottom: Spacing.md,
   },
 
-  // Grid list styling
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -418,11 +457,16 @@ const styles = StyleSheet.create({
   matchCard: {
     width: "100%",
     height: 230,
-    borderRadius: Radius.xl,
+    borderRadius: 22,
     overflow: "hidden",
-    backgroundColor: "rgba(255,255,255,0.03)",
+    backgroundColor: T.card,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.06)",
+    borderColor: T.border,
+    shadowColor: T.purple,
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
   cardImage: { width: "100%", height: "100%", resizeMode: "cover" },
   cardGradient: {
@@ -443,17 +487,17 @@ const styles = StyleSheet.create({
   cardName: { fontSize: 14, fontFamily: VibeFonts.bold, color: "#fff" },
   cardAge: { fontSize: 13, fontFamily: VibeFonts.bold, color: "#fff" },
   cityRow: { flexDirection: "row", alignItems: "center", gap: 3 },
-  cardCity: { fontSize: 10, fontFamily: VibeFonts.medium, color: VibeColors.textMuted, flex: 1 },
+  cardCity: { fontSize: 10, fontFamily: VibeFonts.medium, color: "rgba(255,255,255,0.75)", flex: 1 },
   verifiedRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 1 },
-  verifiedText: { fontSize: 9, fontFamily: VibeFonts.bold, color: "#C084FC" },
+  verifiedText: { fontSize: 9, fontFamily: VibeFonts.bold, color: "#C4B5FD" },
 
   activePill: {
     position: "absolute",
     top: 10,
     right: 10,
-    backgroundColor: "rgba(34,197,94,0.15)",
+    backgroundColor: "rgba(255,255,255,0.92)",
     borderWidth: 1,
-    borderColor: "rgba(34,197,94,0.3)",
+    borderColor: "rgba(22,163,74,0.25)",
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: Radius.full,
@@ -465,19 +509,27 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: VibeColors.neonGreen,
+    backgroundColor: T.green,
   },
-  activeText: { color: VibeColors.neonGreenDim, fontSize: 8, fontFamily: VibeFonts.bold },
+  activeText: { color: T.green, fontSize: 8, fontFamily: VibeFonts.bold },
 
-  // Empty placeholder
   emptyContainer: { flex: 1, justifyContent: "center", alignItems: "center", marginTop: 40 },
   emptyCardWrap: { width: "100%" },
   emptyCard: { padding: Spacing.xl, alignItems: "center" },
-  emptyTitle: { fontSize: 18, fontFamily: VibeFonts.bold, color: "#fff", marginTop: Spacing.sm },
+  emptyIconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: "#FCE7F3",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  emptyTitle: { fontSize: 18, fontFamily: VibeFonts.bold, color: T.ink, marginTop: Spacing.sm },
   emptyDesc: {
     fontSize: 12,
     fontFamily: VibeFonts.medium,
-    color: VibeColors.textMuted,
+    color: T.muted,
     textAlign: "center",
     lineHeight: 18,
     marginTop: 8,
@@ -493,17 +545,16 @@ const styles = StyleSheet.create({
   },
   discoverBtnText: { color: "#fff", fontFamily: VibeFonts.bold, fontSize: 13 },
 
-  // Modal Details Sheet
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.75)", justifyContent: "flex-end" },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(26,31,54,0.45)", justifyContent: "flex-end" },
   dismissOverlay: { ...StyleSheet.absoluteFillObject },
   modalSheet: {
-    backgroundColor: "#08080C",
+    backgroundColor: T.bg,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     maxHeight: "90%",
     width: "100%",
     borderWidth: 1,
-    borderColor: VibeColors.bgGlassBorder,
+    borderColor: T.border,
     overflow: "hidden",
   },
   modalImageContainer: { width: "100%", height: 350 },
@@ -516,9 +567,11 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: "rgba(255,255,255,0.92)",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: T.border,
   },
   modalTitleDetails: {
     position: "absolute",
@@ -538,13 +591,13 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 11,
     fontFamily: VibeFonts.bold,
-    color: VibeColors.textGold,
+    color: T.purpleDeep,
     textTransform: "uppercase",
-    letterSpacing: 1.5,
+    letterSpacing: 1.2,
     marginBottom: 8,
   },
   bioCard: { padding: 12, borderRadius: Radius.md },
-  bioText: { fontSize: 13, fontFamily: VibeFonts.medium, color: VibeColors.text, lineHeight: 20 },
+  bioText: { fontSize: 13, fontFamily: VibeFonts.medium, color: T.ink, lineHeight: 20 },
   interestsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   interestBadge: {
     paddingHorizontal: 12,
@@ -557,9 +610,9 @@ const styles = StyleSheet.create({
   modalFooter: {
     paddingHorizontal: 24,
     paddingVertical: Spacing.md,
-    backgroundColor: "#08080C",
+    backgroundColor: T.card,
     borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.06)",
+    borderTopColor: T.border,
   },
   chatBtnWrap: { borderRadius: Radius.xl, overflow: "hidden", width: "100%" },
   chatGradientBtn: {
@@ -571,54 +624,64 @@ const styles = StyleSheet.create({
   },
   chatGradientBtnText: { color: "#fff", fontSize: 14, fontFamily: VibeFonts.bold },
 
-  // Custom segmented tabs
   tabContainer: {
     flexDirection: "row",
-    backgroundColor: "rgba(255,255,255,0.03)",
+    backgroundColor: T.card,
     padding: 4,
-    borderRadius: Radius.lg,
+    borderRadius: 16,
     marginHorizontal: Spacing.lg,
     marginBottom: Spacing.md,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.05)",
+    borderColor: T.border,
+    shadowColor: T.purple,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
   },
   tabItem: {
     flex: 1,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  tabItemActive: {},
+  tabItemFill: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
     paddingVertical: 10,
-    borderRadius: Radius.md,
-  },
-  tabItemActive: {
-    backgroundColor: "rgba(138, 86, 255, 0.2)",
-    borderWidth: 1,
-    borderColor: "rgba(138, 86, 255, 0.4)",
+    borderRadius: 12,
   },
   tabText: {
-    color: "#A7A7AF",
+    color: T.faint,
     fontSize: 12,
     fontFamily: VibeFonts.bold,
   },
   tabTextActive: {
     color: "#fff",
+    fontSize: 12,
+    fontFamily: VibeFonts.bold,
   },
 
-  // Locked Modal styling
   lockedOverlay: {
     flex: 1,
-    backgroundColor: "rgba(5,5,8,0.85)",
+    backgroundColor: "rgba(26,31,54,0.5)",
     alignItems: "center",
     justifyContent: "center",
     padding: Spacing.xl,
   },
   lockedCard: {
     width: "100%",
-    borderRadius: Radius.xxl,
+    borderRadius: 28,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: T.border,
+    shadowColor: T.purple,
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
   },
   lockedCardInner: {
     padding: Spacing.xl,
@@ -628,9 +691,9 @@ const styles = StyleSheet.create({
     width: 68,
     height: 68,
     borderRadius: 34,
-    backgroundColor: "rgba(212, 175, 55, 0.1)",
-    borderWidth: 2,
-    borderColor: "rgba(212, 175, 55, 0.4)",
+    backgroundColor: T.softPurple,
+    borderWidth: 1.5,
+    borderColor: "#DDD6FE",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: Spacing.md,
@@ -638,13 +701,13 @@ const styles = StyleSheet.create({
   lockedModalTitle: {
     fontSize: 20,
     fontFamily: VibeFonts.extraBold,
-    color: "#fff",
+    color: T.ink,
     marginBottom: 8,
   },
   lockedModalSub: {
     fontSize: 13,
     fontFamily: VibeFonts.medium,
-    color: VibeColors.textMuted,
+    color: T.muted,
     textAlign: "center",
     lineHeight: 20,
     marginBottom: Spacing.lg,
@@ -663,9 +726,19 @@ const styles = StyleSheet.create({
     fontFamily: VibeFonts.bold,
   },
   lockedCloseText: {
-    color: "rgba(255,255,255,0.5)",
+    color: T.muted,
     fontFamily: VibeFonts.bold,
     fontSize: 13,
+  },
+  lockedImageWrap: {
+    width: "100%",
+    height: "100%",
+    overflow: "hidden",
+    backgroundColor: T.softPurple,
+  },
+  lockedScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(238,233,248,0.55)",
   },
   lockOverlayContainer: {
     ...StyleSheet.absoluteFillObject,
@@ -674,16 +747,32 @@ const styles = StyleSheet.create({
     zIndex: 3,
     paddingBottom: 20,
   },
+  lockBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: T.border,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: T.purple,
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
   lockOverlayText: {
-    color: "#fff",
+    color: T.ink,
     fontSize: 11,
     fontFamily: VibeFonts.bold,
-    marginTop: 6,
-    textShadowColor: "rgba(0,0,0,0.5)",
-    textShadowRadius: 3,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    marginTop: 8,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: Radius.sm,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: T.border,
   },
 });

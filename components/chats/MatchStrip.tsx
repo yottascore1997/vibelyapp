@@ -5,6 +5,19 @@ import PulseDot from "../home/PulseDot";
 import { MatchProfile } from "../../constants/matches";
 import { VibeFonts } from "../../constants/vibeTheme";
 
+const T = {
+  card: "#FFFBFE",
+  ink: "#1A1F36",
+  muted: "#6B7280",
+  faint: "#9CA3AF",
+  border: "#E4DFF0",
+  softPurple: "#EDE7FF",
+  softPink: "#FCE7F3",
+  purple: "#8B5CF6",
+  pink: "#EC4899",
+  cta: ["#8B5CF6", "#EC4899"] as const,
+};
+
 interface Props {
   matches: MatchProfile[];
   onPressMatch: (match: MatchProfile) => void;
@@ -18,7 +31,9 @@ export default function MatchStrip({ matches, onPressMatch, onDiscover }: Props)
     <View style={styles.wrap}>
       <View style={styles.header}>
         <View style={styles.titleRow}>
-          <Ionicons name="sparkles" size={14} color="#FBBF24" />
+          <LinearGradient colors={[...T.cta]} style={styles.sparkle}>
+            <Ionicons name="sparkles" size={11} color="#fff" />
+          </LinearGradient>
           <Text style={styles.title}>New matches</Text>
         </View>
         <View style={styles.countPill}>
@@ -33,7 +48,7 @@ export default function MatchStrip({ matches, onPressMatch, onDiscover }: Props)
       >
         {matches.map((m) => (
           <Pressable key={m.id} style={styles.cell} onPress={() => onPressMatch(m)}>
-            <LinearGradient colors={["#FF4B81", "#8A56FF"]} style={styles.ring}>
+            <LinearGradient colors={[...T.cta]} style={styles.ring}>
               <Image source={{ uri: m.avatarUrl }} style={styles.avatar} />
             </LinearGradient>
             {m.isOnline ? (
@@ -48,7 +63,7 @@ export default function MatchStrip({ matches, onPressMatch, onDiscover }: Props)
               <Ionicons
                 name="checkmark-circle"
                 size={12}
-                color="#60A5FA"
+                color={T.purple}
                 style={styles.verified}
               />
             ) : null}
@@ -56,7 +71,7 @@ export default function MatchStrip({ matches, onPressMatch, onDiscover }: Props)
         ))}
         <Pressable style={styles.newCell} onPress={onDiscover}>
           <View style={styles.newRing}>
-            <Ionicons name="add" size={24} color="#C084FC" />
+            <Ionicons name="add" size={24} color={T.purple} />
           </View>
           <Text style={styles.newLabel}>Find more</Text>
         </Pressable>
@@ -68,11 +83,16 @@ export default function MatchStrip({ matches, onPressMatch, onDiscover }: Props)
 const styles = StyleSheet.create({
   wrap: {
     marginBottom: 16,
-    backgroundColor: "#12121A",
-    borderRadius: 22,
+    backgroundColor: T.card,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: T.border,
     paddingVertical: 14,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   header: {
     flexDirection: "row",
@@ -81,21 +101,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     marginBottom: 12,
   },
-  titleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  titleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  sparkle: {
+    width: 22,
+    height: 22,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   title: {
     fontSize: 14,
     fontFamily: VibeFonts.bold,
-    color: "#FFFFFF",
+    color: T.ink,
   },
   countPill: {
-    backgroundColor: "rgba(255,75,129,0.18)",
+    backgroundColor: T.softPink,
     paddingHorizontal: 9,
     paddingVertical: 3,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,75,129,0.35)",
+    borderColor: "#F9A8D4",
   },
-  countText: { fontSize: 11, fontFamily: VibeFonts.bold, color: "#FF4B81" },
+  countText: { fontSize: 11, fontFamily: VibeFonts.bold, color: T.pink },
   scroll: { paddingHorizontal: 14, gap: 12 },
   cell: { alignItems: "center", width: 70, position: "relative" },
   ring: {
@@ -111,20 +138,22 @@ const styles = StyleSheet.create({
     height: 57,
     borderRadius: 19,
     borderWidth: 2,
-    borderColor: "#0A0A10",
+    borderColor: "#fff",
   },
   online: {
     position: "absolute",
     top: 2,
     right: 4,
-    backgroundColor: "#050508",
+    backgroundColor: T.card,
     borderRadius: 8,
     padding: 2,
+    borderWidth: 1.5,
+    borderColor: "#fff",
   },
   name: {
     fontSize: 11,
     fontFamily: VibeFonts.semiBold,
-    color: "rgba(255,255,255,0.85)",
+    color: T.ink,
     marginTop: 6,
     textAlign: "center",
   },
@@ -137,14 +166,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1.5,
-    borderColor: "rgba(192,132,252,0.4)",
+    borderColor: "#C4B5FD",
     borderStyle: "dashed",
-    backgroundColor: "rgba(138,86,255,0.1)",
+    backgroundColor: T.softPurple,
   },
   newLabel: {
     fontSize: 10,
     fontFamily: VibeFonts.medium,
-    color: "rgba(255,255,255,0.4)",
+    color: T.muted,
     marginTop: 6,
   },
 });

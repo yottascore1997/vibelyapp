@@ -81,13 +81,26 @@ export const api = {
   getLikes: (_userId?: string) => fetchApi<{ count: number; likes: unknown[] }>(`/likes`),
   getOnlineUsers: () => fetchApi("/users/online"),
   getActivities: () => fetchApi("/activities"),
-  getHangouts: (filter = "all") => fetchApi<Plan[]>(`/hangouts?filter=${filter}`),
-  getMyPlans: (_userId?: string) => fetchApi<Plan[]>(`/hangouts?mine=true`),
-  getNearbyPlans: (_userId?: string) => fetchApi<Plan[]>(`/hangouts`),
+  getHangouts: (filter = "all", kind?: string) =>
+    fetchApi<Plan[]>(
+      `/hangouts?filter=${filter}${kind ? `&kind=${kind}` : ""}`
+    ),
+  getMyPlans: (_userId?: string, kind?: string) =>
+    fetchApi<Plan[]>(`/hangouts?mine=true${kind ? `&kind=${kind}` : ""}`),
+  getNearbyPlans: (_userId?: string, kind?: string) =>
+    fetchApi<Plan[]>(`/hangouts${kind ? `?kind=${kind}` : ""}`),
   createPlan: (data: object) =>
     fetchApi<Plan>("/hangouts", { method: "POST", body: JSON.stringify(data) }),
   joinPlan: (planId: string, _userId?: string) =>
     fetchApi(`/hangouts/${planId}/join`, { method: "POST", body: JSON.stringify({}) }),
+  leavePlan: (planId: string) =>
+    fetchApi(`/hangouts/${planId}/leave`, { method: "POST", body: JSON.stringify({}) }),
+  kickFromPlan: (planId: string, userId: string, remark?: string) =>
+    fetchApi(`/hangouts/${planId}/kick`, {
+      method: "POST",
+      body: JSON.stringify({ userId, remark }),
+    }),
+  getSocialStatus: () => fetchApi("/social-status"),
   getVibes: () => fetchApi("/vibes"),
   swipe: (data: { receiverId: string; action: string; senderId?: string }) =>
     fetchApi<{ isMatch?: boolean; demo?: boolean }>("/swipe", {
@@ -154,6 +167,16 @@ export const api = {
       body: JSON.stringify({ inviteId, status }),
     }),
   getJarItems: (_userId?: string) => fetchApi<any[]>(`/jar`),
+  addJarItem: (data: {
+    title: string;
+    type: string;
+    description?: string;
+    imageUrl?: string;
+    meta?: string;
+  }) =>
+    fetchApi("/jar", { method: "POST", body: JSON.stringify(data) }),
+  deleteJarItem: (id: string) =>
+    fetchApi(`/jar?id=${encodeURIComponent(id)}`, { method: "DELETE" }),
   getChatMessages: (matchId: string, _userId?: string) =>
     fetchApi<{
       messages: any[];

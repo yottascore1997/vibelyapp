@@ -18,6 +18,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -34,6 +35,25 @@ import { VibeColors, VibeFonts } from "../../constants/vibeTheme";
 import { Radius, Spacing, API_URL } from "../../constants/theme";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+
+const T = {
+  bg: "#EEE9F8",
+  card: "#FFFBFE",
+  ink: "#1A1F36",
+  muted: "#6B7280",
+  faint: "#9CA3AF",
+  border: "#E4DFF0",
+  softPurple: "#EDE7FF",
+  softPink: "#FCE7F3",
+  purple: VibeColors.glowPurple || "#8B5CF6",
+  purpleDeep: "#7C3AED",
+  pink: VibeColors.neonPink || "#EC4899",
+  green: "#16A34A",
+  greenSoft: "#DCFCE7",
+  red: "#EF4444",
+  glass: "rgba(255,251,254,0.96)",
+  cta: ["#8B5CF6", "#EC4899"] as const,
+};
 
 const SparkParticle = ({ 
   index, 
@@ -264,7 +284,7 @@ export default function ChatScreen() {
           {status === "pending" ? (
             msg.fromMe ? (
               <View style={styles.inviteStatusContainer}>
-                <Ionicons name="time-outline" size={14} color="#C084FC" />
+                <Ionicons name="time-outline" size={14} color={T.purple} />
                 <Text style={styles.inviteStatusTextPending}>Waiting for response...</Text>
               </View>
             ) : (
@@ -289,12 +309,12 @@ export default function ChatScreen() {
             )
           ) : status === "accepted" ? (
             <View style={styles.inviteStatusContainerAccepted}>
-              <Ionicons name="checkmark-done-circle" size={16} color="#22C55E" />
+              <Ionicons name="checkmark-done-circle" size={16} color={T.green} />
               <Text style={styles.inviteStatusTextAccepted}>Proposal Accepted! 🎉</Text>
             </View>
           ) : (
             <View style={styles.inviteStatusContainerDeclined}>
-              <Ionicons name="close-circle" size={16} color="#EF4444" />
+              <Ionicons name="close-circle" size={16} color={T.red} />
               <Text style={styles.inviteStatusTextDeclined}>Proposal Declined</Text>
             </View>
           )}
@@ -303,11 +323,11 @@ export default function ChatScreen() {
     }
 
     return msg.fromMe ? (
-      <LinearGradient colors={["#8A56FF", "#FF4B81"]} style={styles.bubbleGrad}>
+      <LinearGradient colors={[...T.cta]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.bubbleGrad}>
         <Text style={styles.bubbleTextMe}>{msg.text}</Text>
       </LinearGradient>
     ) : (
-      <View style={{ paddingHorizontal: 12, paddingVertical: 8 }}>
+      <View style={{ paddingHorizontal: 14, paddingVertical: 10 }}>
         {thread.isGroup && msg.senderName ? (
           <Text style={styles.senderNameLabel}>{msg.senderName}</Text>
         ) : null}
@@ -440,9 +460,10 @@ export default function ChatScreen() {
   if (!thread) {
     return (
       <View style={styles.root}>
+        <StatusBar style="dark" />
         <SafeAreaView style={styles.safe}>
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color="#fff" />
+            <Ionicons name="arrow-back" size={22} color={T.ink} />
           </Pressable>
           <Text style={styles.missing}>Chat not found</Text>
         </SafeAreaView>
@@ -452,33 +473,42 @@ export default function ChatScreen() {
 
   return (
     <View style={styles.root}>
-      <LinearGradient colors={["rgba(138,86,255,0.12)", "transparent"]} style={styles.topGlow} />
+      <StatusBar style="dark" />
+      <LinearGradient
+        colors={["rgba(139,92,246,0.16)", "rgba(236,72,153,0.08)", "transparent"]}
+        style={styles.topGlow}
+        pointerEvents="none"
+      />
 
       <SafeAreaView style={styles.safe} edges={["top"]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color="#fff" />
+            <Ionicons name="arrow-back" size={22} color={T.ink} />
           </Pressable>
           <Pressable style={styles.headerCenter} onPress={() => setShowDetailsModal(true)}>
-            <Image source={{ uri: thread.avatarUrl }} style={styles.headerAvatar} />
-            <View>
-              <Text style={styles.headerName}>{thread.matchName}</Text>
+            <LinearGradient colors={[...T.cta]} style={styles.headerAvatarRing}>
+              <Image source={{ uri: thread.avatarUrl }} style={styles.headerAvatar} />
+            </LinearGradient>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.headerName} numberOfLines={1}>{thread.matchName}</Text>
               <View style={styles.headerMeta}>
                 {typers.length > 0 ? (
-                  <Text style={[styles.headerStatus, { color: "#A855F7" }]}>
-                    {thread.isGroup 
-                      ? `${typers.map((t) => t.name.split(" ")[0]).join(", ")} typing...` 
+                  <Text style={[styles.headerStatus, { color: T.purple }]}>
+                    {thread.isGroup
+                      ? `${typers.map((t) => t.name.split(" ")[0]).join(", ")} typing...`
                       : "Typing..."}
                   </Text>
                 ) : thread.isGroup ? (
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                    <Ionicons name="people" size={12} color="#22C55E" />
-                    <Text style={[styles.headerStatus, { color: "#22C55E" }]}>Hangout Group Chat</Text>
+                    <Ionicons name="people" size={12} color={T.purple} />
+                    <Text style={[styles.headerStatus, { color: T.purple }]}>Hangout group</Text>
                   </View>
                 ) : (
                   <>
-                    {thread.isOnline ? <PulseDot size={5} /> : null}
-                    <Text style={styles.headerStatus}>{thread.isOnline ? "Online now" : "Match unlocked"}</Text>
+                    {thread.isOnline ? <PulseDot size={5} color="#22C55E" /> : null}
+                    <Text style={styles.headerStatus}>
+                      {thread.isOnline ? "Online now" : "Match unlocked"}
+                    </Text>
                   </>
                 )}
               </View>
@@ -486,30 +516,40 @@ export default function ChatScreen() {
           </Pressable>
           {!thread.isGroup ? (
             <Pressable style={styles.moreBtn} onPress={handleUnmatch}>
-              <Ionicons name="close-circle-outline" size={22} color="#FF4B81" />
+              <Ionicons name="close-circle-outline" size={22} color={T.pink} />
             </Pressable>
           ) : (
             <Pressable style={styles.moreBtn}>
-              <Ionicons name="ellipsis-vertical" size={20} color="#C084FC" />
+              <Ionicons name="ellipsis-vertical" size={20} color={T.purple} />
             </Pressable>
           )}
         </View>
 
         <View style={styles.matchBanner}>
-          <LinearGradient colors={["rgba(255,75,129,0.15)", "rgba(138,86,255,0.1)"]} style={styles.matchBannerGrad}>
-            <Ionicons
-              name={thread.isGroup ? "people" : chatGate?.waitingForOther ? "time" : chatGate?.unlocked ? "chatbubbles" : "heart"}
-              size={14}
-              color={thread.isGroup ? "#C084FC" : "#FF4B81"}
-            />
+          <View style={styles.matchBannerGrad}>
+            <View style={styles.matchBannerIcon}>
+              <Ionicons
+                name={
+                  thread.isGroup
+                    ? "people"
+                    : chatGate?.waitingForOther
+                      ? "time"
+                      : chatGate?.unlocked
+                        ? "chatbubbles"
+                        : "heart"
+                }
+                size={13}
+                color={thread.isGroup ? T.purple : T.pink}
+              />
+            </View>
             <Text style={styles.matchBannerText}>
               {thread.isGroup
-                ? "This is your Hangout group chat. Coordinate plans here!"
+                ? "Hangout group chat — coordinate plans here"
                 : chatGate?.unlocked
                   ? "Chat unlocked — ab freely baat karo"
                   : chatGate?.reason || "You matched — send one hello to start"}
             </Text>
-          </LinearGradient>
+          </View>
         </View>
       </SafeAreaView>
 
@@ -528,26 +568,30 @@ export default function ChatScreen() {
           {thread.messages.map((msg) => (
             <View key={msg.id} style={[styles.bubbleWrap, msg.fromMe ? styles.bubbleWrapMe : styles.bubbleWrapThem]}>
               {!msg.fromMe ? (
-                <Image 
-                  source={{ 
-                    uri: thread.isGroup 
+                <Image
+                  source={{
+                    uri: thread.isGroup
                       ? resolveMemberAvatar(msg.senderAvatar)
-                      : thread.avatarUrl 
-                  }} 
-                  style={styles.msgAvatar} 
+                      : thread.avatarUrl,
+                  }}
+                  style={styles.msgAvatar}
                 />
               ) : null}
-              <View 
+              <View
                 style={[
-                  styles.bubble, 
-                  msg.text.match(/^\[INVITE:([^:]+):([^:]+):([^:]+)\]$/) 
-                    ? styles.bubbleInvite 
-                    : (msg.fromMe ? styles.bubbleMe : styles.bubbleThem)
+                  styles.bubble,
+                  msg.text.match(/^\[INVITE:([^:]+):([^:]+):([^:]+)\]$/)
+                    ? styles.bubbleInvite
+                    : msg.fromMe
+                      ? styles.bubbleMe
+                      : styles.bubbleThem,
                 ]}
               >
                 {renderMessageContent(msg)}
               </View>
-              <Text style={[styles.msgTime, msg.fromMe && styles.msgTimeMe]}>{formatMessageTime(msg.sentAt)}</Text>
+              <Text style={[styles.msgTime, msg.fromMe && styles.msgTimeMe]}>
+                {formatMessageTime(msg.sentAt)}
+              </Text>
             </View>
           ))}
         </ScrollView>
@@ -555,23 +599,19 @@ export default function ChatScreen() {
         <SafeAreaView edges={["bottom"]} style={styles.inputBar}>
           <View style={styles.inputRow}>
             <Pressable style={styles.attachBtn}>
-              <Ionicons name="add" size={22} color="#C084FC" />
+              <Ionicons name="add" size={22} color={T.purple} />
             </Pressable>
 
             <Pressable style={styles.emojiToggleBtn} onPress={toggleEmojiPanel}>
-              <Ionicons 
-                name={showEmojiPanel ? "keyboard-outline" : "happy-outline"} 
-                size={22} 
-                color="#C084FC" 
+              <Ionicons
+                name={showEmojiPanel ? "keyboard-outline" : "happy-outline"}
+                size={22}
+                color={T.purple}
               />
             </Pressable>
 
             <Pressable style={styles.hangoutToggleBtn} onPress={toggleHangoutPanel}>
-              <Ionicons 
-                name="cafe-outline" 
-                size={22} 
-                color="#C084FC" 
-              />
+              <Ionicons name="cafe-outline" size={22} color={T.purple} />
             </Pressable>
 
             <TextInput
@@ -591,30 +631,33 @@ export default function ChatScreen() {
                     ? "Send your one hello..."
                     : "Type a message..."
               }
-              placeholderTextColor={VibeColors.textMuted}
+              placeholderTextColor={T.faint}
               multiline
               editable={canSend}
             />
             <Pressable onPress={handleSend} disabled={!text.trim() || !canSend}>
-              <LinearGradient
-                colors={text.trim() && canSend ? ["#22C55E", "#15803D"] : ["#333", "#222"]}
-                style={styles.sendBtn}
-              >
-                <Ionicons name="send" size={18} color="#fff" />
-              </LinearGradient>
+              {text.trim() && canSend ? (
+                <LinearGradient colors={[...T.cta]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.sendBtn}>
+                  <Ionicons name="send" size={17} color="#fff" />
+                </LinearGradient>
+              ) : (
+                <View style={[styles.sendBtn, styles.sendBtnDisabled]}>
+                  <Ionicons name="send" size={17} color={T.faint} />
+                </View>
+              )}
             </Pressable>
           </View>
 
           {showEmojiPanel && (
             <View style={styles.emojiPanel}>
-              <ScrollView 
-                contentContainerStyle={styles.emojiGrid} 
+              <ScrollView
+                contentContainerStyle={styles.emojiGrid}
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
               >
                 {EMOJIS.map((emoji) => (
-                  <Pressable 
-                    key={emoji} 
+                  <Pressable
+                    key={emoji}
                     style={styles.emojiPanelItem}
                     onPress={() => handleEmojiSelect(emoji)}
                   >
@@ -628,14 +671,16 @@ export default function ChatScreen() {
           {showHangoutPanel && (
             <View style={styles.hangoutPanel}>
               <Text style={styles.hangoutPanelTitle}>Quick Hangout Proposal</Text>
-              <Text style={styles.hangoutPanelSub}>Ask them out in one tap. They can accept or decline instantly!</Text>
-              
+              <Text style={styles.hangoutPanelSub}>
+                Ask them out in one tap. They can accept or decline instantly!
+              </Text>
+
               <View style={styles.hangoutOptionsRow}>
                 {[
-                  { name: "Coffee Date", emoji: "☕", gradient: ["#F59E0B", "#D97706"] },
-                  { name: "Movie Night", emoji: "🍿", gradient: ["#EC4899", "#DB2777"] },
-                  { name: "Dinner", emoji: "🍽️", gradient: ["#10B981", "#059669"] },
-                  { name: "Drinks", emoji: "🍺", gradient: ["#3B82F6", "#2563EB"] }
+                  { name: "Coffee Date", emoji: "☕", gradient: ["#F59E0B", "#D97706"] as const },
+                  { name: "Movie Night", emoji: "🍿", gradient: ["#EC4899", "#DB2777"] as const },
+                  { name: "Dinner", emoji: "🍽️", gradient: ["#10B981", "#059669"] as const },
+                  { name: "Drinks", emoji: "🍺", gradient: ["#3B82F6", "#2563EB"] as const },
                 ].map((item) => (
                   <TouchableOpacity
                     key={item.name}
@@ -643,7 +688,7 @@ export default function ChatScreen() {
                     activeOpacity={0.85}
                     onPress={() => sendHangoutInvite(item.name, item.emoji)}
                   >
-                    <LinearGradient colors={item.gradient} style={styles.hangoutOptionIconBg}>
+                    <LinearGradient colors={[...item.gradient]} style={styles.hangoutOptionIconBg}>
                       <Text style={styles.hangoutOptionEmoji}>{item.emoji}</Text>
                     </LinearGradient>
                     <Text style={styles.hangoutOptionLabel}>{item.name}</Text>
@@ -658,38 +703,37 @@ export default function ChatScreen() {
       {/* Details modal overlay */}
       {showDetailsModal && (
         <View style={styles.modalOverlay}>
-          <GlassCard style={styles.modalCard}>
-            <TouchableOpacity 
-              style={styles.modalCloseIcon} 
+          <GlassCard style={styles.modalCard} lightMode>
+            <TouchableOpacity
+              style={styles.modalCloseIcon}
               onPress={() => setShowDetailsModal(false)}
               activeOpacity={0.7}
             >
-              <Ionicons name="close" size={20} color="#fff" />
+              <Ionicons name="close" size={20} color={T.ink} />
             </TouchableOpacity>
 
             {thread.isGroup ? (
-              // Group Details
               <View style={styles.modalContent}>
                 <View style={styles.avatarGlowContainer}>
                   <Image source={{ uri: thread.avatarUrl }} style={styles.modalAvatarLarge} />
                 </View>
                 <Text style={styles.modalTitle}>{thread.matchName}</Text>
-                
+
                 {plan ? (
                   <View style={styles.groupInfoBox}>
                     <Text style={styles.groupDesc} numberOfLines={3}>
                       {plan.description || "Coordinate hangout logistics, location, and timing below."}
                     </Text>
-                    
+
                     <View style={styles.infoRowInline}>
-                      <Ionicons name="location" size={14} color="#C084FC" />
+                      <Ionicons name="location" size={14} color={T.purple} />
                       <Text style={styles.infoTextInline} numberOfLines={1}>
                         {plan.location || "Flexible Location"}
                       </Text>
                     </View>
 
                     <View style={styles.infoRowInline}>
-                      <Ionicons name="time" size={14} color="#C084FC" />
+                      <Ionicons name="time" size={14} color={T.purple} />
                       <Text style={styles.infoTextInline} numberOfLines={1}>
                         {plan.timeLabel || "Flexible Timing"}
                       </Text>
@@ -698,19 +742,21 @@ export default function ChatScreen() {
                     <Text style={styles.membersTitle}>
                       Group Members ({plan.participants?.length || 0})
                     </Text>
-                    
-                    <ScrollView 
+
+                    <ScrollView
                       style={styles.membersScroll}
                       contentContainerStyle={styles.membersScrollContent}
                       showsVerticalScrollIndicator={false}
                     >
                       {plan.participants?.map((member) => (
                         <View key={member.id} style={styles.memberRow}>
-                          <Image 
-                            source={{ 
-                              uri: member.avatarUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100" 
-                            }} 
-                            style={styles.memberAvatar} 
+                          <Image
+                            source={{
+                              uri:
+                                member.avatarUrl ||
+                                "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100",
+                            }}
+                            style={styles.memberAvatar}
                           />
                           <Text style={styles.memberName} numberOfLines={1}>
                             {member.name} {member.id === plan.creatorId ? "(Host)" : ""}
@@ -724,50 +770,51 @@ export default function ChatScreen() {
                 )}
               </View>
             ) : (
-              // Match Profile Details
               <View style={styles.modalContent}>
                 <View style={styles.avatarGlowContainer}>
                   <Image source={{ uri: thread.avatarUrl }} style={styles.modalAvatarLarge} />
                 </View>
-                <Text style={styles.modalTitle}>
-                  {match?.name || thread.matchName}
-                </Text>
-                
+                <Text style={styles.modalTitle}>{match?.name || thread.matchName}</Text>
+
                 <View style={styles.matchInfoBox}>
                   {match?.bio ? (
                     <Text style={styles.groupDesc}>{match.bio}</Text>
                   ) : (
-                    <Text style={styles.groupDesc}>Hey! We matched on Discover. Let's get to know each other 💘</Text>
+                    <Text style={styles.groupDesc}>
+                      Hey! We matched on Discover. Let's get to know each other 💘
+                    </Text>
                   )}
 
                   {match?.city && (
                     <View style={styles.infoRowInline}>
-                      <Ionicons name="home" size={14} color="#FF4B81" />
+                      <Ionicons name="home" size={14} color={T.pink} />
                       <Text style={styles.infoTextInline}>Lives in {match.city}</Text>
                     </View>
                   )}
 
                   {match?.education && (
                     <View style={styles.infoRowInline}>
-                      <Ionicons name="school" size={14} color="#FF4B81" />
+                      <Ionicons name="school" size={14} color={T.pink} />
                       <Text style={styles.infoTextInline}>{match.education}</Text>
                     </View>
                   )}
-                  
+
                   <View style={styles.infoRowInline}>
-                    <Ionicons name="sparkles" size={14} color="#FF4B81" />
+                    <Ionicons name="sparkles" size={14} color={T.pink} />
                     <Text style={styles.infoTextInline}>Interested in Vibes & Hangouts</Text>
                   </View>
                 </View>
               </View>
             )}
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.modalConfirmBtn}
               onPress={() => setShowDetailsModal(false)}
               activeOpacity={0.8}
             >
-              <Text style={styles.modalConfirmBtnText}>Close Details</Text>
+              <LinearGradient colors={[...T.cta]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.modalConfirmGrad}>
+                <Text style={styles.modalConfirmBtnText}>Close Details</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </GlassCard>
         </View>
@@ -785,92 +832,207 @@ export default function ChatScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: VibeColors.bg },
-  topGlow: { position: "absolute", top: 0, left: 0, right: 0, height: 120 },
+  root: { flex: 1, backgroundColor: T.bg },
+  topGlow: { position: "absolute", top: 0, left: 0, right: 0, height: 180 },
   safe: { backgroundColor: "transparent" },
   flex: { flex: 1 },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.sm,
-    gap: Spacing.sm,
+    paddingHorizontal: 14,
+    paddingBottom: 10,
+    gap: 10,
   },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    width: 42,
+    height: 42,
+    borderRadius: 15,
+    backgroundColor: T.glass,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: VibeColors.bgGlassBorder,
+    borderColor: "rgba(255,255,255,0.75)",
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
-  headerCenter: { flex: 1, flexDirection: "row", alignItems: "center", gap: Spacing.sm },
-  headerAvatar: { width: 42, height: 42, borderRadius: 21, borderWidth: 2, borderColor: "rgba(138,86,255,0.5)" },
-  headerName: { fontSize: 16, fontFamily: VibeFonts.bold, color: VibeColors.text },
+  headerCenter: { flex: 1, flexDirection: "row", alignItems: "center", gap: 10 },
+  headerAvatarRing: {
+    width: 46,
+    height: 46,
+    borderRadius: 16,
+    padding: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: "#fff",
+  },
+  headerName: {
+    fontSize: 16,
+    fontFamily: VibeFonts.extraBold,
+    color: T.ink,
+    letterSpacing: -0.2,
+  },
   headerMeta: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
-  headerStatus: { fontSize: 11, fontFamily: VibeFonts.medium, color: VibeColors.neonGreenDim },
-  moreBtn: { padding: 8 },
-  matchBanner: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.sm },
+  headerStatus: { fontSize: 11, fontFamily: VibeFonts.semiBold, color: T.green },
+  moreBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 15,
+    backgroundColor: T.glass,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.75)",
+  },
+  matchBanner: { paddingHorizontal: 14, paddingBottom: 10 },
   matchBannerGrad: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingVertical: 8,
+    gap: 8,
+    paddingVertical: 10,
     paddingHorizontal: 12,
-    borderRadius: Radius.full,
+    borderRadius: 16,
+    backgroundColor: T.card,
     borderWidth: 1,
-    borderColor: "rgba(255,75,129,0.2)",
+    borderColor: T.border,
   },
-  matchBannerText: { fontSize: 11, fontFamily: VibeFonts.semiBold, color: "#FF8FAB" },
+  matchBannerIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 10,
+    backgroundColor: T.softPink,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  matchBannerText: {
+    flex: 1,
+    fontSize: 11,
+    fontFamily: VibeFonts.semiBold,
+    color: T.muted,
+    lineHeight: 15,
+  },
   messages: { flex: 1 },
-  messagesContent: { padding: Spacing.lg, paddingBottom: Spacing.md, gap: 12 },
+  messagesContent: { padding: 16, paddingBottom: 12, gap: 14 },
   bubbleWrap: { maxWidth: "82%" },
   bubbleWrapMe: { alignSelf: "flex-end", alignItems: "flex-end" },
-  bubbleWrapThem: { alignSelf: "flex-start", flexDirection: "row", alignItems: "flex-end", gap: 8 },
-  msgAvatar: { width: 28, height: 28, borderRadius: 14 },
-  bubble: { borderRadius: 18, overflow: "hidden", maxWidth: "100%" },
-  bubbleMe: { borderBottomRightRadius: 4 },
-  bubbleThem: { backgroundColor: "rgba(255,255,255,0.08)", borderWidth: 1, borderColor: VibeColors.bgGlassBorder, borderBottomLeftRadius: 4, paddingHorizontal: 14, paddingVertical: 10 },
-  bubbleGrad: { paddingHorizontal: 14, paddingVertical: 10 },
-  bubbleTextMe: { fontSize: 14, fontFamily: VibeFonts.medium, color: "#fff", lineHeight: 20 },
-  bubbleTextThem: { fontSize: 14, fontFamily: VibeFonts.medium, color: VibeColors.text, lineHeight: 20 },
-  msgTime: { fontSize: 9, fontFamily: VibeFonts.medium, color: VibeColors.textMuted, marginTop: 4, marginLeft: 4 },
+  bubbleWrapThem: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 8,
+  },
+  msgAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: "#fff",
+  },
+  bubble: { borderRadius: 20, overflow: "hidden", maxWidth: "100%" },
+  bubbleMe: {
+    borderBottomRightRadius: 6,
+    shadowColor: "#8B5CF6",
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  bubbleThem: {
+    backgroundColor: T.card,
+    borderWidth: 1,
+    borderColor: T.border,
+    borderBottomLeftRadius: 6,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+  bubbleGrad: { paddingHorizontal: 14, paddingVertical: 11 },
+  bubbleTextMe: {
+    fontSize: 14,
+    fontFamily: VibeFonts.medium,
+    color: "#fff",
+    lineHeight: 20,
+  },
+  bubbleTextThem: {
+    fontSize: 14,
+    fontFamily: VibeFonts.medium,
+    color: T.ink,
+    lineHeight: 20,
+  },
+  msgTime: {
+    fontSize: 9,
+    fontFamily: VibeFonts.medium,
+    color: T.faint,
+    marginTop: 4,
+    marginLeft: 4,
+  },
   msgTimeMe: { marginRight: 4, marginLeft: 0 },
-  inputBar: { borderTopWidth: 1, borderTopColor: VibeColors.bgGlassBorder, backgroundColor: "rgba(8,8,14,0.95)" },
-  inputRow: { flexDirection: "row", alignItems: "flex-end", gap: 8, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm },
+  inputBar: {
+    borderTopWidth: 1,
+    borderTopColor: T.border,
+    backgroundColor: T.glass,
+  },
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
   attachBtn: {
     width: 40,
     height: 40,
     borderRadius: 14,
-    backgroundColor: "rgba(138,86,255,0.15)",
+    backgroundColor: T.softPurple,
     alignItems: "center",
     justifyContent: "center",
   },
   input: {
     flex: 1,
     maxHeight: 100,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderRadius: Radius.xl,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 10,
+    backgroundColor: T.card,
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
     fontSize: 14,
     fontFamily: VibeFonts.medium,
-    color: VibeColors.text,
+    color: T.ink,
     borderWidth: 1,
-    borderColor: VibeColors.bgGlassBorder,
+    borderColor: T.border,
   },
-  inputDisabled: {
-    opacity: 0.55,
+  inputDisabled: { opacity: 0.55 },
+  sendBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  sendBtn: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
-  missing: { color: VibeColors.text, textAlign: "center", marginTop: 40, fontFamily: VibeFonts.medium },
+  sendBtnDisabled: {
+    backgroundColor: T.softPurple,
+    borderWidth: 1,
+    borderColor: T.border,
+  },
+  missing: {
+    color: T.ink,
+    textAlign: "center",
+    marginTop: 40,
+    fontFamily: VibeFonts.medium,
+  },
 
-  // Details Modal styles
   modalOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(5,5,8,0.85)",
+    backgroundColor: "rgba(15,11,26,0.45)",
     zIndex: 99,
     justifyContent: "center",
     padding: Spacing.xl,
@@ -878,8 +1040,9 @@ const styles = StyleSheet.create({
   modalCard: {
     padding: Spacing.xl,
     alignItems: "center",
-    borderColor: "rgba(138,86,255,0.2)",
+    borderColor: T.border,
     maxHeight: "80%",
+    backgroundColor: T.card,
   },
   modalCloseIcon: {
     position: "absolute",
@@ -888,7 +1051,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: T.softPurple,
     alignItems: "center",
     justifyContent: "center",
     zIndex: 10,
@@ -898,11 +1061,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   avatarGlowContainer: {
-    shadowColor: "#8A56FF",
+    shadowColor: "#8B5CF6",
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOpacity: 0.25,
+    shadowRadius: 14,
+    elevation: 6,
     borderRadius: 50,
     marginBottom: Spacing.md,
   },
@@ -910,29 +1073,22 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    borderWidth: 2,
-    borderColor: "#C084FC",
+    borderWidth: 3,
+    borderColor: "#fff",
   },
   modalTitle: {
     fontSize: 20,
     fontFamily: VibeFonts.extraBold,
-    color: "#fff",
+    color: T.ink,
     textAlign: "center",
     marginBottom: Spacing.sm,
   },
-  groupInfoBox: {
-    width: "100%",
-    gap: 8,
-  },
-  matchInfoBox: {
-    width: "100%",
-    gap: 10,
-    marginTop: Spacing.xs,
-  },
+  groupInfoBox: { width: "100%", gap: 8 },
+  matchInfoBox: { width: "100%", gap: 10, marginTop: Spacing.xs },
   groupDesc: {
     fontSize: 13,
     fontFamily: VibeFonts.medium,
-    color: VibeColors.textMuted,
+    color: T.muted,
     textAlign: "center",
     lineHeight: 18,
     marginBottom: Spacing.xs,
@@ -941,14 +1097,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "rgba(255,255,255,0.04)",
+    backgroundColor: T.softPurple,
     padding: 10,
     borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.06)",
+    borderColor: "#DDD6FE",
   },
   infoTextInline: {
-    color: "#fff",
+    color: T.ink,
     fontSize: 13,
     fontFamily: VibeFonts.medium,
     flex: 1,
@@ -956,78 +1112,76 @@ const styles = StyleSheet.create({
   membersTitle: {
     fontSize: 12,
     fontFamily: VibeFonts.bold,
-    color: "rgba(255,255,255,0.4)",
+    color: T.faint,
     textTransform: "uppercase",
     marginTop: Spacing.sm,
     marginBottom: 4,
   },
-  membersScroll: {
-    maxHeight: 160,
-    width: "100%",
-  },
-  membersScrollContent: {
-    gap: 6,
-  },
+  membersScroll: { maxHeight: 160, width: "100%" },
+  membersScrollContent: { gap: 6 },
   memberRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: "rgba(255,255,255,0.04)",
+    backgroundColor: T.card,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: T.border,
   },
   memberAvatar: {
     width: 26,
     height: 26,
     borderRadius: 13,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
+    borderColor: T.border,
   },
   memberName: {
     fontSize: 13,
     fontFamily: VibeFonts.bold,
-    color: "#fff",
+    color: T.ink,
   },
   modalConfirmBtn: {
     width: "100%",
-    backgroundColor: "rgba(255,255,255,0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    paddingVertical: 12,
-    borderRadius: Radius.full,
-    alignItems: "center",
+    borderRadius: 16,
+    overflow: "hidden",
     marginTop: Spacing.lg,
   },
+  modalConfirmGrad: {
+    paddingVertical: 13,
+    alignItems: "center",
+    borderRadius: 16,
+  },
   modalConfirmBtnText: {
-    color: "rgba(255,255,255,0.7)",
+    color: "#fff",
     fontFamily: VibeFonts.bold,
     fontSize: 13,
   },
   errorTextInline: {
-    color: VibeColors.textMuted,
+    color: T.muted,
     fontFamily: VibeFonts.medium,
     fontSize: 12,
   },
   senderNameLabel: {
     fontSize: 10,
     fontFamily: VibeFonts.bold,
-    color: "#C084FC",
+    color: T.purple,
     marginBottom: 2,
   },
   emojiToggleBtn: {
     width: 40,
     height: 40,
     borderRadius: 14,
-    backgroundColor: "rgba(138,86,255,0.1)",
+    backgroundColor: T.softPurple,
     alignItems: "center",
     justifyContent: "center",
   },
   emojiPanel: {
     height: 250,
     borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.06)",
-    backgroundColor: "rgba(10,10,18,0.95)",
+    borderTopColor: T.border,
+    backgroundColor: T.card,
     paddingVertical: 10,
   },
   emojiGrid: {
@@ -1038,41 +1192,36 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   emojiPanelItem: {
-    width: "11%", // roughly 8 items per row
+    width: "11%",
     aspectRatio: 1,
     alignItems: "center",
     justifyContent: "center",
   },
-  emojiPanelText: {
-    fontSize: 24,
-  },
-  emojiText: {
-    fontSize: 15,
-  },
+  emojiPanelText: { fontSize: 24 },
+  emojiText: { fontSize: 15 },
   hangoutToggleBtn: {
     width: 40,
     height: 40,
     borderRadius: 14,
-    backgroundColor: "rgba(138,86,255,0.1)",
+    backgroundColor: T.softPurple,
     alignItems: "center",
     justifyContent: "center",
-    marginLeft: 6,
   },
   hangoutPanel: {
     paddingVertical: 14,
     paddingHorizontal: Spacing.md,
     borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.06)",
-    backgroundColor: "rgba(10,10,18,0.95)",
+    borderTopColor: T.border,
+    backgroundColor: T.card,
   },
   hangoutPanelTitle: {
-    color: "#fff",
+    color: T.ink,
     fontFamily: VibeFonts.bold,
     fontSize: 15,
     textAlign: "center",
   },
   hangoutPanelSub: {
-    color: VibeColors.textMuted,
+    color: T.muted,
     fontFamily: VibeFonts.medium,
     fontSize: 11,
     textAlign: "center",
@@ -1086,9 +1235,9 @@ const styles = StyleSheet.create({
   },
   hangoutOptionCard: {
     flex: 1,
-    backgroundColor: "rgba(255,255,255,0.04)",
+    backgroundColor: T.bg,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.06)",
+    borderColor: T.border,
     borderRadius: Radius.md,
     paddingVertical: 12,
     alignItems: "center",
@@ -1101,26 +1250,22 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 6,
   },
-  hangoutOptionEmoji: {
-    fontSize: 18,
-  },
+  hangoutOptionEmoji: { fontSize: 18 },
   hangoutOptionLabel: {
-    color: "#fff",
+    color: T.ink,
     fontFamily: VibeFonts.bold,
     fontSize: 11,
     textAlign: "center",
   },
   bubbleInvite: {
-    backgroundColor: "rgba(255,255,255,0.04)",
+    backgroundColor: T.card,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-    borderRadius: Radius.lg,
+    borderColor: T.border,
+    borderRadius: 20,
     overflow: "hidden",
     width: 250,
   },
-  inviteCard: {
-    padding: 12,
-  },
+  inviteCard: { padding: 12 },
   inviteHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -1130,29 +1275,27 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: T.softPurple,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: "#DDD6FE",
   },
-  inviteIconText: {
-    fontSize: 20,
-  },
+  inviteIconText: { fontSize: 20 },
   inviteTitle: {
-    color: "#fff",
+    color: T.ink,
     fontFamily: VibeFonts.bold,
     fontSize: 14,
   },
   inviteSub: {
-    color: VibeColors.textMuted,
+    color: T.muted,
     fontFamily: VibeFonts.medium,
     fontSize: 10,
     marginTop: 1,
   },
   inviteDivider: {
     height: 1,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: T.border,
     marginVertical: 10,
   },
   inviteStatusContainer: {
@@ -1162,14 +1305,11 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   inviteStatusTextPending: {
-    color: "#C084FC",
+    color: T.purple,
     fontFamily: VibeFonts.semiBold,
     fontSize: 12,
   },
-  inviteActions: {
-    flexDirection: "row",
-    gap: 8,
-  },
+  inviteActions: { flexDirection: "row", gap: 8 },
   inviteActionBtn: {
     flex: 1,
     flexDirection: "row",
@@ -1179,12 +1319,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: Radius.sm,
   },
-  inviteAcceptBtn: {
-    backgroundColor: "#22C55E",
-  },
-  inviteDeclineBtn: {
-    backgroundColor: "#EF4444",
-  },
+  inviteAcceptBtn: { backgroundColor: T.green },
+  inviteDeclineBtn: { backgroundColor: T.red },
   inviteActionBtnText: {
     color: "#fff",
     fontFamily: VibeFonts.bold,
@@ -1198,7 +1334,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   inviteStatusTextAccepted: {
-    color: "#22C55E",
+    color: T.green,
     fontFamily: VibeFonts.bold,
     fontSize: 13,
   },
@@ -1210,8 +1346,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   inviteStatusTextDeclined: {
-    color: "#EF4444",
+    color: T.red,
     fontFamily: VibeFonts.bold,
     fontSize: 13,
   },
 });
+

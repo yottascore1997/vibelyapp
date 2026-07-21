@@ -237,14 +237,14 @@ export default function HangoutScreen() {
               onChangeText={setSearchQuery}
             />
           </View>
-          <Pressable style={styles.searchFilterBtn}>
+          <Pressable style={styles.searchFilterBtn} onPress={() => router.push("/events-map")}>
             <LinearGradient
               colors={[...T.cta]}
               style={StyleSheet.absoluteFill}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             />
-            <Ionicons name="options-outline" size={20} color="#fff" />
+            <Ionicons name="map" size={18} color="#fff" />
           </Pressable>
         </View>
 

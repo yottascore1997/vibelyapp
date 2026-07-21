@@ -72,6 +72,7 @@ export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
     { label: "Discover / Dating", icon: "heart-outline" as const, route: "/(tabs)/discover" },
     { label: "Friends & Reels", icon: "people-outline" as const, route: "/reels" },
     { label: "Hangout Plans", icon: "beer-outline" as const, route: "/hangout" },
+    { label: "Events Map 🗺️", icon: "map-outline" as const, route: "/events-map" },
     { label: "Explore Events 🎫", icon: "ticket-outline" as const, route: "/explore-events" },
     { label: "Create Plan", icon: "calendar-outline" as const, route: "/create-plan" },
     { label: "Travel Partners ✈️", icon: "airplane-outline" as const, route: "/travel" },
