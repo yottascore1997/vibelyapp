@@ -17,6 +17,7 @@ import GlassCard from "../components/vibe/GlassCard";
 import TabBar from "../components/TabBar";
 import { VibeColors, VibeFonts } from "../constants/vibeTheme";
 import { Radius, Spacing } from "../constants/theme";
+import { api } from "../services/api";
 
 const { width } = Dimensions.get("window");
 
@@ -41,21 +42,37 @@ export default function EventDetailsScreen() {
   }>();
 
   const [joined, setJoined] = useState(false);
+  const [joining, setJoining] = useState(false);
   const [goingNum, setGoingNum] = useState(parseInt(params.goingCount || "12", 10));
 
   const tagsList = params.tags ? params.tags.split(",") : ["Chill", "Meetup"];
 
-  const handleJoinPress = () => {
+  const handleJoinPress = async () => {
     if (joined) {
       setJoined(false);
-      setGoingNum((prev) => prev - 1);
-    } else {
+      setGoingNum((prev) => Math.max(1, prev - 1));
+      return;
+    }
+    if (!params.id) return;
+    setJoining(true);
+    try {
+      await api.joinPlan(String(params.id));
       setJoined(true);
       setGoingNum((prev) => prev + 1);
-      Alert.alert(
-        "Meetup Registered! 🎉",
-        "Aapki registration successful ho gayi hai. Meet Rohan and other Nagpur members at the venue!"
-      );
+      try {
+        await api.addJarItem({
+          title: `Joined ${params.title || "event"}`,
+          type: "PLAN",
+          description: String(params.location || ""),
+        });
+      } catch {
+        // optional
+      }
+      Alert.alert("You're in! 🎉", "Registration successful — see you at the venue.");
+    } catch (e) {
+      Alert.alert("Join failed", e instanceof Error ? e.message : "Could not join event");
+    } finally {
+      setJoining(false);
     }
   };
 

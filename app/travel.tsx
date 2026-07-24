@@ -36,10 +36,11 @@ import TabBar from "../components/TabBar";
 import { useSidebar } from "../context/SidebarContext";
 import { useAuth } from "../context/AuthContext";
 import { VibeFonts } from "../constants/vibeTheme";
+import { api } from "../services/api";
+import type { Plan } from "../constants/plans";
 
-const createTrip3d = require("../assets/create_plan_3d.png");
+const createTrip3d = require("../assets/create_plan_3d.jpg");
 
-const TRAVEL_STORAGE_KEY = "@vibely_travel_plans";
 const FAV_STORAGE_KEY = "@vibely_travel_favorites";
 const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get("window");
 const CARD_W = SCREEN_W * 0.46;
@@ -91,6 +92,9 @@ export interface TravelPlan {
 const HERO_IMG =
   "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=600&h=600&fit=crop";
 
+const DEFAULT_COVER =
+  "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=700&h=800&fit=crop";
+
 const AVATARS = [
   "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&h=80&fit=crop",
   "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop",
@@ -98,164 +102,49 @@ const AVATARS = [
   "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&h=80&fit=crop",
 ];
 
-const SEED_PLANS: TravelPlan[] = [
-  {
-    id: "trip-swiss",
-    title: "Switzerland Escape",
-    dates: "24 – 28 May",
-    style: "Mountains",
-    description: "Lakes, Alps & cozy evenings. Looking for chill travelers to share the journey.",
-    maxMembers: 6,
-    joinedCount: 3,
-    creator: "Sneha Kapoor",
-    creatorId: "seed-sneha",
-    creatorAvatar: AVATARS[2],
+function mapApiPlanToTravel(p: Plan): TravelPlan {
+  const style = p.activity || "Travel";
+  const low = style.toLowerCase();
+  const cat = low.includes("beach")
+    ? "beach"
+    : low.includes("mountain")
+      ? "mountains"
+      : low.includes("weekend")
+        ? "weekend"
+        : "all";
+  return {
+    id: p.id,
+    title: (p as any).destination || p.title?.replace(/^✈️\s*/, "") || "Trip",
+    dates: p.timeLabel || p.time || "Flexible",
+    style,
+    description: p.description || p.location || "Travel together",
+    maxMembers: p.maxParticipants || 6,
+    joinedCount: p.going || 1,
+    creator: p.creatorName || "Host",
+    creatorId: p.creatorId,
+    creatorAvatar:
+      p.creatorAvatar ||
+      "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop",
     requests: [],
-    joinedUsers: ["Sneha", "Arjun", "Neha"],
-    joinedUserIds: ["seed-sneha", "seed-arjun", "seed-neha"],
-    cover: "https://images.unsplash.com/photo-1531366936337-7c912a4589a7?w=700&h=800&fit=crop",
-    category: "mountains",
+    joinedUsers: (p.participants || []).map((x) => x.name),
+    joinedUserIds: (p.participants || []).map((x) => x.id),
+    cover: p.imageUrl || DEFAULT_COVER,
+    category: cat as CategoryId,
     trending: true,
-  },
-  {
-    id: "trip-maldives",
-    title: "Maldives Getaway",
-    dates: "10 – 15 Jun",
-    style: "Beach",
-    description: "Overwater vibes, snorkeling, and sunset dinners.",
-    maxMembers: 4,
-    joinedCount: 2,
-    creator: "Kabir Mehta",
-    creatorId: "seed-kabir",
-    creatorAvatar: AVATARS[3],
-    requests: [],
-    joinedUsers: ["Kabir", "Riya"],
-    joinedUserIds: ["seed-kabir", "seed-riya"],
-    cover: "https://images.unsplash.com/photo-1514282401047-d79a71a590e8?w=700&h=800&fit=crop",
-    category: "beach",
-    trending: true,
-  },
-  {
-    id: "trip-cappadocia",
-    title: "Cappadocia Balloons",
-    dates: "02 – 07 Jul",
-    style: "International",
-    description: "Hot air balloons at sunrise, cave hotels, and local food crawls.",
-    maxMembers: 8,
-    joinedCount: 5,
-    creator: "Aman Sen",
-    creatorId: "seed-aman",
-    creatorAvatar: AVATARS[1],
-    requests: [],
-    joinedUsers: ["Aman", "Priya", "Dev", "Sara", "Leo"],
-    joinedUserIds: ["seed-aman", "seed-priya", "seed-dev", "seed-sara", "seed-leo"],
-    cover: "https://images.unsplash.com/photo-1507608616759-54f48f0af0ee?w=700&h=800&fit=crop",
-    category: "international",
-    trending: true,
-  },
-  {
-    id: "trip-goa",
-    title: "Goa Weekend Hop",
-    dates: "This weekend",
-    style: "Weekend Getaway",
-    description: "Beaches, cafes, and live music. Quick weekend escape.",
-    maxMembers: 6,
-    joinedCount: 2,
-    creator: "Priya Roy",
-    creatorId: "seed-priya2",
-    creatorAvatar: AVATARS[0],
-    requests: [],
-    joinedUsers: ["Priya", "Karan"],
-    joinedUserIds: ["seed-priya2", "seed-karan"],
-    cover: "https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=700&h=800&fit=crop",
-    category: "weekend",
-    trending: false,
-  },
-];
-
-const CATEGORIES: {
-  id: CategoryId;
-  label: string;
-  emoji: string;
-  tint: string;
-  icon: keyof typeof Ionicons.glyphMap;
-}[] = [
-  { id: "all", label: "All", emoji: "🧭", tint: "#8B5CF6", icon: "compass" },
-  { id: "weekend", label: "Weekend\nGetaway", emoji: "🌴", tint: "#34D399", icon: "leaf" },
-  { id: "mountains", label: "Mountains", emoji: "⛰️", tint: "#60A5FA", icon: "triangle" },
-  { id: "beach", label: "Beach", emoji: "🏖️", tint: "#FBBF24", icon: "sunny" },
-  { id: "international", label: "International", emoji: "🌐", tint: "#A78BFA", icon: "globe" },
-  { id: "more", label: "More", emoji: "✨", tint: "#F472B6", icon: "apps" },
-];
-
-const WHY_CARDS = [
-  {
-    title: "Find Like-minded\nTravelers",
-    icon: "people" as const,
-    bg: ["#F3EEFF", "#E9D5FF"] as const,
-    color: "#7C3AED",
-  },
-  {
-    title: "Safe & Trusted\nCommunity",
-    icon: "shield-checkmark" as const,
-    bg: ["#FCE7F3", "#FBCFE8"] as const,
-    color: "#DB2777",
-  },
-  {
-    title: "Split Costs &\nTravel Smart",
-    icon: "wallet" as const,
-    bg: ["#FEF3C7", "#FDE68A"] as const,
-    color: "#D97706",
-  },
-  {
-    title: "Share Memories\nFor a Lifetime",
-    icon: "happy" as const,
-    bg: ["#DCFCE7", "#BBF7D0"] as const,
-    color: "#16A34A",
-  },
-];
+  };
+}
 
 async function loadPlans(): Promise<TravelPlan[]> {
-  const raw = await AsyncStorage.getItem(TRAVEL_STORAGE_KEY);
-  let parsed: TravelPlan[] = [];
-  if (raw) {
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      parsed = [];
-    }
-  }
-  if (!Array.isArray(parsed)) parsed = [];
-
-  const byId = new Map(parsed.map((p) => [p.id, p]));
-  for (const seed of SEED_PLANS) {
-    if (!byId.has(seed.id)) byId.set(seed.id, seed);
-  }
-
-  const merged = Array.from(byId.values()).map((p) => ({
-    ...p,
-    creatorId: p.creatorId || `legacy-${p.id}`,
-    joinedUserIds: p.joinedUserIds || [],
-    category: p.category || ("all" as CategoryId),
-    cover: p.cover || SEED_PLANS[0].cover,
-    requests: p.requests || [],
-    joinedUsers: p.joinedUsers || [],
-    trending: p.trending ?? true,
-  }));
-
-  merged.sort((a, b) => {
-    const aCustom = a.id.startsWith("custom-") ? 0 : 1;
-    const bCustom = b.id.startsWith("custom-") ? 0 : 1;
-    return aCustom - bCustom;
-  });
-
-  await AsyncStorage.setItem(TRAVEL_STORAGE_KEY, JSON.stringify(merged));
-  return merged;
+  const [mine, nearby] = await Promise.all([
+    api.getMyPlans(undefined, "TRAVEL").catch(() => [] as Plan[]),
+    api.getNearbyPlans(undefined, "TRAVEL").catch(() => [] as Plan[]),
+  ]);
+  const merged = [...(mine || []), ...(nearby || [])].filter(
+    (p, i, arr) => arr.findIndex((x) => x.id === p.id) === i
+  );
+  return merged.map(mapApiPlanToTravel);
 }
 
-async function savePlans(plans: TravelPlan[]) {
-  await AsyncStorage.setItem(TRAVEL_STORAGE_KEY, JSON.stringify(plans));
-}
 
 function SoftPress({
   children,
@@ -385,7 +274,6 @@ export default function TravelPartnersScreen() {
 
   const persistPlans = async (next: TravelPlan[]) => {
     setPlans(next);
-    await savePlans(next);
   };
 
   const filtered = useMemo(() => {
@@ -436,28 +324,20 @@ export default function TravelPartnersScreen() {
       Alert.alert("Already in", "You're already part of this trip.");
       return;
     }
-    if (hasRequested(plan)) {
-      Alert.alert("Pending", "Your join request is waiting for approval.");
-      return;
-    }
     if (plan.joinedCount >= plan.maxMembers) {
       Alert.alert("Full", "No seats left on this trip.");
       return;
     }
 
-    const next = plans.map((p) => {
-      if (p.id !== planId) return p;
-      return {
-        ...p,
-        requests: [
-          ...p.requests,
-          { userId, userName, userAvatar: AVATARS[0] },
-        ],
-      };
-    });
-    await persistPlans(next);
-    setSelectedPlan(next.find((p) => p.id === planId) || null);
-    Alert.alert("Request sent ✈️", "Organizer will review your join request.");
+    try {
+      await api.joinPlan(planId);
+      await refresh();
+      const updated = (await loadPlans()).find((p) => p.id === planId) || null;
+      setSelectedPlan(updated);
+      Alert.alert("You're in! ✈️", "Joined this trip successfully.");
+    } catch (e) {
+      Alert.alert("Join failed", e instanceof Error ? e.message : "Could not join trip");
+    }
   };
 
   const handleAcceptRequest = async (planId: string, reqUserId: string) => {

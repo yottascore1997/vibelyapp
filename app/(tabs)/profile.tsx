@@ -72,15 +72,17 @@ const MENU = [
   },
   {
     icon: "settings-outline" as const,
-    label: "Settings",
-    sub: "Privacy & preferences",
+    label: "Edit preferences",
+    sub: "Age range, distance & looking for",
     color: T.muted,
+    route: "/edit-profile",
   },
   {
-    icon: "help-circle-outline" as const,
-    label: "Help & Support",
-    sub: "FAQs and contact",
+    icon: "shield-checkmark-outline" as const,
+    label: "Safety",
+    sub: "Tips for meeting in real life",
     color: T.green,
+    route: "/(tabs)/vibes",
   },
 ];
 
@@ -324,7 +326,7 @@ export default function ProfileScreen() {
               <Text style={styles.logoutText}>Log Out</Text>
             </Pressable>
 
-            <Text style={styles.version}>Vibely · Nagpur</Text>
+            <Text style={styles.version}>Vibely</Text>
           </>
         )}
       </ScrollView>

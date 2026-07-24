@@ -29,7 +29,6 @@ import {
   buildCityEvents,
   getCityCenter,
   getCityZoom,
-  getPeopleForCity,
   resolveCityId,
 } from "../constants/mapEvents";
 import { useAuth } from "../context/AuthContext";
@@ -135,10 +134,13 @@ export default function EventsMapScreen() {
     else setShowCityPicker(true);
   }, [profileCity, selectCity]);
 
+  const [people, setPeople] = useState<MapPerson[]>([]);
+  const [peopleLoading, setPeopleLoading] = useState(false);
+
   const events = useMemo(() => {
     const profileFallback = resolveCityId(profileCity);
     const built = buildCityEvents(cityId, allPlans, {
-      includeDemo: true,
+      includeDemo: false,
       fallbackCity: profileFallback,
     });
     if (!search.trim()) return built;
@@ -149,15 +151,55 @@ export default function EventsMapScreen() {
     });
   }, [cityId, allPlans, search, profileCity]);
 
-  const people = useMemo(() => {
-    let list = getPeopleForCity(cityId);
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter((p) => `${p.name} ${p.vibeTag || ""}`.toLowerCase().includes(q));
-    }
-    return list;
-  }, [cityId, search]);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (mode !== "people") return;
+      setPeopleLoading(true);
+      try {
+        const list = (await api.getNearbyPeople({ maxKm: 25, limit: 40 })) || [];
+        const center = getCityCenter(cityId);
+        const mapped: MapPerson[] = (Array.isArray(list) ? list : []).map((p: any, i: number) => {
+          const angle = (i / Math.max(list.length, 1)) * Math.PI * 2;
+          const ring = 0.01 + (i % 5) * 0.004;
+          return {
+            id: p.id,
+            cityId,
+            name: p.name,
+            age: p.age || 24,
+            avatarUrl:
+              p.avatarUrl ||
+              "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&h=200&fit=crop",
+            latitude: center.latitude + Math.cos(angle) * ring,
+            longitude: center.longitude + Math.sin(angle) * ring,
+            isVerified: !!p.isVerified,
+            isOnline: !!p.isOnline,
+            vibeTag: p.jobTitle || p.city || "Nearby",
+            distanceKm: typeof p.distance === "number" ? p.distance : 2 + (i % 6),
+          };
+        });
+        if (alive) {
+          let filtered = mapped;
+          if (search.trim()) {
+            const q = search.toLowerCase();
+            filtered = mapped.filter((x) =>
+              `${x.name} ${x.vibeTag || ""}`.toLowerCase().includes(q)
+            );
+          }
+          setPeople(filtered);
+        }
+      } catch {
+        if (alive) setPeople([]);
+      } finally {
+        if (alive) setPeopleLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [mode, cityId, search]);
 
+  // keep markers below
   const markers: InteractiveMapMarker[] = useMemo(() => {
     if (mode === "people") {
       return people.map((p) => ({
@@ -530,9 +572,10 @@ export default function EventsMapScreen() {
             <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 400, marginTop: 12 }}>
               {CITIES.map((c) => {
                 const eCount = buildCityEvents(c.id, allPlans, {
+                  includeDemo: false,
                   fallbackCity: resolveCityId(profileCity),
                 }).length;
-                const pCount = getPeopleForCity(c.id).length;
+                const pCount = "nearby";
                 const active = c.id === cityId;
                 return (
                   <Pressable

@@ -78,6 +78,13 @@ export default function RootLayout() {
                 contentStyle: { backgroundColor: "#EEE9F8" },
               }}
             />
+            <Stack.Screen
+              name="people-nearby"
+              options={{
+                animation: "slide_from_right",
+                contentStyle: { backgroundColor: "#07070B" },
+              }}
+            />
             <Stack.Screen name="explore-events" options={{ animation: "slide_from_right" }} />
           </Stack>
           <Sidebar />

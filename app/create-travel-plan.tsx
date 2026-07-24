@@ -10,7 +10,6 @@ import {
   ImageBackground,
   Dimensions,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
@@ -19,8 +18,8 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import TabBar from "../components/TabBar";
 import { useAuth } from "../context/AuthContext";
 import { VibeFonts } from "../constants/vibeTheme";
+import { api } from "../services/api";
 
-const STORAGE_KEY = "@vibely_travel_plans";
 const { width: SCREEN_W } = Dimensions.get("window");
 
 const COVER_BY_STYLE: Record<string, string> = {
@@ -110,38 +109,35 @@ export default function CreateTravelPlanScreen() {
       Alert.alert("Add a note", "Write a short vibe for people joining.");
       return;
     }
+    if (!user) {
+      Alert.alert("Login required", "Please log in to publish a trip.");
+      return;
+    }
 
     setSaving(true);
     try {
-      const newPlan = {
-        id: `custom-${Date.now()}`,
-        title: dest.trim(),
-        dates: dates.trim(),
-        style: style.label,
-        description: desc.trim(),
-        maxMembers: maxCount,
-        joinedCount: 1,
-        creator: `${userName} (You)`,
-        creatorId: userId,
-        creatorAvatar:
-          "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop",
-        requests: [],
-        joinedUsers: [userName.split(" ")[0]],
-        joinedUserIds: [userId],
-        cover: COVER_BY_STYLE[styleId] || COVER_BY_STYLE.adventure,
-        category: mapCategory(styleId, dates.trim()),
-        trending: true,
-      };
+      const scheduledAt = new Date();
+      scheduledAt.setDate(scheduledAt.getDate() + (dateChip === "nextweek" ? 7 : dateChip === "month" ? 14 : 2));
+      scheduledAt.setHours(10, 0, 0, 0);
 
-      const raw = await AsyncStorage.getItem(STORAGE_KEY);
-      const existing = raw ? JSON.parse(raw) : [];
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify([newPlan, ...existing]));
+      await api.createPlan({
+        title: `✈️ ${dest.trim()}`,
+        description: desc.trim(),
+        destination: dest.trim(),
+        location: dest.trim(),
+        scheduledAt: scheduledAt.toISOString(),
+        maxParticipants: maxCount,
+        activity: style.label,
+        imageUrl: COVER_BY_STYLE[styleId] || COVER_BY_STYLE.adventure,
+        kind: "TRAVEL",
+        distance: 1,
+      });
 
       Alert.alert("Trip published ✈️", "Your trip is live. Travel buddies can join now.", [
         { text: "View trips", onPress: () => router.replace("/travel") },
       ]);
-    } catch {
-      Alert.alert("Error", "Could not save travel plan.");
+    } catch (e) {
+      Alert.alert("Error", e instanceof Error ? e.message : "Could not save travel plan.");
     } finally {
       setSaving(false);
     }

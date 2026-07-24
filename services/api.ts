@@ -75,8 +75,31 @@ export const api = {
     fetchApi(
       `/profiles?mode=${mode}${userId ? `&userId=${userId}` : ""}${city ? `&city=${encodeURIComponent(city)}` : ""}`
     ),
-  getDiscoverProfiles: (userId: string, mode = "dating", city = "Nagpur") =>
-    fetchApi(`/profiles?mode=${mode}&userId=${userId}&city=${encodeURIComponent(city)}`),
+  getNearbyPeople: (opts?: { maxKm?: number; limit?: number; mode?: string }) => {
+    const maxKm = opts?.maxKm ?? 10;
+    const limit = opts?.limit ?? 40;
+    const mode = opts?.mode ?? "dating";
+    return fetchApi<
+      {
+        id: string;
+        name: string;
+        age?: number;
+        bio?: string;
+        city?: string;
+        distance: number;
+        isOnline?: boolean;
+        isVerified?: boolean;
+        avatarUrl?: string;
+        jobTitle?: string;
+        vibeMatch?: number;
+        interests?: { name: string }[];
+      }[]
+    >(`/profiles?nearby=1&maxKm=${maxKm}&limit=${limit}&mode=${mode}`);
+  },
+  getDiscoverProfiles: (userId: string, mode = "dating", city?: string) =>
+    fetchApi(
+      `/profiles?mode=${mode}&userId=${userId}${city ? `&city=${encodeURIComponent(city)}` : ""}`
+    ),
   getMatches: (_userId?: string) => fetchApi(`/matches`),
   getLikes: (_userId?: string) => fetchApi<{ count: number; likes: unknown[] }>(`/likes`),
   getOnlineUsers: () => fetchApi("/users/online"),

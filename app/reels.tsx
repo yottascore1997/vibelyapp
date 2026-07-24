@@ -21,8 +21,8 @@ import { useMatches } from "../context/MatchesContext";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../services/api";
 import { VibeFonts } from "../constants/vibeTheme";
-import { onlineUsers } from "../constants/mockData";
 import { Radius, Spacing } from "../constants/theme";
+import { API_URL } from "../constants/theme";
 
 const friendsHangout3d = require("../assets/friends_hangout_3d.png");
 const { width: SCREEN_W } = Dimensions.get("window");
@@ -282,6 +282,27 @@ export default function ReelsScreen() {
   const [notification, setNotification] = useState<string | null>(null);
   const [myAvatarUrl, setMyAvatarUrl] = useState<string>("");
   const [sendingInvite, setSendingInvite] = useState(false);
+  const [facepile, setFacepile] = useState<{ id: string; avatarUrl: string }[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const users: any = await api.getOnlineUsers();
+        const list = Array.isArray(users) ? users : users?.users || [];
+        setFacepile(
+          list.slice(0, 4).map((u: any) => ({
+            id: u.id || u.userId,
+            avatarUrl: u.avatarUrl?.startsWith("/")
+              ? `${API_URL.replace("/api", "")}${u.avatarUrl}`
+              : u.avatarUrl ||
+                "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100",
+          }))
+        );
+      } catch {
+        setFacepile([]);
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     async function loadMyProfile() {
@@ -453,16 +474,18 @@ export default function ReelsScreen() {
           </View>
 
           <View style={styles.facepile}>
-            {onlineUsers.slice(1, 4).map((u, i) => (
+            {(facepile.length ? facepile : []).slice(0, 3).map((u, i) => (
               <Image
-                key={u.id}
+                key={u.id || String(i)}
                 source={{ uri: u.avatarUrl }}
                 style={[styles.face, { marginLeft: i > 0 ? -8 : 0, zIndex: 3 - i }]}
               />
             ))}
-            <View style={styles.faceMore}>
-              <Text style={styles.faceMoreText}>+3</Text>
-            </View>
+            {facepile.length > 3 ? (
+              <View style={styles.faceMore}>
+                <Text style={styles.faceMoreText}>+{Math.max(0, facepile.length - 3)}</Text>
+              </View>
+            ) : null}
           </View>
         </View>
 

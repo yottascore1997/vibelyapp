@@ -43,6 +43,7 @@ const homeActivities = [
 
 /** Limited core features — compact horizontal explore */
 const APP_FEATURES = [
+  { id: "nearby", title: "Nearby", icon: "radio" as const, colors: ["#FF3D7F", "#DB2777"] as const, route: "/people-nearby" },
   { id: "discover", title: "Discover", icon: "heart" as const, colors: ["#FF4B81", "#E11D48"] as const, route: "/(tabs)/discover" },
   { id: "hangout", title: "Hangout", icon: "cafe" as const, colors: ["#8A56FF", "#A855F7"] as const, route: "/hangout" },
   { id: "map", title: "Events Map", icon: "map" as const, colors: ["#14B8A6", "#0D9488"] as const, route: "/events-map" },
@@ -66,6 +67,16 @@ const PROMO_BANNERS = [
   },
   {
     id: "b2",
+    tag: "NEARBY",
+    title: "People within 10 km",
+    subtitle: "Radar scan · find who is close right now",
+    cta: "Find Nearby",
+    emoji: "📡",
+    colors: ["#FF3D7F", "#DB2777", "#8B5CF6"] as const,
+    route: "/people-nearby",
+  },
+  {
+    id: "b2b",
     tag: "DISCOVER",
     title: "New vibes in your city",
     subtitle: "Swipe, match & start real conversations",
@@ -76,10 +87,10 @@ const PROMO_BANNERS = [
   },
   {
     id: "b3",
-    tag: "AI PREVIEW",
-    title: "Let AI find your vibe",
-    subtitle: "Demo suggestions — live AI matching coming soon",
-    cta: "Try AI Match",
+    tag: "AI MATCH",
+    title: "Smart plan picks for you",
+    subtitle: "Ranked live hangouts near you — join in one tap",
+    cta: "Try Smart Match",
     emoji: "✨",
     colors: ["#7C3AED", "#8B5CF6", "#14B8A6"] as const,
     route: "/vibematch",

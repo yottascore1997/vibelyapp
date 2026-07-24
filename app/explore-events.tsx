@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -11,16 +11,20 @@ import {
   Modal,
   Pressable,
   ImageBackground,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import Animated, { FadeInDown, ZoomIn } from "react-native-reanimated";
 import TabBar from "../components/TabBar";
 import { VibeColors, VibeFonts } from "../constants/vibeTheme";
 import { Radius, Spacing } from "../constants/theme";
+import { useAuth } from "../context/AuthContext";
+import { api } from "../services/api";
+import type { Plan } from "../constants/plans";
 
 const { width } = Dimensions.get("window");
 
@@ -61,76 +65,31 @@ interface EventItem {
   isFree?: boolean;
 }
 
-const INITIAL_EVENTS: EventItem[] = [
-  {
-    id: "1",
-    title: "Rooftop Sunset Hangout 🌅",
-    category: "Chill",
-    location: "Empress City Rooftop, Nagpur",
-    timeLabel: "Today, 6:00 PM",
-    goingCount: 12,
-    commentCount: 8,
-    creatorName: "Rohan",
-    creatorAvatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100",
-    creatorTimeAgo: "2h ago",
+const INITIAL_EVENTS: EventItem[] = [];
+
+function mapPlanToEvent(p: Plan): EventItem {
+  return {
+    id: p.id,
+    title: p.title,
+    category: p.activity || "Hangout",
+    location: p.location || "Nearby",
+    timeLabel: p.timeLabel || p.time || "Soon",
+    goingCount: p.going || 1,
+    commentCount: 0,
+    creatorName: p.creatorName || "Host",
+    creatorAvatar:
+      p.creatorAvatar ||
+      "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100",
+    creatorTimeAgo: p.badge || "Live",
     isVerified: true,
-    tags: ["Music", "Chill", "Meet New People"],
-    description: "Chill vibes, good music, amazing people & a perfect sunset! 🌅",
-    imageUrl: "https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?w=300",
+    tags: [p.activity || "Event", p.badge || "Open"].filter(Boolean) as string[],
+    description: p.description || "Join this event near you.",
+    imageUrl:
+      p.imageUrl ||
+      "https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?w=300",
     isFree: true,
-  },
-  {
-    id: "2",
-    title: "Night Football Match ⚽",
-    category: "Sports",
-    location: "Dharampeth Ground, Nagpur",
-    timeLabel: "Today, 8:30 PM",
-    goingCount: 18,
-    commentCount: 4,
-    creatorName: "Karan",
-    creatorAvatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100",
-    creatorTimeAgo: "3h ago",
-    isVerified: true,
-    tags: ["Sports", "Fitness", "Teamplay"],
-    description: "Let's play, have fun & stay fit together! All are welcome. 💪",
-    imageUrl: "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=300",
-    isFree: true,
-  },
-  {
-    id: "3",
-    title: "Coffee & Connect ☕",
-    category: "Food",
-    location: "Cafe Tryst, Civil Lines, Nagpur",
-    timeLabel: "Tomorrow, 11:00 AM",
-    goingCount: 9,
-    commentCount: 3,
-    creatorName: "Priya",
-    creatorAvatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100",
-    creatorTimeAgo: "5h ago",
-    isVerified: true,
-    tags: ["Coffee", "Chat", "Network"],
-    description: "Good coffee, good conversations & great people! Let's connect. ✨",
-    imageUrl: "https://images.unsplash.com/photo-1511920170033-f8396924c348?w=300",
-    isFree: true,
-  },
-  {
-    id: "4",
-    title: "Open Mic Night 🎤",
-    category: "Music",
-    location: "The Creative Cafe, Nagpur",
-    timeLabel: "18 May, 7:00 PM",
-    goingCount: 14,
-    commentCount: 5,
-    creatorName: "Rohit",
-    creatorAvatar: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=100",
-    creatorTimeAgo: "6h ago",
-    isVerified: true,
-    tags: ["Music", "OpenMic", "Social"],
-    description: "Sing, share, write, shine. A gorgeous space to vibe together! ✨",
-    imageUrl: "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=300",
-    isFree: true,
-  },
-];
+  };
+}
 
 const MAIN_FILTERS = [
   { id: "All", label: "All", icon: "compass-outline" },
@@ -181,11 +140,34 @@ function isEventExpired(timeLabel: string): boolean {
 
 export default function ExploreEventsScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const [events, setEvents] = useState<EventItem[]>(INITIAL_EVENTS);
   const [activeFilter, setActiveFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSubTab, setSelectedSubTab] = useState<"Popular" | "Recent" | "Following">("Popular");
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  const refreshEvents = useCallback(async () => {
+    try {
+      const [mine, nearby] = await Promise.all([
+        api.getMyPlans(undefined, "EVENT").catch(() => [] as Plan[]),
+        api.getNearbyPlans(undefined, "EVENT").catch(() => [] as Plan[]),
+      ]);
+      const merged = [...(mine || []), ...(nearby || [])].filter(
+        (p, i, arr) => arr.findIndex((x) => x.id === p.id) === i
+      );
+      setEvents(merged.map(mapPlanToEvent));
+    } catch {
+      setEvents([]);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshEvents();
+    }, [refreshEvents])
+  );
+
 
   // Form States for creating new event
   const [currentStep, setCurrentStep] = useState(1);
@@ -267,45 +249,59 @@ export default function ExploreEventsScreen() {
                        newLocation.trim().length > 0 &&
                        newDesc.trim().length > 0;
 
-  const handleCreateEvent = () => {
+  const handleCreateEvent = async () => {
     if (!newTitle.trim() || !newLocation.trim() || !newDesc.trim()) {
-      alert("Please fill in all details!");
+      Alert.alert("Missing details", "Please fill in all details!");
+      return;
+    }
+    if (!user) {
+      Alert.alert("Login required", "Please log in to create an event.");
       return;
     }
 
-    const newEvent: EventItem = {
-      id: `${Date.now()}`,
-      title: newTitle,
-      category: "Chill",
-      location: newLocation,
-      timeLabel: `${startDate}, ${newTime}`,
-      goingCount: 1,
-      commentCount: 0,
-      creatorName: "Mayur",
-      creatorAvatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100",
-      creatorTimeAgo: "Just now",
-      isVerified: true,
-      tags: [genderSelection, eventType === "Paid" ? `Paid: ${currency} ${costPerTicket}` : "Free Hang"],
-      description: newDesc,
-      imageUrl: coverPhoto || "https://images.unsplash.com/photo-1596176530529-78163a4f7af2?w=800&q=80",
-      isFree: eventType === "Free",
-    };
+    try {
+      const [dd, mm, yyyy] = startDate.includes("/")
+        ? startDate.split("/")
+        : ["", "", ""];
+      const scheduled = new Date();
+      if (dd && mm && yyyy) {
+        scheduled.setFullYear(Number(yyyy), Number(mm) - 1, Number(dd));
+      } else {
+        scheduled.setDate(scheduled.getDate() + 1);
+      }
+      const [hh, min] = newTime.includes(":") ? newTime.split(":") : ["18", "0"];
+      scheduled.setHours(Number(hh) || 18, Number(min) || 0, 0, 0);
 
-    setEvents([newEvent, ...events]);
-    
-    // Reset modal state
-    setShowCreateModal(false);
-    setCurrentStep(1);
-    setCoverPhoto(null);
-    setNewTitle("");
-    setStartDate("Select date");
-    setNewTime("Select time");
-    setNewLocation("");
-    setGenderSelection("All");
-    setNewDesc("");
-    setEventType("Paid");
-    setCostPerTicket("123");
-    setCurrency("INR");
+      await api.createPlan({
+        title: newTitle.trim(),
+        description: newDesc.trim(),
+        location: newLocation.trim(),
+        scheduledAt: scheduled.toISOString(),
+        maxParticipants: 20,
+        activity: "Event",
+        imageUrl:
+          coverPhoto ||
+          "https://images.unsplash.com/photo-1596176530529-78163a4f7af2?w=800&q=80",
+        kind: "EVENT",
+      });
+
+      await refreshEvents();
+      setShowCreateModal(false);
+      setCurrentStep(1);
+      setCoverPhoto(null);
+      setNewTitle("");
+      setStartDate("Select date");
+      setNewTime("Select time");
+      setNewLocation("");
+      setGenderSelection("All");
+      setNewDesc("");
+      setEventType("Paid");
+      setCostPerTicket("123");
+      setCurrency("INR");
+      Alert.alert("Event live", "Your event is published for people nearby.");
+    } catch (e) {
+      Alert.alert("Error", e instanceof Error ? e.message : "Could not create event");
+    }
   };
 
   const handleBack = () => {

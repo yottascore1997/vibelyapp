@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "VibeMatch",
+    "name": "Vibely",
     "slug": "vibematch",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -12,6 +12,7 @@
     },
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.vibely.app",
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true,
@@ -20,6 +21,7 @@
       }
     },
     "android": {
+      "package": "com.vibely.app",
       "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "backgroundColor": "#8A56FF",
@@ -35,6 +37,12 @@
       "expo-router",
       "expo-asset",
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "e4232a2a-d6f1-40de-97c2-939c78e537d8"
+      }
+    }
   }
 }

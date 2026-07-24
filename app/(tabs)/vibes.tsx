@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -103,15 +103,46 @@ export default function VibesScreen() {
     setSelectedVibe(id);
     const energy =
       id === "Lessgo" ? "LESSGO" : id === "Maybe" ? "MAYBE" : "OFF_GRID";
+    const activity =
+      QUICK_ACTIVITIES.find((a) => a.id === selectedActivity)?.name || selectedActivity;
+    const timeLabel =
+      TIME_CHIPS.find((t) => t.id === selectedTime)?.label || selectedTime;
     try {
       await api.updateSocialStatus({
         energy,
         freeNow: id === "Lessgo",
+        activityName: activity,
+        timeLabel,
       });
     } catch {
       // soft fail — UI still updates
     }
   };
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const status: any = await api.getSocialStatus();
+        if (!status) return;
+        const energy = status.energy || status?.energy;
+        if (energy === "LESSGO") setSelectedVibe("Lessgo");
+        else if (energy === "OFF_GRID") setSelectedVibe("Off grid");
+        else if (energy === "MAYBE") setSelectedVibe("Maybe");
+        if (status.activityName) {
+          const found = QUICK_ACTIVITIES.find(
+            (a) => a.name.toLowerCase() === String(status.activityName).toLowerCase()
+          );
+          if (found) setSelectedActivity(found.id);
+        }
+        if (status.timeLabel) {
+          const foundT = TIME_CHIPS.find((t) => t.label === status.timeLabel);
+          if (foundT) setSelectedTime(foundT.id);
+        }
+      } catch {
+        // ignore
+      }
+    })();
+  }, []);
 
   const handleSendInvite = () => {
     router.push("/reels");
@@ -303,14 +334,14 @@ export default function VibesScreen() {
         {/* Premium tip — honest, not fake unlock */}
         <Pressable
           style={styles.premiumCard}
-          onPress={() => router.push("/(tabs)/profile")}
+          onPress={() => router.push("/my-matches")}
         >
           <View style={styles.premiumIcon}>
-            <Ionicons name="diamond" size={18} color="#FBBF24" />
+            <Ionicons name="heart" size={18} color={T.pink} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.premiumTitle}>Go Premium</Text>
-            <Text style={styles.premiumSub}>See likes, boosts & more from Profile</Text>
+            <Text style={styles.premiumTitle}>See your likes</Text>
+            <Text style={styles.premiumSub}>Open matches & likes — no fake paywall</Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color={T.faint} />
         </Pressable>

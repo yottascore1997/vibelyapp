@@ -113,8 +113,20 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
       const { swiped, localMatches } = await loadLocal();
 
       const soft = <T,>(p: Promise<T>) => p.catch(() => null as T | null);
+
+      let discoverCity = "Nagpur";
+      try {
+        const token = await AsyncStorage.getItem("token");
+        if (token) {
+          const me: any = await api.getProfile(token);
+          if (me?.city) discoverCity = me.city;
+        }
+      } catch {
+        // keep default
+      }
+
       const [profiles, matchList, likes] = await Promise.all([
-        soft(api.getDiscoverProfiles(user.id, mode, "Nagpur")),
+        soft(api.getDiscoverProfiles(user.id, mode, discoverCity)),
         soft(api.getMatches(user.id)),
         soft(api.getLikes(user.id)),
         soft(refreshPlans()),
