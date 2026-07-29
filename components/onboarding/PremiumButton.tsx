@@ -15,7 +15,7 @@ export default function PremiumButton({ label, onPress, loading, disabled, icon 
   return (
     <TouchableOpacity onPress={onPress} disabled={disabled || loading} activeOpacity={0.88} style={styles.wrap}>
       <LinearGradient
-        colors={disabled ? ["#D1D5DB", "#9CA3AF"] : ["#8A56FF", "#B44BFF", "#FF4B81"]}
+        colors={disabled ? ["#E2E8F0", "#CBD5E1"] : ["#7C3AED", "#8B5CF6", "#EC4899"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={styles.btn}
@@ -29,11 +29,11 @@ export default function PremiumButton({ label, onPress, loading, disabled, icon 
 
 const styles = StyleSheet.create({
   wrap: {
-    shadowColor: "#8A56FF",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowColor: "#7C3AED",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 6,
   },
   btn: {
     flexDirection: "row",

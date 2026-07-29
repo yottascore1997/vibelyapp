@@ -14,6 +14,13 @@ export interface DiscoverProfile {
   avatarUrl: string;
   photos?: string[];
   interests?: { name: string; color?: string | null; icon?: string | null }[];
+  socialStatus?: {
+    energy?: string;
+    freeNow?: boolean;
+    activityName?: string | null;
+    timeLabel?: string | null;
+  } | null;
+  energy?: string;
 }
 
 export interface MatchProfile extends DiscoverProfile {

@@ -27,15 +27,14 @@ export const VibeFonts = {
 };
 
 export const VibeActivities = [
+  { id: "beer", name: "Beer & Drinks", emoji: "🍺", icon: "beer" as const, color: "#EAB308" },
   { id: "coffee", name: "Coffee", emoji: "☕", icon: "cafe" as const, color: "#8B5E3C" },
-  { id: "food", name: "Food", emoji: "🍕", icon: "pizza" as const, color: "#F97316" },
-  { id: "biryani", name: "Biryani", emoji: "🍛", icon: "restaurant" as const, color: "#DC2626" },
-  { id: "beer", name: "Beer", emoji: "🍺", icon: "beer" as const, color: "#EAB308" },
-  { id: "sutta", name: "Sutta", emoji: "🚬", icon: "flame" as const, color: "#6B7280" },
-  { id: "vape", name: "Vape", emoji: "💨", icon: "cloud" as const, color: "#94A3B8" },
-  { id: "street", name: "Street", emoji: "🌮", icon: "fast-food" as const, color: "#22C55E" },
-  { id: "drinks", name: "Drinks", emoji: "🍸", icon: "wine" as const, color: "#EC4899" },
-  { id: "dietcoke", name: "Diet Coke", emoji: "🥤", icon: "water" as const, color: "#EF4444" },
+  { id: "food", name: "Food / Lunch", emoji: "🍕", icon: "pizza" as const, color: "#F97316" },
+  { id: "movie", name: "Movie / Cinema", emoji: "🎬", icon: "film" as const, color: "#818CF8" },
+  { id: "gaming", name: "Gaming / Play", emoji: "🎮", icon: "game-controller" as const, color: "#34D399" },
+  { id: "drive", name: "Late Drive", emoji: "🚗", icon: "car" as const, color: "#3B82F6" },
+  { id: "sutta", name: "Sutta & Chill", emoji: "🚬", icon: "flame" as const, color: "#6B7280" },
+  { id: "drinks", name: "Cocktails 🍸", emoji: "🍸", icon: "wine" as const, color: "#EC4899" },
 ];
 
 export const VibeEnergies = [

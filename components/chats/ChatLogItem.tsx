@@ -6,13 +6,13 @@ import { ChatThread, formatChatTime } from "../../constants/chats";
 import { VibeFonts } from "../../constants/vibeTheme";
 
 const T = {
-  ink: "#1A1F36",
-  muted: "#6B7280",
-  faint: "#9CA3AF",
-  border: "#E4DFF0",
+  ink: "#0F172A",
+  muted: "#64748B",
+  faint: "#94A3B8",
+  border: "#E2E8F0",
   purple: "#8B5CF6",
   pink: "#EC4899",
-  card: "#FFFBFE",
+  card: "#FFFFFF",
   cta: ["#8B5CF6", "#EC4899"] as const,
 };
 
@@ -33,30 +33,42 @@ export default function ChatLogItem({ thread, onPress, isLast }: Props) {
   return (
     <Pressable
       onPress={onPress}
-      style={[
+      style={({ pressed }) => [
         styles.wrap,
         hasUnread && styles.wrapUnread,
         isLast && styles.wrapLast,
+        pressed && styles.wrapPressed,
       ]}
     >
-      {hasUnread ? <View style={styles.accent} /> : null}
+      {hasUnread ? (
+        <LinearGradient
+          colors={[...T.cta]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={styles.accent}
+        />
+      ) : null}
 
       <View style={styles.avatarWrap}>
         <LinearGradient
           colors={thread.isGroup ? ["#7C3AED", "#8B5CF6"] : [...T.cta]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
           style={styles.avatarRing}
         >
           <Image source={{ uri: thread.avatarUrl }} style={styles.avatar} />
         </LinearGradient>
+
         {thread.isOnline ? (
           <View style={styles.online}>
             <PulseDot size={5} color="#22C55E" />
           </View>
         ) : null}
+
         {thread.isGroup ? (
-          <View style={styles.groupBadge}>
-            <Ionicons name="people" size={9} color="#fff" />
-          </View>
+          <LinearGradient colors={["#7C3AED", "#8B5CF6"]} style={styles.groupBadge}>
+            <Ionicons name="people" size={10} color="#fff" />
+          </LinearGradient>
         ) : null}
       </View>
 
@@ -67,13 +79,14 @@ export default function ChatLogItem({ thread, onPress, isLast }: Props) {
               {thread.matchName}
             </Text>
             {thread.isVerified ? (
-              <Ionicons name="checkmark-circle" size={14} color={T.purple} />
+              <Ionicons name="checkmark-circle" size={15} color={T.purple} />
             ) : null}
           </View>
           <Text style={[styles.time, hasUnread && styles.timeUnread]}>
             {formatChatTime(thread.lastMessageAt)}
           </Text>
         </View>
+
         <View style={styles.bottomRow}>
           <Text
             style={[styles.preview, hasUnread && styles.previewUnread]}
@@ -82,14 +95,15 @@ export default function ChatLogItem({ thread, onPress, isLast }: Props) {
             {isFromMe ? <Text style={styles.youPrefix}>You: </Text> : null}
             {thread.lastMessage}
           </Text>
+
           {hasUnread ? (
-            <LinearGradient colors={[...T.cta]} style={styles.unread}>
+            <LinearGradient colors={[...T.cta]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.unread}>
               <Text style={styles.unreadText}>
                 {thread.unread > 9 ? "9+" : thread.unread}
               </Text>
             </LinearGradient>
           ) : (
-            <Ionicons name="chevron-forward" size={15} color={T.faint} />
+            <Ionicons name="chevron-forward" size={16} color={T.faint} />
           )}
         </View>
       </View>
@@ -101,66 +115,76 @@ const styles = StyleSheet.create({
   wrap: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 14,
     paddingVertical: 14,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: T.border,
+    borderBottomColor: "rgba(226, 232, 240, 0.7)",
     position: "relative",
     backgroundColor: T.card,
   },
   wrapLast: { borderBottomWidth: 0 },
   wrapUnread: {
-    backgroundColor: "rgba(236,72,153,0.04)",
+    backgroundColor: "rgba(244, 242, 255, 0.7)",
+  },
+  wrapPressed: {
+    backgroundColor: "rgba(238, 233, 248, 0.9)",
   },
   accent: {
     position: "absolute",
     left: 0,
-    top: 14,
-    bottom: 14,
-    width: 3,
-    borderTopRightRadius: 3,
-    borderBottomRightRadius: 3,
-    backgroundColor: T.pink,
+    top: 12,
+    bottom: 12,
+    width: 3.5,
+    borderTopRightRadius: 4,
+    borderBottomRightRadius: 4,
   },
   avatarWrap: { position: "relative" },
   avatarRing: {
-    width: 56,
-    height: 56,
-    borderRadius: 20,
+    width: 58,
+    height: 58,
+    borderRadius: 21,
     padding: 2.5,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#8B5CF6",
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 17,
+    width: 52,
+    height: 52,
+    borderRadius: 18,
     borderWidth: 2,
-    borderColor: "#fff",
+    borderColor: "#FFFFFF",
   },
   online: {
     position: "absolute",
     bottom: 0,
     right: 0,
-    backgroundColor: T.card,
-    borderRadius: 8,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 10,
     padding: 2,
     borderWidth: 1.5,
-    borderColor: "#fff",
+    borderColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
   },
   groupBadge: {
     position: "absolute",
     top: -2,
     right: -2,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: T.purple,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1.5,
-    borderColor: "#fff",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
   },
   body: { flex: 1, minWidth: 0 },
   topRow: {
@@ -169,14 +193,15 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 8,
   },
-  nameRow: { flexDirection: "row", alignItems: "center", gap: 4, flex: 1 },
+  nameRow: { flexDirection: "row", alignItems: "center", gap: 5, flex: 1 },
   name: {
     fontSize: 15,
     fontFamily: VibeFonts.bold,
     color: T.ink,
     flexShrink: 1,
+    letterSpacing: -0.2,
   },
-  nameUnread: { fontFamily: VibeFonts.extraBold },
+  nameUnread: { fontFamily: VibeFonts.extraBold, color: "#0F172A" },
   time: {
     fontSize: 11,
     fontFamily: VibeFonts.medium,
@@ -207,7 +232,12 @@ const styles = StyleSheet.create({
     borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 6,
+    paddingHorizontal: 7,
+    shadowColor: "#EC4899",
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
-  unreadText: { fontSize: 10, fontFamily: VibeFonts.bold, color: "#fff" },
+  unreadText: { fontSize: 10, fontFamily: VibeFonts.extraBold, color: "#FFFFFF" },
 });

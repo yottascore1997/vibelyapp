@@ -7,28 +7,72 @@ export const ONBOARDING_STEPS = [
 ];
 
 export const GENDER_OPTIONS = [
-  { id: "MALE", label: "Man", icon: "male" },
-  { id: "FEMALE", label: "Woman", icon: "female" },
-  { id: "OTHER", label: "Other", icon: "person" },
+  { id: "MALE", label: "Man", icon: "male", emoji: "👨" },
+  { id: "FEMALE", label: "Woman", icon: "female", emoji: "👩" },
+  { id: "OTHER", label: "Other", icon: "sparkles", emoji: "✨" },
 ];
 
 export const INTERESTED_IN_OPTIONS = [
-  { id: "MEN", label: "Men", icon: "man" },
-  { id: "WOMEN", label: "Women", icon: "woman" },
-  { id: "EVERYONE", label: "Everyone", icon: "people" },
+  { id: "MEN", label: "Men", icon: "man", emoji: "👨" },
+  { id: "WOMEN", label: "Women", icon: "woman", emoji: "👩" },
+  { id: "EVERYONE", label: "Everyone", icon: "people", emoji: "🌈" },
 ];
 
-export const PRONOUNS_OPTIONS = ["He/Him", "She/Her", "They/Them", "Prefer not to say"];
+export const PRONOUNS_OPTIONS = [
+  { id: "He/Him", label: "He/Him", emoji: "🙋‍♂️" },
+  { id: "She/Her", label: "She/Her", emoji: "🙋‍♀️" },
+  { id: "They/Them", label: "They/Them", emoji: "🧑‍🤝‍🧑" },
+  { id: "Prefer not to say", label: "Skip", emoji: "🔒" },
+];
 
-export const SMOKING_OPTIONS = ["Never", "Sometimes", "Regularly", "Trying to quit"];
-export const DRINKING_OPTIONS = ["Never", "Socially", "Regularly", "Sober"];
-export const WORKOUT_OPTIONS = ["Never", "Sometimes", "Often", "Daily"];
-export const DIET_OPTIONS = ["Veg", "Non-Veg", "Vegan", "Eggetarian", "Jain"];
-export const PETS_OPTIONS = ["No pets", "Dog", "Cat", "Both", "Other"];
+export const SMOKING_OPTIONS = [
+  { id: "Never", label: "Never", icon: "close-circle", emoji: "🚭" },
+  { id: "Sometimes", label: "Socially", icon: "cloudy", emoji: "🚬" },
+  { id: "Regularly", label: "Regularly", icon: "flame", emoji: "💨" },
+  { id: "Trying to quit", label: "Quitting", icon: "leaf", emoji: "🌱" },
+];
+
+export const DRINKING_OPTIONS = [
+  { id: "Never", label: "Never", icon: "close-circle", emoji: "🚫" },
+  { id: "Socially", label: "Socially", icon: "wine", emoji: "🥂" },
+  { id: "Regularly", label: "Regularly", icon: "beer", emoji: "🍺" },
+  { id: "Sober", label: "Sober", icon: "water", emoji: "💧" },
+];
+
+export const WORKOUT_OPTIONS = [
+  { id: "Never", label: "Never", icon: "bed", emoji: "🛌" },
+  { id: "Sometimes", label: "Sometimes", icon: "walk", emoji: "🏃" },
+  { id: "Often", label: "Often", icon: "fitness", emoji: "🏋️" },
+  { id: "Daily", label: "Daily Gym", icon: "barbell", emoji: "⚡" },
+];
+
+export const DIET_OPTIONS = [
+  { id: "Veg", label: "Veg", icon: "nutrition", emoji: "🥗" },
+  { id: "Non-Veg", label: "Non-Veg", icon: "restaurant", emoji: "🍗" },
+  { id: "Vegan", label: "Vegan", icon: "leaf", emoji: "🌱" },
+  { id: "Eggetarian", label: "Eggitarian", icon: "egg", emoji: "🥚" },
+];
+
+export const PETS_OPTIONS = [
+  { id: "No pets", label: "No pets", icon: "close-circle", emoji: "🚫" },
+  { id: "Dog", label: "Dogs", icon: "paw", emoji: "🐶" },
+  { id: "Cat", label: "Cats", icon: "paw", emoji: "🐱" },
+  { id: "Both", label: "Both", icon: "heart", emoji: "🐾" },
+];
 
 export const ZODIAC_OPTIONS = [
-  "Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
-  "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces",
+  { id: "Aries", label: "Aries", emoji: "♈" },
+  { id: "Taurus", label: "Taurus", emoji: "♉" },
+  { id: "Gemini", label: "Gemini", emoji: "♊" },
+  { id: "Cancer", label: "Cancer", emoji: "♋" },
+  { id: "Leo", label: "Leo", emoji: "♌" },
+  { id: "Virgo", label: "Virgo", emoji: "♍" },
+  { id: "Libra", label: "Libra", emoji: "♎" },
+  { id: "Scorpio", label: "Scorpio", emoji: "♏" },
+  { id: "Sagittarius", label: "Sagittarius", emoji: "♐" },
+  { id: "Capricorn", label: "Capricorn", emoji: "♑" },
+  { id: "Aquarius", label: "Aquarius", emoji: "♒" },
+  { id: "Pisces", label: "Pisces", emoji: "♓" },
 ];
 
 export const LANGUAGE_OPTIONS = [
@@ -62,17 +106,17 @@ export const INTEREST_OPTIONS = [
 ];
 
 export const LOOKING_FOR_OPTIONS = [
-  { id: "LONG_TERM", label: "Long-term Relationship", icon: "heart", color: "#FF4B81" },
-  { id: "CASUAL", label: "Casual Dating", icon: "flame", color: "#F97316" },
-  { id: "FRIENDSHIP", label: "Friendship", icon: "people", color: "#22C55E" },
-  { id: "MARRIAGE", label: "Marriage", icon: "diamond", color: "#8A56FF" },
-  { id: "NETWORKING", label: "Networking", icon: "briefcase", color: "#3B82F6" },
+  { id: "LONG_TERM", label: "Long-term Relationship", subtitle: "Building something real & meaningful", icon: "heart", emoji: "💖", color: "#EC4899" },
+  { id: "CASUAL", label: "Casual Dating", subtitle: "Fun, spontaneous & open vibes", icon: "flame", emoji: "🔥", color: "#F97316" },
+  { id: "FRIENDSHIP", label: "New Friends", subtitle: "Hangouts & social connections", icon: "people", emoji: "🤝", color: "#10B981" },
+  { id: "MARRIAGE", label: "Marriage / Life Partner", subtitle: "Ready to settle down together", icon: "diamond", emoji: "💍", color: "#7C3AED" },
+  { id: "NETWORKING", label: "Networking", subtitle: "Professional & creative minds", icon: "briefcase", emoji: "🚀", color: "#3B82F6" },
 ];
 
 export const GENDER_PREF_OPTIONS = [
-  { id: "MEN", label: "Men" },
-  { id: "WOMEN", label: "Women" },
-  { id: "EVERYONE", label: "Everyone" },
+  { id: "MEN", label: "Men", icon: "man", emoji: "👨" },
+  { id: "WOMEN", label: "Women", icon: "woman", emoji: "👩" },
+  { id: "EVERYONE", label: "Everyone", icon: "people", emoji: "🌈" },
 ];
 
 export interface OnboardingData {

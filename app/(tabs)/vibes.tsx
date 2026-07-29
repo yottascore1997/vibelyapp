@@ -6,6 +6,7 @@ import {
   ScrollView,
   Image,
   Pressable,
+  StatusBar,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -17,17 +18,26 @@ import { useAuth } from "../../context/AuthContext";
 import { api } from "../../services/api";
 import { VibeFonts } from "../../constants/vibeTheme";
 
+/** Light clean theme matching Hangout screen reference */
 const T = {
-  bg: "#050508",
-  card: "#12121A",
-  elevated: "#1A1A24",
-  ink: "#FFFFFF",
-  muted: "rgba(255,255,255,0.55)",
-  faint: "rgba(255,255,255,0.32)",
-  border: "rgba(255,255,255,0.08)",
-  pink: "#FF4B81",
-  purple: "#A855F7",
-  green: "#22C55E",
+  bg: "#F8F9FD",
+  card: "#FFFFFF",
+  cardElevated: "#FFFFFF",
+  ink: "#18181B",
+  muted: "#64748B",
+  faint: "#94A3B8",
+  border: "#E2E8F0",
+  purple: "#7C3AED",
+  purpleDeep: "#6D28D9",
+  purpleBright: "#8B5CF6",
+  softPurple: "#F3E8FF",
+  pink: "#EC4899",
+  green: "#10B981",
+  yellow: "#F59E0B",
+  red: "#EF4444",
+  blue: "#2563EB",
+  cta: ["#7C3AED", "#8B5CF6"] as const,
+  promo: ["#7C3AED", "#8B5CF6", "#EC4899"] as const,
 };
 
 const MOCK_AVATARS = [
@@ -42,38 +52,41 @@ const VIBE_ORBS = [
     label: "Lessgo",
     description: "Up for anything",
     icon: "flash" as const,
-    colors: ["#34D399", "#059669"] as const,
-    accent: "#34D399",
+    colors: ["#4ADE80", "#22C55E", "#15803D"] as const,
+    accent: "#16A34A",
+    bgSoft: "#DCFCE7",
   },
   {
     id: "Maybe",
     label: "Maybe",
     description: "Soft yes",
     icon: "star" as const,
-    colors: ["#FBBF24", "#D97706"] as const,
-    accent: "#FBBF24",
+    colors: ["#FDE047", "#F59E0B", "#B45309"] as const,
+    accent: "#D97706",
+    bgSoft: "#FEF3C7",
   },
   {
     id: "Off grid",
     label: "Off grid",
     description: "Low key",
     icon: "moon" as const,
-    colors: ["#FB7185", "#BE123C"] as const,
-    accent: "#FB7185",
+    colors: ["#FCA5A5", "#EF4444", "#991B1B"] as const,
+    accent: "#DC2626",
+    bgSoft: "#FEE2E2",
   },
 ];
 
 const QUICK_ACTIVITIES = [
-  { id: "coffee", name: "Coffee", emoji: "☕", accent: "#FBBF24" },
-  { id: "food", name: "Food", emoji: "🍕", accent: "#FB923C" },
-  { id: "biryani", name: "Biryani", emoji: "🍛", accent: "#F87171" },
-  { id: "beer", name: "Beer", emoji: "🍺", accent: "#F59E0B" },
-  { id: "sutta", name: "Sutta", emoji: "🚬", accent: "#9CA3AF" },
-  { id: "vape", name: "Vape", emoji: "💨", accent: "#60A5FA" },
-  { id: "street", name: "Street", emoji: "🌮", accent: "#34D399" },
-  { id: "drinks", name: "Drinks", emoji: "🍹", accent: "#F472B6" },
-  { id: "dietcoke", name: "Diet Coke", emoji: "🥤", accent: "#EF4444" },
-  { id: "movie", name: "Movie", emoji: "🎬", accent: "#818CF8" },
+  { id: "coffee", name: "Coffee", emoji: "☕", accent: "#7C3AED", bg: "#F3E8FF" },
+  { id: "food", name: "Food", emoji: "🍕", accent: "#EA580C", bg: "#FFEDD5" },
+  { id: "biryani", name: "Biryani", emoji: "🍛", accent: "#E11D48", bg: "#FFE4E6" },
+  { id: "beer", name: "Beer", emoji: "🍺", accent: "#D97706", bg: "#FEF3C7" },
+  { id: "sutta", name: "Sutta", emoji: "🚬", accent: "#475569", bg: "#F1F5F9" },
+  { id: "vape", name: "Vape", emoji: "💨", accent: "#0284C7", bg: "#E0F2FE" },
+  { id: "street", name: "Street", emoji: "🌮", accent: "#059669", bg: "#D1FAE5" },
+  { id: "drinks", name: "Drinks", emoji: "🍹", accent: "#DB2777", bg: "#FCE7F3" },
+  { id: "dietcoke", name: "Diet Coke", emoji: "🥤", accent: "#DC2626", bg: "#FEE2E2" },
+  { id: "movie", name: "Movie", emoji: "🎬", accent: "#4F46E5", bg: "#EEF2FF" },
 ];
 
 const TIME_CHIPS = [
@@ -152,22 +165,24 @@ export default function VibesScreen() {
 
   return (
     <View style={styles.root}>
+      <StatusBar barStyle="dark-content" backgroundColor={T.bg} />
       <LinearGradient
-        colors={["rgba(138,86,255,0.22)", "transparent"]}
+        colors={["rgba(124,58,237,0.06)", "transparent"]}
         style={styles.glowTop}
       />
       <LinearGradient
-        colors={["transparent", "rgba(255,75,129,0.12)"]}
+        colors={["transparent", "rgba(139,92,246,0.04)"]}
         style={styles.glowBottom}
       />
 
+      {/* Header */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) }]}>
         <Pressable style={styles.iconBtn} onPress={openSidebar}>
           <Ionicons name="menu" size={20} color={T.ink} />
         </Pressable>
         <View style={styles.headerCenter}>
-          <Text style={styles.greeting}>Hey, {firstName}</Text>
-          <Text style={styles.headerTitle}>Your vibe</Text>
+          <Text style={styles.greeting}>Hey, {firstName} 👋</Text>
+          <Text style={styles.headerTitle}>Your Vibe ✨</Text>
         </View>
         <Pressable style={styles.iconBtn} onPress={() => router.push("/reels")}>
           <Ionicons name="people" size={18} color={T.purple} />
@@ -178,10 +193,17 @@ export default function VibesScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scroll, { paddingBottom: 110 }]}
       >
-        {/* Energy */}
+        {/* Social Energy */}
         <Animated.View entering={FadeInDown.duration(400)} style={styles.section}>
-          <Text style={styles.sectionTitle}>Social energy</Text>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Social energy ⚡</Text>
+            <View style={styles.liveBadge}>
+              <View style={styles.liveDot} />
+              <Text style={styles.liveBadgeText}>Live Mood</Text>
+            </View>
+          </View>
           <Text style={styles.sectionSub}>How are you showing up today?</Text>
+          
           <View style={styles.vibeRow}>
             {VIBE_ORBS.map((orb) => {
               const active = selectedVibe === orb.id;
@@ -189,13 +211,16 @@ export default function VibesScreen() {
                 <Pressable
                   key={orb.id}
                   onPress={() => handleOrbPress(orb.id)}
-                  style={[styles.vibeCard, active && { borderColor: orb.accent }]}
+                  style={[
+                    styles.vibeCard,
+                    active && { borderColor: orb.accent, backgroundColor: orb.bgSoft },
+                  ]}
                 >
                   <LinearGradient
                     colors={orb.colors}
                     style={styles.vibeOrb}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
+                    start={{ x: 0.2, y: 0.2 }}
+                    end={{ x: 0.8, y: 0.8 }}
                   >
                     <Ionicons name={orb.icon} size={22} color="#fff" />
                   </LinearGradient>
@@ -213,13 +238,14 @@ export default function VibesScreen() {
         <Animated.View entering={FadeInDown.delay(80).duration(400)} style={styles.section}>
           <View style={styles.sectionRow}>
             <View>
-              <Text style={styles.sectionTitle}>Quick activities</Text>
+              <Text style={styles.sectionTitle}>Quick activities 🎯</Text>
               <Text style={styles.sectionSub}>What do you want to do?</Text>
             </View>
             <Pressable onPress={() => router.push("/reels")}>
               <Text style={styles.link}>Friends ›</Text>
             </Pressable>
           </View>
+
           <View style={styles.actGrid}>
             {QUICK_ACTIVITIES.map((act) => {
               const active = selectedActivity === act.id;
@@ -229,10 +255,9 @@ export default function VibesScreen() {
                   onPress={() => setSelectedActivity(act.id)}
                   style={[
                     styles.actCell,
-                    active && {
-                      borderColor: act.accent,
-                      backgroundColor: `${act.accent}18`,
-                    },
+                    active
+                      ? { borderColor: act.accent, backgroundColor: act.bg }
+                      : { backgroundColor: T.card, borderColor: T.border },
                   ]}
                 >
                   <Text style={styles.actEmoji}>{act.emoji}</Text>
@@ -247,7 +272,7 @@ export default function VibesScreen() {
 
         {/* When */}
         <Animated.View entering={FadeInDown.delay(140).duration(400)} style={styles.section}>
-          <Text style={styles.sectionTitle}>When?</Text>
+          <Text style={styles.sectionTitle}>When? 🕒</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -259,7 +284,7 @@ export default function VibesScreen() {
                 <Pressable key={chip.id} onPress={() => setSelectedTime(chip.id)}>
                   {active ? (
                     <LinearGradient
-                      colors={["#8A56FF", "#FF4B81"]}
+                      colors={[...T.cta]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                       style={styles.timeActive}
@@ -272,7 +297,7 @@ export default function VibesScreen() {
                     </LinearGradient>
                   ) : (
                     <View style={styles.timeIdle}>
-                      <Ionicons name={chip.icon} size={15} color={T.faint} />
+                      <Ionicons name={chip.icon} size={15} color={T.muted} />
                       <View>
                         <Text style={styles.timeLabel}>{chip.label}</Text>
                         <Text style={styles.timeSub}>{chip.sub}</Text>
@@ -285,10 +310,12 @@ export default function VibesScreen() {
           </ScrollView>
         </Animated.View>
 
-        {/* Invite preview card */}
+        {/* Spontaneous Invite Hero Card */}
         <Animated.View entering={FadeInDown.delay(180).duration(400)} style={styles.inviteCard}>
           <LinearGradient
-            colors={["#1A1228", "#0E0E14"]}
+            colors={["#1E1B4B", "#2E1065", "#0F172A"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
             style={styles.inviteGrad}
           >
             <View style={styles.inviteTop}>
@@ -300,25 +327,58 @@ export default function VibesScreen() {
                   {selectedTime === "now" ? "now" : currentTimeChip.label}
                 </Text>
               </View>
-              <View style={[styles.vibePill, { backgroundColor: `${vibe.accent}22` }]}>
+              <View style={[styles.vibePill, { backgroundColor: vibe.bgSoft }]}>
                 <Text style={[styles.vibePillText, { color: vibe.accent }]}>
                   {selectedVibe}
                 </Text>
               </View>
             </View>
+
             <Text style={styles.inviteHint}>
-              Opens Friends Hangout — send to a real match
+              1-Tap Instant Move — ping your friends right now without filling forms!
             </Text>
+
+            <View style={styles.quickMovesBox}>
+              <Text style={styles.quickMovesTitle}>
+                1-Tap Quick Moves ⚡ (Instant Ping)
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                {[
+                  { name: "Coffee", emoji: "☕", bg: ["#FEF3C7", "#FDE68A"], color: "#B45309" },
+                  { name: "Food", emoji: "🍕", bg: ["#FFEDD5", "#FED7AA"], color: "#C2410C" },
+                  { name: "Beer", emoji: "🍺", bg: ["#FEF9C3", "#FEF08A"], color: "#A16207" },
+                  { name: "Sutta", emoji: "🚬", bg: ["#F1F5F9", "#E2E8F0"], color: "#334155" },
+                  { name: "Movie", emoji: "🎬", bg: ["#E0E7FF", "#C7D2FE"], color: "#4338CA" },
+                ].map((chip) => (
+                  <Pressable
+                    key={chip.name}
+                    onPress={handleSendInvite}
+                    style={{ overflow: "hidden", borderRadius: 14 }}
+                  >
+                    <LinearGradient
+                      colors={chip.bg as any}
+                      style={styles.quickMovePill}
+                    >
+                      <Text style={{ fontSize: 13 }}>{chip.emoji}</Text>
+                      <Text style={[styles.quickMoveText, { color: chip.color }]}>
+                        {chip.name} NOW ⚡
+                      </Text>
+                    </LinearGradient>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+
             <View style={styles.inviteActions}>
               <Pressable style={{ flex: 1 }} onPress={handleSendInvite}>
                 <LinearGradient
-                  colors={["#8A56FF", "#FF4B81"]}
+                  colors={[...T.cta]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.sendBtn}
                 >
                   <Ionicons name="paper-plane" size={16} color="#fff" />
-                  <Text style={styles.sendBtnText}>Send Invite</Text>
+                  <Text style={styles.sendBtnText}>Send Instant Move</Text>
                 </LinearGradient>
               </Pressable>
               <Pressable
@@ -331,19 +391,19 @@ export default function VibesScreen() {
           </LinearGradient>
         </Animated.View>
 
-        {/* Premium tip — honest, not fake unlock */}
+        {/* Likes & Matches Card */}
         <Pressable
           style={styles.premiumCard}
           onPress={() => router.push("/my-matches")}
         >
           <View style={styles.premiumIcon}>
-            <Ionicons name="heart" size={18} color={T.pink} />
+            <Ionicons name="heart" size={18} color={T.purple} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.premiumTitle}>See your likes</Text>
-            <Text style={styles.premiumSub}>Open matches & likes — no fake paywall</Text>
+            <Text style={styles.premiumTitle}>See your likes & matches 💕</Text>
+            <Text style={styles.premiumSub}>Connect with members who are free now</Text>
           </View>
-          <Ionicons name="chevron-forward" size={16} color={T.faint} />
+          <Ionicons name="chevron-forward" size={16} color={T.muted} />
         </Pressable>
       </ScrollView>
     </View>
@@ -359,7 +419,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingBottom: 10,
+    paddingBottom: 12,
+    backgroundColor: T.bg,
   },
   iconBtn: {
     width: 42,
@@ -370,12 +431,17 @@ const styles = StyleSheet.create({
     borderColor: T.border,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: T.purple,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
   headerCenter: { alignItems: "center" },
   greeting: {
     fontSize: 11,
     fontFamily: VibeFonts.medium,
-    color: T.faint,
+    color: T.muted,
   },
   headerTitle: {
     fontSize: 18,
@@ -383,8 +449,33 @@ const styles = StyleSheet.create({
     color: T.ink,
     marginTop: 1,
   },
-  scroll: { paddingHorizontal: 16, paddingTop: 4 },
+  scroll: { paddingHorizontal: 16, paddingTop: 6 },
   section: { marginBottom: 22 },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  liveBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "rgba(16, 185, 129, 0.1)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: T.green,
+  },
+  liveBadgeText: {
+    fontSize: 10,
+    fontFamily: VibeFonts.bold,
+    color: T.green,
+  },
   sectionRow: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -399,7 +490,7 @@ const styles = StyleSheet.create({
   sectionSub: {
     fontSize: 12,
     fontFamily: VibeFonts.medium,
-    color: T.faint,
+    color: T.muted,
     marginTop: 2,
     marginBottom: 12,
   },
@@ -414,6 +505,11 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 8,
     alignItems: "center",
+    shadowColor: T.purple,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   vibeOrb: {
     width: 48,
@@ -431,7 +527,7 @@ const styles = StyleSheet.create({
   vibeDesc: {
     fontSize: 10,
     fontFamily: VibeFonts.medium,
-    color: T.faint,
+    color: T.muted,
     marginTop: 2,
     textAlign: "center",
   },
@@ -440,18 +536,21 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     justifyContent: "space-between",
     rowGap: 10,
-    marginTop: 8,
+    marginTop: 4,
   },
   actCell: {
     width: "18.5%",
     aspectRatio: 0.9,
     borderRadius: 16,
-    backgroundColor: T.card,
     borderWidth: 1.5,
-    borderColor: T.border,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
   actEmoji: { fontSize: 22, marginBottom: 4 },
   actName: {
@@ -469,6 +568,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 16,
     minWidth: 110,
+    shadowColor: T.purple,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
   timeIdle: {
     flexDirection: "row",
@@ -481,22 +585,30 @@ const styles = StyleSheet.create({
     backgroundColor: T.card,
     borderWidth: 1,
     borderColor: T.border,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.02,
+    shadowRadius: 4,
+    elevation: 1,
   },
   timeLabelActive: { fontSize: 13, fontFamily: VibeFonts.bold, color: "#fff" },
   timeSubActive: {
     fontSize: 10,
     fontFamily: VibeFonts.medium,
-    color: "rgba(255,255,255,0.7)",
+    color: "rgba(255,255,255,0.8)",
     marginTop: 1,
   },
-  timeLabel: { fontSize: 13, fontFamily: VibeFonts.bold, color: T.muted },
-  timeSub: { fontSize: 10, fontFamily: VibeFonts.medium, color: T.faint, marginTop: 1 },
+  timeLabel: { fontSize: 13, fontFamily: VibeFonts.bold, color: T.ink },
+  timeSub: { fontSize: 10, fontFamily: VibeFonts.medium, color: T.muted, marginTop: 1 },
   inviteCard: {
     borderRadius: 22,
     overflow: "hidden",
     marginBottom: 14,
-    borderWidth: 1,
-    borderColor: "rgba(168,85,247,0.3)",
+    shadowColor: T.purple,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 5,
   },
   inviteGrad: { padding: 16 },
   inviteTop: { flexDirection: "row", alignItems: "center", gap: 12 },
@@ -505,13 +617,13 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 16,
     borderWidth: 2,
-    borderColor: "rgba(168,85,247,0.4)",
+    borderColor: T.purpleBright,
   },
-  inviteTitle: { fontSize: 15, fontFamily: VibeFonts.bold, color: T.ink },
+  inviteTitle: { fontSize: 15, fontFamily: VibeFonts.bold, color: "#FFFFFF" },
   inviteSub: {
     fontSize: 12,
     fontFamily: VibeFonts.medium,
-    color: T.muted,
+    color: "rgba(255,255,255,0.75)",
     marginTop: 3,
   },
   vibePill: {
@@ -523,11 +635,31 @@ const styles = StyleSheet.create({
   inviteHint: {
     fontSize: 11,
     fontFamily: VibeFonts.medium,
-    color: T.faint,
+    color: "rgba(255,255,255,0.65)",
     marginTop: 12,
     marginBottom: 12,
   },
-  inviteActions: { flexDirection: "row", gap: 10 },
+  quickMovesBox: {
+    marginTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.1)",
+    paddingTop: 10,
+  },
+  quickMovesTitle: {
+    fontSize: 11,
+    fontFamily: VibeFonts.bold,
+    color: "#F59E0B",
+    marginBottom: 8,
+  },
+  quickMovePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  quickMoveText: { fontSize: 11, fontFamily: VibeFonts.bold },
+  inviteActions: { flexDirection: "row", gap: 10, marginTop: 14 },
   sendBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -541,11 +673,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     justifyContent: "center",
     borderRadius: 14,
-    backgroundColor: T.elevated,
+    backgroundColor: "rgba(255,255,255,0.12)",
     borderWidth: 1,
-    borderColor: T.border,
+    borderColor: "rgba(255,255,255,0.2)",
   },
-  chatBtnText: { color: T.ink, fontSize: 13, fontFamily: VibeFonts.bold },
+  chatBtnText: { color: "#FFF", fontSize: 13, fontFamily: VibeFonts.bold },
   premiumCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -553,15 +685,20 @@ const styles = StyleSheet.create({
     backgroundColor: T.card,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: "rgba(251,191,36,0.25)",
+    borderColor: "rgba(124,58,237,0.15)",
     padding: 14,
     marginBottom: 8,
+    shadowColor: T.purple,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
   premiumIcon: {
     width: 40,
     height: 40,
     borderRadius: 14,
-    backgroundColor: "rgba(251,191,36,0.12)",
+    backgroundColor: T.softPurple,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -569,7 +706,7 @@ const styles = StyleSheet.create({
   premiumSub: {
     fontSize: 11,
     fontFamily: VibeFonts.medium,
-    color: T.faint,
+    color: T.muted,
     marginTop: 2,
   },
 });

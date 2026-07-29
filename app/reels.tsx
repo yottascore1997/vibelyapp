@@ -9,6 +9,8 @@ import {
   Dimensions,
   Alert,
   StatusBar,
+  Linking,
+  Share,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -27,26 +29,26 @@ import { API_URL } from "../constants/theme";
 const friendsHangout3d = require("../assets/friends_hangout_3d.png");
 const { width: SCREEN_W } = Dimensions.get("window");
 
-/** Hangout light premium palette */
+/** Clean light minimal palette matching Hangout screen */
 const T = {
-  bg: "#EEE9F8",
-  card: "#FFFBFE",
+  bg: "#F8F9FD",
+  card: "#FFFFFF",
   cardElevated: "#FFFFFF",
-  ink: "#1A1F36",
-  muted: "#6B7280",
-  faint: "#9CA3AF",
-  border: "#E4DFF0",
-  purple: "#8B5CF6",
-  purpleDeep: "#7C3AED",
-  purpleBright: "#A78BFA",
-  softPurple: "#EDE7FF",
+  ink: "#18181B",
+  muted: "#64748B",
+  faint: "#94A3B8",
+  border: "#E2E8F0",
+  purple: "#7C3AED",
+  purpleDeep: "#6D28D9",
+  purpleBright: "#8B5CF6",
+  softPurple: "#F3E8FF",
   pink: "#EC4899",
-  pinkSoft: "#FCE7F3",
-  green: "#22C55E",
-  greenDark: "#16A34A",
-  greenSoft: "#DCFCE7",
+  pinkSoft: "rgba(236, 72, 153, 0.12)",
+  green: "#10B981",
+  greenDark: "#059669",
+  greenSoft: "rgba(16, 185, 129, 0.12)",
   amber: "#F59E0B",
-  cta: ["#8B5CF6", "#EC4899"] as const,
+  cta: ["#7C3AED", "#8B5CF6"] as const,
   upgrade: ["#F59E0B", "#EC4899"] as const,
 };
 
@@ -66,21 +68,21 @@ interface DirectInvite {
 type IonName = keyof typeof Ionicons.glyphMap;
 
 const activitiesList = [
-  { id: "coffee", name: "Coffee", emoji: "☕", icon: "cafe" as IonName, soft: "#FEF3C7", accent: "#D97706" },
-  { id: "food", name: "Food", emoji: "🍕", icon: "pizza" as IonName, soft: "#FFEDD5", accent: "#EA580C" },
-  { id: "beer", name: "Beer", emoji: "🍺", icon: "beer" as IonName, soft: "#FEF9C3", accent: "#CA8A04" },
-  { id: "sutta", name: "Sutta", emoji: "🚬", icon: "flame" as IonName, soft: "#F3F4F6", accent: "#6B7280" },
-  { id: "vape", name: "Vape", emoji: "💨", icon: "cloud" as IonName, soft: "#DBEAFE", accent: "#2563EB" },
-  { id: "street", name: "Street", emoji: "🌮", icon: "restaurant" as IonName, soft: "#D1FAE5", accent: "#059669" },
-  { id: "drinks", name: "Drinks", emoji: "🍸", icon: "wine" as IonName, soft: "#FCE7F3", accent: "#DB2777" },
-  { id: "movie", name: "Movie", emoji: "🎬", icon: "film" as IonName, soft: "#EDE9FE", accent: "#7C3AED" },
+  { id: "coffee", name: "Coffee", emoji: "☕", icon: "cafe" as IonName, bg: ["#FFF7ED", "#FFEDD5"], accent: "#D97706" },
+  { id: "food", name: "Food", emoji: "🍕", icon: "pizza" as IonName, bg: ["#FFF5F5", "#FEE2E2"], accent: "#EA580C" },
+  { id: "beer", name: "Beer", emoji: "🍺", icon: "beer" as IonName, bg: ["#FEFCE8", "#FEF08A"], accent: "#CA8A04" },
+  { id: "sutta", name: "Sutta", emoji: "🚬", icon: "flame" as IonName, bg: ["#F9FAFB", "#E5E7EB"], accent: "#4B5563" },
+  { id: "vape", name: "Vape", emoji: "💨", icon: "cloud" as IonName, bg: ["#EFF6FF", "#BFDBFE"], accent: "#2563EB" },
+  { id: "street", name: "Street", emoji: "🌮", icon: "restaurant" as IonName, bg: ["#ECFDF5", "#A7F3D0"], accent: "#059669" },
+  { id: "drinks", name: "Drinks", emoji: "🍸", icon: "wine" as IonName, bg: ["#FDF2F8", "#FBCFE8"], accent: "#DB2777" },
+  { id: "movie", name: "Movie", emoji: "🎬", icon: "film" as IonName, bg: ["#F5F3FF", "#DDD6FE"], accent: "#7C3AED" },
 ];
 
 const timeOptions = [
-  { id: "now", label: "Now", subtext: "Let's go!", icon: "flash" as IonName },
-  { id: "30min", label: "+30 Min", subtext: "Soon", icon: "timer" as IonName },
-  { id: "1hr", label: "+1 Hr", subtext: "Later", icon: "hourglass" as IonName },
-  { id: "6pm", label: "Evening", subtext: "Today", icon: "moon" as IonName },
+  { id: "now", label: "Now ⚡", subtext: "Let's go!", icon: "flash" as IonName, grad: ["#F59E0B", "#EF4444"], accent: "#F59E0B" },
+  { id: "30min", label: "+30 Min", subtext: "Soon", icon: "timer" as IonName, grad: ["#38BDF8", "#0284C7"], accent: "#0284C7" },
+  { id: "1hr", label: "+1 Hr", subtext: "Later", icon: "hourglass" as IonName, grad: ["#A855F7", "#7C3AED"], accent: "#7C3AED" },
+  { id: "6pm", label: "Evening", subtext: "Today", icon: "moon" as IonName, grad: ["#EC4899", "#E11D48"], accent: "#EC4899" },
 ];
 
 function getTimeLabel(id: string) {
@@ -113,17 +115,17 @@ function FriendsPlansList({
     <View>
       <Animated.View entering={FadeInDown.duration(360)} style={styles.plansHero}>
         <LinearGradient
-          colors={["#FFFFFF", "#F8F4FF", "#FFF0F8"]}
+          colors={["#1E1B4B", "#2E1065", "#0F172A"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.plansHeroInner}
         >
           <View style={styles.heroPill}>
-            <Ionicons name="calendar" size={11} color={T.purple} />
+            <Ionicons name="calendar" size={11} color="#C4B5FD" />
             <Text style={styles.heroPillText}>FRIEND PLANS</Text>
           </View>
-          <Text style={styles.plansHeroTitle}>My Plans</Text>
-          <Text style={styles.plansHeroSub}>
+          <Text style={[styles.plansHeroTitle, { color: "#FFFFFF" }]}>My Plans</Text>
+          <Text style={[styles.plansHeroSub, { color: "rgba(255,255,255,0.8)" }]}>
             Yahan sirf friends ke invites hain. Hangout ke public plans alag jagah hain.
           </Text>
           <View style={styles.plansHeroActions}>
@@ -134,8 +136,8 @@ function FriendsPlansList({
               </LinearGradient>
             </Pressable>
             <Pressable onPress={onOpenHangout} style={styles.plansHeroSecondary}>
-              <Ionicons name="map-outline" size={14} color={T.purple} />
-              <Text style={styles.plansHeroSecondaryText}>Public Hangout</Text>
+              <Ionicons name="map-outline" size={14} color="#FFFFFF" />
+              <Text style={[styles.plansHeroSecondaryText, { color: "#FFFFFF" }]}>Public Hangout</Text>
             </Pressable>
           </View>
         </LinearGradient>
@@ -267,7 +269,15 @@ function FriendsPlansList({
   );
 }
 
-export default function ReelsScreen() {
+export function ReelsContent({
+  embed = false,
+  initialTab = "invite",
+  hideSegTabs = false,
+}: {
+  embed?: boolean;
+  initialTab?: "invite" | "plans";
+  hideSegTabs?: boolean;
+}) {
   const router = useRouter();
   const { user, token } = useAuth();
   const { matches, likesCount } = useMatches();
@@ -276,7 +286,11 @@ export default function ReelsScreen() {
   const [time, setTime] = useState("now");
   const [phase, setPhase] = useState<"plan" | "ready" | "sent">("plan");
   /** invite = create friend invite · plans = friend invites list (NOT hangout public plans) */
-  const [activeTab, setActiveTab] = useState<"invite" | "plans">("invite");
+  const [activeTab, setActiveTab] = useState<"invite" | "plans">(initialTab);
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
 
   const [invites, setInvites] = useState<DirectInvite[]>([]);
   const [notification, setNotification] = useState<string | null>(null);
@@ -367,6 +381,25 @@ export default function ReelsScreen() {
     else setSelectedMatch(null);
   }, [matches]);
 
+  const handleWhatsAppInvite = async (customFriendName?: string) => {
+    const targetName = customFriendName || selectedMatch?.name || "Friend";
+    const actObj = activitiesList.find((act) => act.id === activity) || activitiesList[0];
+    const timeLabelStr = getTimeLabel(time);
+    const text = `Hey ${targetName}! 🚀\nI'm planning to go for ${actObj.emoji} ${actObj.name} (${timeLabelStr}) on Antigravity Vibe! Down to join?\n\nCheck out the vibe here: https://antigravityvibe.app/invite`;
+    const waUrl = `whatsapp://send?text=${encodeURIComponent(text)}`;
+
+    try {
+      const supported = await Linking.canOpenURL(waUrl);
+      if (supported) {
+        await Linking.openURL(waUrl);
+      } else {
+        await Share.share({ message: text });
+      }
+    } catch {
+      await Share.share({ message: text });
+    }
+  };
+
   const handleSend = () => setPhase("ready");
 
   const activeActivityObj =
@@ -401,6 +434,66 @@ export default function ReelsScreen() {
     }
   };
 
+  const handleInstantPing = async (
+    targetFriend: any,
+    actName: string,
+    actEmoji: string,
+    timeText = "NOW ⚡"
+  ) => {
+    if (!user || !targetFriend || sendingInvite) return;
+    setSendingInvite(true);
+    try {
+      const res = await api.sendInvite({
+        receiverId: targetFriend.id,
+        activityName: actName,
+        activityEmoji: actEmoji,
+        timeLabel: timeText,
+      });
+      if (res) {
+        await loadInvites();
+        Alert.alert(
+          "Instant Ping Sent! ⚡🚀",
+          `Ping sent to ${targetFriend.name.split(" ")[0]} for ${actEmoji} ${actName} (${timeText}).`
+        );
+      } else {
+        Alert.alert("Ping failed", "Could not send ping to this friend.");
+      }
+    } catch (err) {
+      console.error("Instant ping failed:", err);
+      Alert.alert("Ping failed", "Something went wrong.");
+    } finally {
+      setSendingInvite(false);
+    }
+  };
+
+  const handleBroadcastPing = async (actName: string, actEmoji: string) => {
+    if (!user || inviteList.length === 0 || sendingInvite) return;
+    setSendingInvite(true);
+    let sentCount = 0;
+    try {
+      for (const friend of inviteList) {
+        try {
+          const res = await api.sendInvite({
+            receiverId: friend.id,
+            activityName: actName,
+            activityEmoji: actEmoji,
+            timeLabel: "NOW ⚡",
+          });
+          if (res) sentCount++;
+        } catch {
+          /* continue broadcast */
+        }
+      }
+      await loadInvites();
+      Alert.alert(
+        "Broadcast Ping Sent! ⚡⚡",
+        `Sent 1-tap ping for ${actEmoji} ${actName} to ${sentCount} friends!`
+      );
+    } finally {
+      setSendingInvite(false);
+    }
+  };
+
   const handleClose = () => setPhase("plan");
 
   const handleAcceptInvite = async (id: string) => {
@@ -427,18 +520,22 @@ export default function ReelsScreen() {
   );
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, embed && { backgroundColor: "transparent" }]}>
       <StatusBar barStyle="dark-content" backgroundColor={T.bg} />
 
-      <LinearGradient
-        colors={["rgba(167,139,250,0.28)", "transparent"]}
-        style={[styles.ambient, { top: -20, left: -40 }]}
-      />
-      <LinearGradient
-        colors={["rgba(244,114,182,0.16)", "transparent"]}
-        style={[styles.ambient, { top: 280, right: -50 }]}
-      />
-      <View style={styles.coolOrb} />
+      {!embed && (
+        <>
+          <LinearGradient
+            colors={["rgba(167,139,250,0.28)", "transparent"]}
+            style={[styles.ambient, { top: -20, left: -40 }]}
+          />
+          <LinearGradient
+            colors={["rgba(244,114,182,0.16)", "transparent"]}
+            style={[styles.ambient, { top: 280, right: -50 }]}
+          />
+          <View style={styles.coolOrb} />
+        </>
+      )}
 
       {notification && (
         <Animated.View
@@ -458,74 +555,79 @@ export default function ReelsScreen() {
         </Animated.View>
       )}
 
-      <SafeAreaView style={styles.safe} edges={["top"]}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={20} color={T.ink} />
-          </Pressable>
+      {!embed && (
+        <SafeAreaView style={styles.safe} edges={["top"]}>
+          {/* Header */}
+          <View style={styles.header}>
+            <Pressable style={styles.backBtn} onPress={() => router.back()}>
+              <Ionicons name="arrow-back" size={20} color={T.ink} />
+            </Pressable>
 
-          <View style={styles.headerCenter}>
-            <View style={styles.brandRow}>
-              <Ionicons name="people" size={12} color={T.purple} />
-              <Text style={styles.headerEyebrow}>FRIENDS</Text>
-            </View>
-            <Text style={styles.headerTitle}>Hangout</Text>
-          </View>
-
-          <View style={styles.facepile}>
-            {(facepile.length ? facepile : []).slice(0, 3).map((u, i) => (
-              <Image
-                key={u.id || String(i)}
-                source={{ uri: u.avatarUrl }}
-                style={[styles.face, { marginLeft: i > 0 ? -8 : 0, zIndex: 3 - i }]}
-              />
-            ))}
-            {facepile.length > 3 ? (
-              <View style={styles.faceMore}>
-                <Text style={styles.faceMoreText}>+{Math.max(0, facepile.length - 3)}</Text>
+            <View style={styles.headerCenter}>
+              <View style={styles.brandRow}>
+                <Ionicons name="people" size={12} color={T.purple} />
+                <Text style={styles.headerEyebrow}>FRIENDS</Text>
               </View>
-            ) : null}
+              <Text style={styles.headerTitle}>Hangout</Text>
+            </View>
+
+            <View style={styles.facepile}>
+              {(facepile.length ? facepile : []).slice(0, 3).map((u, i) => (
+                <Image
+                  key={u.id || String(i)}
+                  source={{ uri: u.avatarUrl }}
+                  style={[styles.face, { marginLeft: i > 0 ? -8 : 0, zIndex: 3 - i }]}
+                />
+              ))}
+              {facepile.length > 3 ? (
+                <View style={styles.faceMore}>
+                  <Text style={styles.faceMoreText}>+{Math.max(0, facepile.length - 3)}</Text>
+                </View>
+              ) : null}
+            </View>
           </View>
-        </View>
+        </SafeAreaView>
+      )}
 
         {/* Segment tabs — Invite create vs Friend Plans (separate from Hangout) */}
-        <View style={styles.segWrap}>
-          <Pressable
-            style={[styles.segItem, activeTab === "invite" && styles.segItemActive]}
-            onPress={() => {
-              setActiveTab("invite");
-              setPhase("plan");
-            }}
-          >
-            <Ionicons
-              name="paper-plane"
-              size={14}
-              color={activeTab === "invite" ? "#fff" : T.muted}
-            />
-            <Text style={[styles.segText, activeTab === "invite" && styles.segTextActive]}>
-              Invite
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[styles.segItem, activeTab === "plans" && styles.segItemActive]}
-            onPress={() => setActiveTab("plans")}
-          >
-            <Ionicons
-              name="calendar"
-              size={14}
-              color={activeTab === "plans" ? "#fff" : T.muted}
-            />
-            <Text style={[styles.segText, activeTab === "plans" && styles.segTextActive]}>
-              My Plans
-            </Text>
-            {invites.length > 0 ? (
-              <View style={styles.segBadge}>
-                <Text style={styles.segBadgeText}>{invites.length}</Text>
-              </View>
-            ) : null}
-          </Pressable>
-        </View>
+        {!hideSegTabs && (
+          <View style={styles.segWrap}>
+            <Pressable
+              style={[styles.segItem, activeTab === "invite" && styles.segItemActive]}
+              onPress={() => {
+                setActiveTab("invite");
+                setPhase("plan");
+              }}
+            >
+              <Ionicons
+                name="paper-plane"
+                size={14}
+                color={activeTab === "invite" ? "#fff" : T.muted}
+              />
+              <Text style={[styles.segText, activeTab === "invite" && styles.segTextActive]}>
+                Invite
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.segItem, activeTab === "plans" && styles.segItemActive]}
+              onPress={() => setActiveTab("plans")}
+            >
+              <Ionicons
+                name="calendar"
+                size={14}
+                color={activeTab === "plans" ? "#fff" : T.muted}
+              />
+              <Text style={[styles.segText, activeTab === "plans" && styles.segTextActive]}>
+                My Plans
+              </Text>
+              {invites.length > 0 ? (
+                <View style={styles.segBadge}>
+                  <Text style={styles.segBadgeText}>{invites.length}</Text>
+                </View>
+              ) : null}
+            </Pressable>
+          </View>
+        )}
 
         <ScrollView
           style={styles.scroll}
@@ -545,23 +647,25 @@ export default function ReelsScreen() {
             />
           ) : phase === "plan" ? (
             <>
-              {/* Hero */}
+              {/* Hero matching What's the plan today gradient */}
               <Animated.View entering={FadeInDown.duration(420)} style={styles.heroWrap}>
                 <LinearGradient
-                  colors={["#FFFFFF", "#F8F4FF", "#FFF0F8"]}
+                  colors={["#1E1B4B", "#2E1065", "#0F172A"]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.hero}
                 >
                   <View style={styles.heroBlob} />
+                  <Text style={styles.heroStar1}>✦</Text>
+                  <Text style={styles.heroStar2}>✧</Text>
                   <View style={styles.heroCopy}>
                     <View style={styles.heroPill}>
-                      <Ionicons name="people" size={11} color={T.purple} />
+                      <Ionicons name="people" size={11} color="#C4B5FD" />
                       <Text style={styles.heroPillText}>FRIEND PLAN</Text>
                     </View>
                     <Text style={styles.heroTitle}>Invite a friend{"\n"}to hang</Text>
                     <Text style={styles.heroSub}>
-                      Yeh plans My Plans mein jayenge — Hangout public plans alag hain.
+                      Pick a vibe below & send instant 1-tap pings to your friends!
                     </Text>
                   </View>
                   <Image source={friendsHangout3d} style={styles.heroImage} resizeMode="contain" />
@@ -722,23 +826,18 @@ export default function ReelsScreen() {
                 </Animated.View>
               )}
 
-              {/* Quick Activities — dark panel */}
+              {/* Quick Activities — Clean outer panel, black inner item cards */}
               <Animated.View entering={FadeIn.delay(100)} style={styles.section}>
-                <LinearGradient
-                  colors={["#1A1428", "#120F1C", "#1B1230"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.darkPanel}
-                >
+                <View style={styles.darkPanel}>
                   <View style={styles.darkGlowA} />
                   <View style={styles.darkGlowB} />
                   <View style={styles.sectionHead}>
                     <LinearGradient colors={[...T.cta]} style={styles.sectionIconGrad}>
-                      <Ionicons name="grid" size={12} color="#fff" />
+                      <Ionicons name="sparkles" size={14} color="#fff" />
                     </LinearGradient>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.sectionTitleDark}>Quick activities</Text>
-                      <Text style={styles.sectionSubDark}>Tap to pick your hang vibe</Text>
+                      <Text style={styles.sectionTitleDark}>Quick Activities 🔥</Text>
+                      <Text style={styles.sectionSubDark}>Tap any vibe to start a plan instantly</Text>
                     </View>
                   </View>
 
@@ -753,46 +852,53 @@ export default function ReelsScreen() {
                         >
                           <Pressable
                             onPress={() => setActivity(act.id)}
-                            style={[
-                              styles.actBtnDark,
-                              selected && {
-                                borderColor: act.accent,
-                                backgroundColor: `${act.accent}28`,
-                              },
-                            ]}
+                            style={{ borderRadius: 16, overflow: "hidden" }}
                           >
-                            <View
+                            <LinearGradient
+                              colors={selected ? (act.bg as any) : ["#18181B", "#27272A"]}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 1 }}
                               style={[
-                                styles.actIconBubble,
-                                { backgroundColor: selected ? act.accent : "rgba(255,255,255,0.08)" },
+                                styles.actBtnBlackItem,
+                                selected && {
+                                  borderColor: act.accent,
+                                  borderWidth: 2,
+                                  shadowColor: act.accent,
+                                  shadowOpacity: 0.35,
+                                  shadowRadius: 8,
+                                  shadowOffset: { width: 0, height: 4 },
+                                  elevation: 4,
+                                },
                               ]}
                             >
-                              <Ionicons
-                                name={act.icon}
-                                size={15}
-                                color={selected ? "#fff" : act.accent}
-                              />
-                            </View>
-                            <Text
-                              style={[
-                                styles.actNameDark,
-                                selected && { color: act.accent },
-                              ]}
-                            >
-                              {act.name}
-                            </Text>
+                              <Text style={styles.actEmojiLarge}>{act.emoji}</Text>
+                              <Text
+                                style={[
+                                  styles.actNameVibrant,
+                                  { color: selected ? act.accent : "#FFFFFF" },
+                                  selected && { fontFamily: VibeFonts.extraBold },
+                                ]}
+                              >
+                                {act.name}
+                              </Text>
+                              {selected && (
+                                <View style={[styles.actCheckBadge, { backgroundColor: act.accent }]}>
+                                  <Ionicons name="checkmark" size={10} color="#fff" />
+                                </View>
+                              )}
+                            </LinearGradient>
                           </Pressable>
                         </Animated.View>
                       );
                     })}
                   </View>
-                </LinearGradient>
+                </View>
               </Animated.View>
 
               {/* When — premium dark panel */}
               <Animated.View entering={FadeIn.delay(150)} style={styles.section}>
                 <LinearGradient
-                  colors={["#1A1428", "#120F1C", "#1B1230"]}
+                  colors={["#FFFFFF", "#F8F4FF"]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.darkPanel}
@@ -824,26 +930,32 @@ export default function ReelsScreen() {
                         >
                           <Pressable
                             onPress={() => setTime(t.id)}
-                            style={[styles.timeCardDark, selected && styles.timeCardDarkSelected]}
+                            style={[
+                              styles.timeCardDark,
+                              selected && {
+                                borderColor: t.accent,
+                                borderWidth: 2,
+                                backgroundColor: "#F3E8FF",
+                                shadowColor: t.accent,
+                                shadowOpacity: 0.25,
+                                shadowRadius: 8,
+                                shadowOffset: { width: 0, height: 4 },
+                                elevation: 4,
+                              },
+                            ]}
                           >
-                            {selected ? (
-                              <LinearGradient
-                                colors={[...T.cta]}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 1 }}
-                                style={styles.timeIconGrad}
-                              >
-                                <Ionicons name={t.icon} size={14} color="#fff" />
-                              </LinearGradient>
-                            ) : (
-                              <View style={styles.timeIconWrapDark}>
-                                <Ionicons name={t.icon} size={14} color="#C4B5FD" />
-                              </View>
-                            )}
+                            <LinearGradient
+                              colors={t.grad as any}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 1 }}
+                              style={styles.timeIconSphereEnhanced}
+                            >
+                              <Ionicons name={t.icon} size={18} color="#FFFFFF" />
+                            </LinearGradient>
                             <Text
                               style={[
                                 styles.timeLabelDark,
-                                selected && styles.timeLabelDarkSelected,
+                                selected && { color: t.accent, fontFamily: VibeFonts.extraBold },
                               ]}
                             >
                               {t.label}
@@ -851,7 +963,7 @@ export default function ReelsScreen() {
                             <Text
                               style={[
                                 styles.timeSubtextDark,
-                                selected && styles.timeSubtextDarkSelected,
+                                selected && { color: t.accent, fontFamily: VibeFonts.bold },
                               ]}
                             >
                               {t.subtext}
@@ -870,30 +982,53 @@ export default function ReelsScreen() {
                   <View style={styles.sectionIcon}>
                     <Ionicons name="heart" size={14} color={T.pink} />
                   </View>
-                  <Text style={styles.sectionTitle}>Choose match</Text>
+                  <Text style={styles.sectionTitle}>Choose match or invite contact</Text>
                 </View>
-                {inviteList.length === 0 ? (
-                  <View style={styles.emptyMatches}>
-                    <View style={styles.emptyIcon}>
-                      <Ionicons name="people" size={22} color={T.purple} />
-                    </View>
-                    <Text style={styles.emptyMatchesText}>
-                      No matches yet. Swipe on Discover to unlock invites!
-                    </Text>
-                    <Pressable
-                      style={styles.emptyCta}
-                      onPress={() => router.push("/(tabs)/discover")}
+
+                {/* WhatsApp Contact Invite Banner — Always Prominent & Visible */}
+                <Animated.View entering={FadeInDown.delay(210).duration(360)} style={styles.waCardWrap}>
+                  <Pressable onPress={() => handleWhatsAppInvite()} style={styles.waCardPressable}>
+                    <LinearGradient
+                      colors={["#047857", "#10B981", "#059669"]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.waCardInner}
                     >
-                      <Text style={styles.emptyCtaText}>Go Discover</Text>
-                      <Ionicons name="arrow-forward" size={14} color={T.purple} />
-                    </Pressable>
-                  </View>
-                ) : (
+                      <View style={styles.waIconWrap}>
+                        <Ionicons name="logo-whatsapp" size={24} color="#FFFFFF" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.waCardTitle}>Invite Friends via WhatsApp 💬</Text>
+                        <Text style={styles.waCardSub}>
+                          Send 1-tap invite link for {activeActivityObj.emoji} {activeActivityObj.name} directly to your WhatsApp contacts!
+                        </Text>
+                      </View>
+                      <View style={styles.waCardBadge}>
+                        <Ionicons name="paper-plane" size={13} color="#047857" />
+                        <Text style={styles.waCardBadgeText}>Invite</Text>
+                      </View>
+                    </LinearGradient>
+                  </Pressable>
+                </Animated.View>
+
+                {inviteList.length > 0 && (
                   <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={styles.matchScroll}
                   >
+                    {/* Direct WhatsApp Contact Card */}
+                    <Animated.View entering={FadeIn.delay(200)} style={styles.matchItem}>
+                      <Pressable onPress={() => handleWhatsAppInvite()}>
+                        <View style={[styles.matchRing, { borderColor: "#25D366", backgroundColor: "rgba(37,211,102,0.15)" }]}>
+                          <Ionicons name="logo-whatsapp" size={24} color="#25D366" />
+                        </View>
+                        <Text style={[styles.matchName, { color: "#25D366", fontFamily: VibeFonts.bold }]} numberOfLines={1}>
+                          WhatsApp
+                        </Text>
+                      </Pressable>
+                    </Animated.View>
+
                     {inviteList.map((item, index) => {
                       const selected = selectedMatch?.id === item.id;
                       return (
@@ -920,6 +1055,68 @@ export default function ReelsScreen() {
                   </ScrollView>
                 )}
               </Animated.View>
+
+              {/* 1-Tap Instant Ping Bar — Zero Form Filling */}
+              {selectedMatch ? (
+                <Animated.View entering={FadeIn.delay(230)} style={{ marginHorizontal: 16, marginBottom: 14 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <LinearGradient colors={["#F59E0B", "#EF4444"]} style={{ width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center" }}>
+                        <Ionicons name="flash" size={12} color="#fff" />
+                      </LinearGradient>
+                      <Text style={{ fontSize: 13, fontFamily: VibeFonts.bold, color: T.ink }}>
+                        1-Tap Instant Ping ⚡
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: "row", gap: 6 }}>
+                      <Pressable
+                        onPress={() => handleWhatsAppInvite()}
+                        style={{ backgroundColor: "rgba(37,211,102,0.15)", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, flexDirection: "row", alignItems: "center", gap: 4 }}
+                      >
+                        <Ionicons name="logo-whatsapp" size={13} color="#25D366" />
+                        <Text style={{ fontSize: 11, fontFamily: VibeFonts.bold, color: "#25D366" }}>
+                          WhatsApp 💬
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => handleBroadcastPing(activeActivityObj.name, activeActivityObj.emoji)}
+                        style={{ backgroundColor: "rgba(245,158,11,0.15)", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}
+                      >
+                        <Text style={{ fontSize: 11, fontFamily: VibeFonts.bold, color: "#D97706" }}>
+                          Broadcast All ⚡
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </View>
+
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                    {[
+                      { name: "Coffee", emoji: "☕", bg: ["#FEF3C7", "#FDE68A"], color: "#B45309" },
+                      { name: "Food", emoji: "🍕", bg: ["#FFEDD5", "#FED7AA"], color: "#C2410C" },
+                      { name: "Drinks", emoji: "🍺", bg: ["#FEF9C3", "#FEF08A"], color: "#A16207" },
+                      { name: "Movie", emoji: "🎬", bg: ["#E0E7FF", "#C7D2FE"], color: "#4338CA" },
+                      { name: "Sutta", emoji: "🚬", bg: ["#F3F4F6", "#E5E7EB"], color: "#374151" },
+                      { name: "Drive", emoji: "🚗", bg: ["#DCFCE7", "#BBF7D0"], color: "#15803D" },
+                    ].map((chip) => (
+                      <Pressable
+                        key={chip.name}
+                        onPress={() => handleInstantPing(selectedMatch, chip.name, chip.emoji, "NOW ⚡")}
+                        style={{ overflow: "hidden", borderRadius: 16 }}
+                      >
+                        <LinearGradient
+                          colors={chip.bg as any}
+                          style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 8 }}
+                        >
+                          <Text style={{ fontSize: 15 }}>{chip.emoji}</Text>
+                          <Text style={{ fontSize: 12, fontFamily: VibeFonts.bold, color: chip.color }}>
+                            {chip.name} NOW ⚡
+                          </Text>
+                        </LinearGradient>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </Animated.View>
+              ) : null}
 
               {/* Send Invite Card */}
               {selectedMatch ? (
@@ -954,22 +1151,27 @@ export default function ReelsScreen() {
                       </View>
                     </View>
 
-                    <Pressable onPress={handleSend} style={styles.sendBtnShadow}>
-                      <LinearGradient
-                        colors={[...T.cta]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={styles.sendInviteBtn}
-                      >
-                        <Ionicons name="paper-plane" size={14} color="#fff" />
-                        <Text style={styles.sendInviteBtnText}>Send</Text>
-                      </LinearGradient>
-                    </Pressable>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <Pressable onPress={() => handleWhatsAppInvite()} style={{ backgroundColor: "#25D366", width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", shadowColor: "#25D366", shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 3 }}>
+                        <Ionicons name="logo-whatsapp" size={20} color="#fff" />
+                      </Pressable>
+                      <Pressable onPress={handleSend} style={styles.sendBtnShadow}>
+                        <LinearGradient
+                          colors={[...T.cta]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                          style={styles.sendInviteBtn}
+                        >
+                          <Ionicons name="paper-plane" size={14} color="#fff" />
+                          <Text style={styles.sendInviteBtnText}>Send</Text>
+                        </LinearGradient>
+                      </Pressable>
+                    </View>
                   </View>
 
-                  <Pressable onPress={() => router.push("/(tabs)/chats")} style={styles.viewChatBtn}>
-                    <Ionicons name="chatbubbles" size={14} color={T.purple} />
-                    <Text style={styles.viewChatText}>View Chat</Text>
+                  <Pressable onPress={() => handleWhatsAppInvite()} style={[styles.viewChatBtn, { borderColor: "rgba(37,211,102,0.3)" }]}>
+                    <Ionicons name="logo-whatsapp" size={14} color="#25D366" />
+                    <Text style={[styles.viewChatText, { color: "#25D366" }]}>Invite via WhatsApp 💬</Text>
                   </Pressable>
                 </Animated.View>
               ) : (
@@ -985,7 +1187,7 @@ export default function ReelsScreen() {
 
               {/* Quick links — friend plans vs public hangout */}
               <LinearGradient
-                colors={["#1A1428", "#120F1C", "#1B1230"]}
+                colors={["#FFFFFF", "#F8F4FF"]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.quickLinksPanel}
@@ -1051,12 +1253,14 @@ export default function ReelsScreen() {
                 activityName={activeActivityObj.name}
                 activityEmoji={activeActivityObj.emoji}
                 friendName={selectedMatch ? selectedMatch.name : ""}
+                friendEnergy={selectedMatch?.energy || (selectedMatch as any)?.socialStatus?.energy}
                 friendAvatar={selectedMatch ? selectedMatch.avatarUrl : undefined}
                 myAvatar={myAvatarUrl}
                 timeLabel={getTimeLabel(time)}
                 loading={sendingInvite}
                 onClose={handleClose}
                 onConfirm={handleConfirm}
+                onWhatsAppConfirm={() => handleWhatsAppInvite(selectedMatch?.name)}
               />
               {phase === "sent" ? (
                 <Pressable
@@ -1073,10 +1277,13 @@ export default function ReelsScreen() {
             </View>
           )}
         </ScrollView>
-      </SafeAreaView>
-      <TabBar dark={false} />
+      {!embed ? <TabBar dark={false} /> : null}
     </View>
   );
+}
+
+export default function ReelsScreen() {
+  return <ReelsContent embed={false} />;
 }
 
 const styles = StyleSheet.create({
@@ -1376,28 +1583,45 @@ const styles = StyleSheet.create({
   heroWrap: { marginBottom: 12 },
   hero: {
     borderRadius: 22,
-    minHeight: 132,
+    minHeight: 136,
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 16,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "#EDE7FF",
+    borderColor: "rgba(139,92,246,0.3)",
     flexDirection: "row",
     alignItems: "center",
-    shadowColor: "#8B5CF6",
-    shadowOpacity: 0.1,
+    position: "relative",
+    shadowColor: "#7C3AED",
+    shadowOpacity: 0.25,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
+    elevation: 4,
   },
   heroBlob: {
     position: "absolute",
-    right: -16,
-    top: -28,
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: "rgba(139,92,246,0.12)",
+    right: -20,
+    top: -30,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: "rgba(139,92,246,0.22)",
+  },
+  heroStar1: {
+    position: "absolute",
+    top: 14,
+    right: 120,
+    color: "#E8C547",
+    fontSize: 14,
+    opacity: 0.8,
+  },
+  heroStar2: {
+    position: "absolute",
+    bottom: 16,
+    left: 140,
+    color: "#EC4899",
+    fontSize: 12,
+    opacity: 0.7,
   },
   heroCopy: { flex: 1, paddingRight: 8, zIndex: 2 },
   heroPill: {
@@ -1405,22 +1629,24 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: T.softPurple,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
     marginBottom: 6,
   },
   heroPillText: {
     fontSize: 9,
     fontFamily: VibeFonts.bold,
-    color: T.purpleDeep,
-    letterSpacing: 0.8,
+    color: "#FFFFFF",
+    letterSpacing: 1,
   },
   heroTitle: {
     fontSize: 22,
     fontFamily: VibeFonts.extraBold,
-    color: T.ink,
+    color: "#FFFFFF",
     letterSpacing: -0.4,
     lineHeight: 26,
   },
@@ -1428,9 +1654,9 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 12,
     fontFamily: VibeFonts.medium,
-    color: T.muted,
+    color: "rgba(255,255,255,0.85)",
     lineHeight: 16,
-    maxWidth: SCREEN_W * 0.5,
+    maxWidth: SCREEN_W * 0.52,
   },
   heroImage: {
     width: 108,
@@ -1438,6 +1664,96 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: -4,
     bottom: -8,
+  },
+
+  actBtnBlackItem: {
+    width: "100%",
+    height: 82,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#27272A",
+    paddingVertical: 8,
+    position: "relative",
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  actEmojiLarge: {
+    fontSize: 28,
+    marginBottom: 4,
+  },
+  actNameVibrant: {
+    fontSize: 11,
+    fontFamily: VibeFonts.bold,
+    color: "#18181B",
+  },
+  actCheckBadge: {
+    position: "absolute",
+    top: 5,
+    right: 5,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  waCardWrap: {
+    marginBottom: 10,
+  },
+  waCardPressable: {
+    borderRadius: 18,
+    overflow: "hidden",
+  },
+  waCardInner: {
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderRadius: 18,
+    shadowColor: "#10B981",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  waIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  waCardTitle: {
+    fontSize: 13,
+    fontFamily: VibeFonts.extraBold,
+    color: "#FFFFFF",
+  },
+  waCardSub: {
+    fontSize: 11,
+    fontFamily: VibeFonts.medium,
+    color: "rgba(255,255,255,0.9)",
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  waCardBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 14,
+  },
+  waCardBadgeText: {
+    fontSize: 11,
+    fontFamily: VibeFonts.bold,
+    color: "#047857",
   },
 
   bannerWrap: { marginBottom: 14 },
@@ -1641,12 +1957,30 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
+  darkPanelBlack: {
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: "rgba(124,58,237,0.3)",
+    padding: 14,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
   darkPanel: {
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "rgba(167,139,250,0.25)",
+    borderColor: "#E2E8F0",
     padding: 12,
     overflow: "hidden",
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#7C3AED",
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   darkGlowA: {
     position: "absolute",
@@ -1655,7 +1989,7 @@ const styles = StyleSheet.create({
     width: 110,
     height: 110,
     borderRadius: 55,
-    backgroundColor: "rgba(139,92,246,0.18)",
+    backgroundColor: "rgba(124,58,237,0.06)",
   },
   darkGlowB: {
     position: "absolute",
@@ -1664,7 +1998,7 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: "rgba(236,72,153,0.12)",
+    backgroundColor: "rgba(236,72,153,0.05)",
   },
   sectionIconGrad: {
     width: 26,
@@ -1676,12 +2010,12 @@ const styles = StyleSheet.create({
   sectionTitleDark: {
     fontSize: 14,
     fontFamily: VibeFonts.bold,
-    color: "#F8FAFC",
+    color: "#18181B",
   },
   sectionSubDark: {
     fontSize: 11,
     fontFamily: VibeFonts.medium,
-    color: "rgba(226,232,240,0.55)",
+    color: "#64748B",
     marginTop: 1,
   },
   whenLivePill: {
@@ -1713,8 +2047,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    backgroundColor: "rgba(255,255,255,0.06)",
+    borderColor: "#E2E8F0",
+    backgroundColor: "#F8F9FD",
     gap: 4,
   },
   actIconBubble: {
@@ -1727,31 +2061,38 @@ const styles = StyleSheet.create({
   actNameDark: {
     fontSize: 10,
     fontFamily: VibeFonts.bold,
-    color: "rgba(248,250,252,0.75)",
+    color: "#18181B",
   },
 
   timeRow: { flexDirection: "row", gap: 7 },
   timeCardWrap: { flex: 1 },
   timeCardDark: {
     width: "100%",
-    paddingVertical: 11,
-    borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: "#E2E8F0",
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
-  timeCardDarkSelected: {
-    borderColor: "rgba(167,139,250,0.55)",
-    backgroundColor: "rgba(139,92,246,0.2)",
-  },
-  timeIconWrapDark: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: "rgba(167,139,250,0.18)",
+  timeIconSphereEnhanced: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: "center",
     justifyContent: "center",
+    marginBottom: 4,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
   timeIconGrad: {
     width: 30,
@@ -1763,18 +2104,18 @@ const styles = StyleSheet.create({
   timeLabelDark: {
     fontSize: 11,
     fontFamily: VibeFonts.bold,
-    color: "rgba(248,250,252,0.7)",
+    color: "#64748B",
     marginTop: 5,
   },
-  timeLabelDarkSelected: { color: "#F8FAFC" },
+  timeLabelDarkSelected: { color: "#7C3AED" },
   timeSubtextDark: {
     fontSize: 9,
     fontFamily: VibeFonts.regular,
-    color: "rgba(226,232,240,0.4)",
+    color: "#94A3B8",
     marginTop: 1,
   },
   timeSubtextDarkSelected: {
-    color: "#C4B5FD",
+    color: "#7C3AED",
     fontFamily: VibeFonts.semiBold,
   },
 
@@ -1983,10 +2324,16 @@ const styles = StyleSheet.create({
   quickLinksPanel: {
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "rgba(167,139,250,0.25)",
+    borderColor: "#E2E8F0",
     padding: 12,
     overflow: "hidden",
     marginBottom: 8,
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#7C3AED",
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   quickLinks: {
     flexDirection: "row",
@@ -1995,10 +2342,10 @@ const styles = StyleSheet.create({
   quickLinkDark: {
     flex: 1,
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "#F8F9FD",
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: "#E2E8F0",
     paddingVertical: 12,
     paddingHorizontal: 4,
     gap: 5,
@@ -2013,13 +2360,13 @@ const styles = StyleSheet.create({
   quickLinkTextDark: {
     fontSize: 10,
     fontFamily: VibeFonts.bold,
-    color: "#F8FAFC",
+    color: "#18181B",
     textAlign: "center",
   },
   quickLinkHint: {
     fontSize: 9,
     fontFamily: VibeFonts.medium,
-    color: "rgba(226,232,240,0.45)",
+    color: "#64748B",
   },
 
   inviteContainer: {

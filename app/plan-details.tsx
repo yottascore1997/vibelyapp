@@ -24,6 +24,7 @@ import { PLAN_ACTIVITIES } from "../constants/plans";
 import { VibeFonts } from "../constants/vibeTheme";
 import { Radius, Spacing } from "../constants/theme";
 import TabBar from "../components/TabBar";
+import VibeSplitModal from "../components/vibe/VibeSplitModal";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -46,28 +47,28 @@ const FALLBACK_AVATARS = [
 const CAFE_THUMB =
   "https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=200&h=200&fit=crop";
 
-/** Light mockup palette — cool lavender wash (not flat white) */
+/** Premium Light Palette — matching Hangout screen */
 const C = {
-  green: "#22C55E",
-  greenBright: "#16A34A",
-  greenSoft: "rgba(34,197,94,0.12)",
-  greenBorder: "rgba(34,197,94,0.35)",
+  green: "#10B981",
+  greenBright: "#059669",
+  greenSoft: "rgba(16, 185, 129, 0.12)",
+  greenBorder: "rgba(16, 185, 129, 0.3)",
   pink: "#EC4899",
   pinkSoft: "rgba(236,72,153,0.12)",
-  pinkBorder: "rgba(236,72,153,0.35)",
-  purple: "#8B5CF6",
-  purpleDeep: "#7C3AED",
-  softPurple: "#EDE7FF",
-  ink: "#1A1F36",
-  muted: "#6B7280",
-  faint: "#9CA3AF",
-  bg: "#EEE9F8",
-  card: "#FFFBFE",
-  cardElevated: "#FFFBFE",
-  border: "#E4DFF0",
-  cta: ["#8B5CF6", "#EC4899"] as const,
-  ring: ["#8B5CF6", "#EC4899", "#22C55E"] as const,
-  hostRing: ["#8B5CF6", "#A855F7", "#EC4899"] as const,
+  pinkBorder: "rgba(236,72,153,0.3)",
+  purple: "#7C3AED",
+  purpleDeep: "#6D28D9",
+  softPurple: "#F3E8FF",
+  ink: "#18181B",
+  muted: "#475569",
+  faint: "#94A3B8",
+  bg: "#F8F9FD",
+  card: "#FFFFFF",
+  cardElevated: "#FFFFFF",
+  border: "#F1F5F9",
+  cta: ["#7C3AED", "#EC4899"] as const,
+  ring: ["#7C3AED", "#EC4899", "#10B981"] as const,
+  hostRing: ["#7C3AED", "#A855F7", "#EC4899"] as const,
 };
 
 function getActivityMeta(activity?: string) {
@@ -281,6 +282,7 @@ export default function PlanDetailsScreen() {
   } = usePlans();
 
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showSplitModal, setShowSplitModal] = useState(false);
   const [cancellationRemark, setCancellationRemark] = useState("");
   const [cancelContext, setCancelContext] = useState<{
     userId: string;
@@ -725,6 +727,36 @@ export default function PlanDetailsScreen() {
             </View>
           </View>
 
+          {/* VibeSplit Event Expenses Banner */}
+          <TouchableOpacity
+            onPress={() => setShowSplitModal(true)}
+            style={{ marginVertical: 12, borderRadius: 20, overflow: "hidden" }}
+          >
+            <LinearGradient
+              colors={["#8B5CF6", "#EC4899"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 14 }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                <Text style={{ fontSize: 24 }}>💳</Text>
+                <View>
+                  <Text style={{ fontSize: 14, fontFamily: VibeFonts.bold, color: "#FFFFFF" }}>
+                    VibeSplit — Split Bills 💳💸
+                  </Text>
+                  <Text style={{ fontSize: 11, fontFamily: VibeFonts.medium, color: "rgba(255,255,255,0.85)" }}>
+                    Track shared food, drinks & tickets
+                  </Text>
+                </View>
+              </View>
+              <View style={{ backgroundColor: "rgba(255,255,255,0.22)", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 }}>
+                <Text style={{ fontSize: 11, fontFamily: VibeFonts.bold, color: "#FFFFFF" }}>
+                  Open Jar ›
+                </Text>
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+
           {/* People joining */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>People joining</Text>
@@ -906,6 +938,12 @@ export default function PlanDetailsScreen() {
         <View style={styles.footerInner}>{renderBottomCta()}</View>
       </View>
 
+      <VibeSplitModal
+        visible={showSplitModal}
+        onClose={() => setShowSplitModal(false)}
+        hangoutId={plan?.id}
+        titleName={plan?.title || "Hangout"}
+      />
       <TabBar dark={false} />
 
       {showCancelModal && (
@@ -1066,7 +1104,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: C.softPurple,
+    backgroundColor: "#F3E8FF",
     borderWidth: 1,
     borderColor: "#DDD6FE",
     paddingHorizontal: 12,
@@ -1074,31 +1112,31 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     marginBottom: 10,
   },
-  activityPillEmoji: { fontSize: 12 },
+  activityPillEmoji: { fontSize: 13 },
   activityPillText: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: VibeFonts.bold,
-    color: C.purpleDeep,
+    color: "#7C3AED",
     letterSpacing: 0.8,
   },
   heroTitle: {
-    fontSize: 26,
+    fontSize: 28,
     fontFamily: VibeFonts.extraBold,
-    color: C.ink,
-    letterSpacing: -0.5,
-    lineHeight: 32,
+    color: "#18181B",
+    letterSpacing: -0.6,
+    lineHeight: 34,
   },
   heroTitleAccent: {
-    color: C.pink,
+    color: "#7C3AED",
   },
   tagline: {
     marginTop: 6,
     fontSize: 14,
     fontFamily: VibeFonts.medium,
-    color: C.muted,
+    color: "#64748B",
     fontStyle: "italic",
   },
-  taglineHeart: { color: C.pink },
+  taglineHeart: { color: "#EC4899" },
 
   body: {
     paddingHorizontal: 16,
@@ -1276,15 +1314,15 @@ const styles = StyleSheet.create({
 
   section: { marginBottom: 22 },
   sectionTitle: {
-    fontSize: 17,
-    fontFamily: VibeFonts.bold,
-    color: C.ink,
+    fontSize: 18,
+    fontFamily: VibeFonts.extraBold,
+    color: "#18181B",
     marginBottom: 10,
   },
   aboutText: {
     fontSize: 13,
-    fontFamily: VibeFonts.regular,
-    color: C.muted,
+    fontFamily: VibeFonts.medium,
+    color: "#475569",
     lineHeight: 20,
     marginBottom: 12,
   },

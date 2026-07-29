@@ -20,25 +20,30 @@ import { useAuth } from "../../context/AuthContext";
 import { useMatches } from "../../context/MatchesContext";
 import { usePlans } from "../../context/PlansContext";
 import { api } from "../../services/api";
+import { usePremium } from "../../context/PremiumContext";
 import { API_URL } from "../../constants/theme";
 import { VibeFonts } from "../../constants/vibeTheme";
 
-/** Same light palette as Hangout screen */
+/** Light clean minimal aesthetic matching Hangout screen */
 const T = {
-  bg: "#EEE9F8",
-  card: "#FFFBFE",
-  ink: "#1A1F36",
-  muted: "#6B7280",
-  faint: "#9CA3AF",
-  border: "#E4DFF0",
-  purple: "#8B5CF6",
-  purpleDeep: "#7C3AED",
+  bg: "#F8F9FD",
+  card: "#FFFFFF",
+  cardElevated: "#FFFFFF",
+  ink: "#18181B",
+  muted: "#64748B",
+  faint: "#94A3B8",
+  border: "#E2E8F0",
+  purple: "#7C3AED",
+  purpleDeep: "#6D28D9",
+  purpleBright: "#8B5CF6",
+  softPurple: "#F3E8FF",
   pink: "#EC4899",
-  softPurple: "#EDE7FF",
-  green: "#22C55E",
-  amber: "#F59E0B",
-  blue: "#3B82F6",
-  cta: ["#8B5CF6", "#EC4899"] as const,
+  green: "#10B981",
+  yellow: "#F59E0B",
+  red: "#EF4444",
+  blue: "#2563EB",
+  cta: ["#7C3AED", "#8B5CF6"] as const,
+  promo: ["#7C3AED", "#8B5CF6", "#EC4899"] as const,
 };
 
 const MENU = [
@@ -88,18 +93,23 @@ const MENU = [
 
 export default function ProfileScreen() {
   const { user, token, logout } = useAuth();
+  const { openPaywall, tier, isPremium } = usePremium();
   const router = useRouter();
   const { matches, likesCount } = useMatches();
   const { myPlans } = usePlans();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [myEnergy, setMyEnergy] = useState<"LESSGO" | "MAYBE" | "OFF_GRID">("LESSGO");
 
   const fetchProfile = useCallback(async () => {
     if (!token) return;
     setLoading(true);
     try {
       const res = (await api.getProfile(token)) as any;
-      if (res) setProfile(res.profile);
+      if (res) {
+        setProfile(res.profile);
+        if (res.socialStatus?.energy) setMyEnergy(res.socialStatus.energy);
+      }
     } catch (err) {
       console.error("Error fetching user profile:", err);
     } finally {
@@ -141,37 +151,39 @@ export default function ProfileScreen() {
   const age = profile?.age ? `, ${profile.age}` : "";
   const city = profile?.city ? `${profile.city}` : "Add your city";
 
+  const handleToggleEnergy = async () => {
+    const next = myEnergy === "LESSGO" ? "MAYBE" : myEnergy === "MAYBE" ? "OFF_GRID" : "LESSGO";
+    setMyEnergy(next);
+    try {
+      await api.updateSocialStatus({
+        energy: next,
+        freeNow: next === "LESSGO",
+      });
+    } catch (err) {
+      console.error("Failed to update social status from profile:", err);
+    }
+  };
+
+  const energyDisplay = myEnergy === "LESSGO" ? "Lessgo 🟢" : myEnergy === "OFF_GRID" ? "Off grid 🔴" : "Maybe 🟡";
+  const energyColor = myEnergy === "LESSGO" ? T.green : myEnergy === "OFF_GRID" ? T.red : T.yellow;
+
   const stats = [
-    { label: "Matches", value: String(matches.length), color: T.pink, icon: "heart" as const },
-    { label: "Likes", value: String(likesCount), color: T.purple, icon: "flame" as const },
-    { label: "Plans", value: String(myPlans.length), color: T.green, icon: "calendar" as const },
+    { label: "Matches", value: String(matches.length), color: T.pink, icon: "heart" as const, onPress: undefined },
+    { label: "Likes", value: String(likesCount), color: T.purple, icon: "flame" as const, onPress: undefined },
+    { label: "Plans", value: String(myPlans.length), color: T.green, icon: "calendar" as const, onPress: undefined },
     {
-      label: "Status",
-      value: profile?.isOnline !== false ? "Live" : "Away",
-      color: T.amber,
+      label: "Energy",
+      value: energyDisplay,
+      color: energyColor,
       icon: "flash" as const,
+      onPress: handleToggleEnergy,
     },
   ];
 
   return (
     <View style={styles.root}>
       <StatusBar barStyle="dark-content" backgroundColor={T.bg} />
-
-      <LinearGradient
-        colors={["rgba(167,139,250,0.22)", "transparent"]}
-        style={styles.glowTop}
-        start={{ x: 0.2, y: 0 }}
-        end={{ x: 0.8, y: 1 }}
-      />
-      <LinearGradient
-        colors={["rgba(244,114,182,0.12)", "transparent"]}
-        style={styles.glowBottom}
-        start={{ x: 1, y: 1 }}
-        end={{ x: 0, y: 0 }}
-      />
-      <View style={styles.coolOrb} />
-
-      <AppHeader variant="light" badgeCount={likesCount} />
+      <AppHeader variant="light" tagline="Your Profile · Personal Vibe" badgeCount={likesCount} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -183,21 +195,16 @@ export default function ProfileScreen() {
           </View>
         ) : (
           <>
-            {/* Hero */}
+            {/* Hero Card */}
             <Animated.View entering={FadeInDown.duration(420)} style={styles.heroWrap}>
-              <LinearGradient
-                colors={["#F8F4FF", "#FFFFFF", "#FFF5FA"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.hero}
-              >
+              <View style={styles.heroCard}>
                 <View style={styles.heroTopRow}>
                   <View style={styles.avatarWrap}>
                     <LinearGradient colors={[...T.cta]} style={styles.avatarRing}>
                       <Image source={{ uri: getAvatarUri() }} style={styles.avatar} />
                     </LinearGradient>
                     <View style={styles.onlineBadge}>
-                      <PulseDot size={5} />
+                      <PulseDot size={5} color="#16A34A" />
                       <Text style={styles.onlineText}>Online</Text>
                     </View>
                   </View>
@@ -211,11 +218,11 @@ export default function ProfileScreen() {
                       {user?.email || "—"}
                     </Text>
                     <View style={styles.locRow}>
-                      <Ionicons name="location" size={12} color={T.purple} />
+                      <Ionicons name="location" size={13} color={T.purple} />
                       <Text style={styles.locText}>{city}</Text>
                       {profile?.isVerified ? (
                         <View style={styles.verified}>
-                          <Ionicons name="checkmark-circle" size={12} color={T.blue} />
+                          <Ionicons name="checkmark-circle" size={13} color={T.blue} />
                           <Text style={styles.verifiedText}>Verified</Text>
                         </View>
                       ) : null}
@@ -254,28 +261,67 @@ export default function ProfileScreen() {
                     <Text style={styles.shareBtnText}>Discover</Text>
                   </Pressable>
                 </View>
-              </LinearGradient>
+              </View>
             </Animated.View>
 
-            {/* Stats */}
+            {/* Premium Banner Card */}
+            <Animated.View entering={FadeInDown.delay(70).duration(400)} style={styles.premiumBannerWrap}>
+              <Pressable onPress={openPaywall}>
+                <LinearGradient
+                  colors={tier === "VIP" ? ["#F59E0B", "#D97706", "#7C3AED"] : tier === "GOLD" ? ["#7C3AED", "#8B5CF6"] : ["#1E1B4B", "#2E1065", "#0F172A"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.premiumBannerCard}
+                >
+                  <View style={styles.premiumBannerLeft}>
+                    <View style={styles.premiumCrownBox}>
+                      <Text style={styles.premiumCrownEmoji}>👑</Text>
+                    </View>
+                    <View style={styles.premiumTextGroup}>
+                      <Text style={styles.premiumBannerTitle}>
+                        {tier === "VIP" ? "VibeVIP Active 👑" : tier === "GOLD" ? "VibeGold Active 🌟" : "VibeGold Premium"}
+                      </Text>
+                      <Text style={styles.premiumBannerSub}>
+                        {isPremium ? "All Premium Perks Unlocked!" : "See Who Liked You • Starts at ₹99/wk"}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.premiumCtaBtn}>
+                    <Text style={styles.premiumCtaText}>{isPremium ? "MANAGE" : "UPGRADE"}</Text>
+                    <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
+                  </View>
+                </LinearGradient>
+              </Pressable>
+            </Animated.View>
+
+            {/* Stats Row */}
             <Animated.View entering={FadeInDown.delay(80).duration(400)} style={styles.statsRow}>
               {stats.map((s) => (
-                <View key={s.label} style={styles.statCard}>
-                  <View style={[styles.statIcon, { backgroundColor: `${s.color}18` }]}>
+                <Pressable
+                  key={s.label}
+                  style={styles.statCard}
+                  onPress={s.onPress}
+                  disabled={!s.onPress}
+                >
+                  <View style={[styles.statIcon, { backgroundColor: `${s.color}15` }]}>
                     <Ionicons name={s.icon} size={14} color={s.color} />
                   </View>
-                  <Text style={[styles.statValue, { color: s.color }]}>{s.value}</Text>
+                  <Text style={[styles.statValue, { color: s.color }]} numberOfLines={1}>
+                    {s.value}
+                  </Text>
                   <Text style={styles.statLabel}>{s.label}</Text>
-                </View>
+                </Pressable>
               ))}
             </Animated.View>
 
-            {/* Quick shortcuts */}
+            {/* Quick access */}
             <Animated.View entering={FadeInDown.delay(120).duration(400)}>
-              <Text style={styles.sectionTitle}>Quick access</Text>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionTitle}>Quick Access ⚡</Text>
+              </View>
               <View style={styles.quickRow}>
                 <Pressable style={styles.quickCard} onPress={() => router.push("/create-plan")}>
-                  <LinearGradient colors={["#16A34A", "#22C55E"]} style={styles.quickIcon}>
+                  <LinearGradient colors={["#10B981", "#059669"]} style={styles.quickIcon}>
                     <Ionicons name="add" size={20} color="#fff" />
                   </LinearGradient>
                   <Text style={styles.quickLabel}>New Plan</Text>
@@ -287,7 +333,7 @@ export default function ProfileScreen() {
                   <Text style={styles.quickLabel}>Friends</Text>
                 </Pressable>
                 <Pressable style={styles.quickCard} onPress={() => router.push("/(tabs)/jar")}>
-                  <LinearGradient colors={["#D97706", "#F59E0B"]} style={styles.quickIcon}>
+                  <LinearGradient colors={["#F59E0B", "#D97706"]} style={styles.quickIcon}>
                     <Ionicons name="sparkles" size={18} color="#fff" />
                   </LinearGradient>
                   <Text style={styles.quickLabel}>Jar</Text>
@@ -297,7 +343,9 @@ export default function ProfileScreen() {
 
             {/* Menu */}
             <Animated.View entering={FadeInUp.delay(160).duration(400)}>
-              <Text style={styles.sectionTitle}>Account</Text>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionTitle}>Account Settings ⚙️</Text>
+              </View>
               <View style={styles.menuCard}>
                 {MENU.map((item, i) => (
                   <Pressable
@@ -308,7 +356,7 @@ export default function ProfileScreen() {
                       else Alert.alert(item.label, "Coming soon.");
                     }}
                   >
-                    <View style={[styles.menuIcon, { backgroundColor: `${item.color}18` }]}>
+                    <View style={[styles.menuIcon, { backgroundColor: `${item.color}15` }]}>
                       <Ionicons name={item.icon} size={18} color={item.color} />
                     </View>
                     <View style={styles.menuCopy}>
@@ -321,6 +369,7 @@ export default function ProfileScreen() {
               </View>
             </Animated.View>
 
+            {/* Logout Button */}
             <Pressable onPress={handleLogout} style={styles.logoutBtn}>
               <Ionicons name="log-out-outline" size={18} color="#EF4444" />
               <Text style={styles.logoutText}>Log Out</Text>
@@ -336,66 +385,41 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: T.bg },
-  glowTop: {
-    position: "absolute",
-    top: -40,
-    left: -40,
-    width: 280,
-    height: 280,
-    borderRadius: 140,
-  },
-  glowBottom: {
-    position: "absolute",
-    bottom: 100,
-    right: -50,
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-  },
-  coolOrb: {
-    position: "absolute",
-    top: "45%",
-    left: -70,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: "rgba(125, 211, 252, 0.1)",
-  },
   scroll: {
     paddingHorizontal: 16,
     paddingBottom: 120,
     paddingTop: 4,
   },
   loader: { height: 220, alignItems: "center", justifyContent: "center" },
-  heroWrap: { marginBottom: 14 },
-  hero: {
+  heroWrap: { marginBottom: 16 },
+  heroCard: {
+    backgroundColor: "#FFFFFF",
     borderRadius: 24,
     padding: 18,
     borderWidth: 1,
-    borderColor: "#EDE7FF",
-    overflow: "hidden",
-    shadowColor: "#8B5CF6",
-    shadowOpacity: 0.1,
+    borderColor: "#E2E8F0",
+    shadowColor: "#7C3AED",
+    shadowOpacity: 0.06,
     shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
+    shadowOffset: { width: 0, height: 4 },
     elevation: 3,
   },
   heroTopRow: { flexDirection: "row", alignItems: "center", gap: 14 },
   avatarWrap: { position: "relative" },
   avatarRing: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
+    width: 84,
+    height: 84,
+    borderRadius: 42,
     padding: 2.5,
     alignItems: "center",
     justifyContent: "center",
   },
   avatar: {
-    width: 82,
-    height: 82,
-    borderRadius: 41,
+    width: 78,
+    height: 78,
+    borderRadius: 39,
     borderWidth: 2,
-    borderColor: "#fff",
+    borderColor: "#FFFFFF",
   },
   onlineBadge: {
     position: "absolute",
@@ -404,29 +428,29 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "#fff",
+    backgroundColor: "#FFFFFF",
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: "rgba(34,197,94,0.35)",
-    shadowColor: "#1A1F36",
-    shadowOpacity: 0.08,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
   },
-  onlineText: { fontSize: 9, fontFamily: VibeFonts.bold, color: T.green },
+  onlineText: { fontSize: 9, fontFamily: VibeFonts.bold, color: "#16A34A" },
   heroInfo: { flex: 1, minWidth: 0 },
   name: {
     fontSize: 22,
     fontFamily: VibeFonts.extraBold,
-    color: T.ink,
+    color: "#18181B",
     letterSpacing: -0.4,
   },
   email: {
     fontSize: 12,
     fontFamily: VibeFonts.medium,
-    color: T.faint,
+    color: "#94A3B8",
     marginTop: 3,
   },
   locRow: {
@@ -436,30 +460,30 @@ const styles = StyleSheet.create({
     marginTop: 8,
     flexWrap: "wrap",
   },
-  locText: { fontSize: 12, fontFamily: VibeFonts.semiBold, color: T.purple },
+  locText: { fontSize: 12, fontFamily: VibeFonts.semiBold, color: "#7C3AED" },
   verified: {
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
     marginLeft: 6,
-    backgroundColor: "rgba(59,130,246,0.1)",
+    backgroundColor: "rgba(37,99,235,0.1)",
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 8,
   },
-  verifiedText: { fontSize: 10, fontFamily: VibeFonts.bold, color: T.blue },
+  verifiedText: { fontSize: 10, fontFamily: VibeFonts.bold, color: "#2563EB" },
   bio: {
     marginTop: 14,
     fontSize: 13,
     fontFamily: VibeFonts.medium,
-    color: T.muted,
+    color: "#64748B",
     lineHeight: 19,
   },
   bioEmpty: {
     marginTop: 14,
     fontSize: 13,
     fontFamily: VibeFonts.medium,
-    color: T.faint,
+    color: "#94A3B8",
     fontStyle: "italic",
   },
   heroActions: {
@@ -471,7 +495,7 @@ const styles = StyleSheet.create({
     flex: 1.2,
     borderRadius: 14,
     overflow: "hidden",
-    shadowColor: T.pink,
+    shadowColor: "#7C3AED",
     shadowOpacity: 0.25,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
@@ -485,7 +509,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 14,
   },
-  editBtnText: { color: "#fff", fontSize: 13, fontFamily: VibeFonts.bold },
+  editBtnText: { color: "#FFFFFF", fontSize: 13, fontFamily: VibeFonts.bold },
   shareBtn: {
     flex: 1,
     flexDirection: "row",
@@ -494,11 +518,11 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 12,
     borderRadius: 14,
-    backgroundColor: T.softPurple,
+    backgroundColor: "#F3E8FF",
     borderWidth: 1,
     borderColor: "#DDD6FE",
   },
-  shareBtnText: { color: T.purpleDeep, fontSize: 13, fontFamily: VibeFonts.bold },
+  shareBtnText: { color: "#7C3AED", fontSize: 13, fontFamily: VibeFonts.bold },
   statsRow: {
     flexDirection: "row",
     gap: 8,
@@ -506,18 +530,18 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: T.card,
+    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: T.border,
+    borderColor: "#E2E8F0",
     paddingVertical: 12,
     paddingHorizontal: 6,
     alignItems: "center",
-    shadowColor: "#1A1F36",
+    shadowColor: "#000",
     shadowOpacity: 0.04,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
-    elevation: 1,
+    elevation: 2,
   },
   statIcon: {
     width: 28,
@@ -527,38 +551,43 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 6,
   },
-  statValue: { fontSize: 16, fontFamily: VibeFonts.extraBold },
+  statValue: { fontSize: 15, fontFamily: VibeFonts.extraBold },
   statLabel: {
     fontSize: 10,
     fontFamily: VibeFonts.semiBold,
-    color: T.faint,
+    color: "#94A3B8",
     marginTop: 2,
   },
-  sectionTitle: {
-    fontSize: 17,
-    fontFamily: VibeFonts.bold,
-    color: T.ink,
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 10,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontFamily: VibeFonts.extraBold,
+    color: "#18181B",
   },
   quickRow: {
     flexDirection: "row",
     gap: 10,
-    marginBottom: 22,
+    marginBottom: 20,
   },
   quickCard: {
     flex: 1,
-    backgroundColor: T.card,
+    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: T.border,
+    borderColor: "#E2E8F0",
     paddingVertical: 14,
     alignItems: "center",
     gap: 8,
-    shadowColor: "#1A1F36",
+    shadowColor: "#000",
     shadowOpacity: 0.04,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
-    elevation: 1,
+    elevation: 2,
   },
   quickIcon: {
     width: 40,
@@ -570,20 +599,20 @@ const styles = StyleSheet.create({
   quickLabel: {
     fontSize: 12,
     fontFamily: VibeFonts.bold,
-    color: T.ink,
+    color: "#18181B",
   },
   menuCard: {
-    backgroundColor: T.card,
+    backgroundColor: "#FFFFFF",
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: T.border,
+    borderColor: "#E2E8F0",
     overflow: "hidden",
-    marginBottom: 16,
-    shadowColor: "#1A1F36",
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
+    marginBottom: 20,
+    shadowColor: "#7C3AED",
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
     shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
+    elevation: 3,
   },
   menuRow: {
     flexDirection: "row",
@@ -594,7 +623,7 @@ const styles = StyleSheet.create({
   },
   menuBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: T.border,
+    borderBottomColor: "#E2E8F0",
   },
   menuIcon: {
     width: 40,
@@ -607,12 +636,12 @@ const styles = StyleSheet.create({
   menuLabel: {
     fontSize: 14,
     fontFamily: VibeFonts.semiBold,
-    color: T.ink,
+    color: "#18181B",
   },
   menuSub: {
     fontSize: 11,
     fontFamily: VibeFonts.medium,
-    color: T.faint,
+    color: "#94A3B8",
     marginTop: 2,
   },
   logoutBtn: {
@@ -632,7 +661,68 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 11,
     fontFamily: VibeFonts.medium,
-    color: T.faint,
+    color: "#94A3B8",
     marginBottom: 8,
+  },
+  premiumBannerWrap: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+  },
+  premiumBannerCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    shadowColor: "#7C3AED",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  premiumBannerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    flex: 1,
+  },
+  premiumCrownBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  premiumCrownEmoji: { fontSize: 20 },
+  premiumTextGroup: { flex: 1 },
+  premiumBannerTitle: {
+    fontSize: 15,
+    fontFamily: VibeFonts.bold,
+    color: "#FFFFFF",
+  },
+  premiumBannerSub: {
+    fontSize: 11,
+    fontFamily: VibeFonts.medium,
+    color: "rgba(255, 255, 255, 0.8)",
+    marginTop: 2,
+  },
+  premiumCtaBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+  },
+  premiumCtaText: {
+    fontSize: 11,
+    fontFamily: VibeFonts.bold,
+    color: "#FFFFFF",
+    letterSpacing: 0.5,
   },
 });

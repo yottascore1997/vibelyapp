@@ -6,16 +6,17 @@ import { MatchProfile } from "../../constants/matches";
 import { VibeFonts } from "../../constants/vibeTheme";
 
 const T = {
-  card: "#FFFBFE",
-  ink: "#1A1F36",
-  muted: "#6B7280",
-  faint: "#9CA3AF",
-  border: "#E4DFF0",
-  softPurple: "#EDE7FF",
-  softPink: "#FCE7F3",
+  card: "#FFFFFF",
+  ink: "#0F172A",
+  muted: "#64748B",
+  faint: "#94A3B8",
+  border: "#E2E8F0",
+  softPurple: "#F1F0FE",
+  softPink: "#FDF2F8",
   purple: "#8B5CF6",
   pink: "#EC4899",
   cta: ["#8B5CF6", "#EC4899"] as const,
+  ctaGold: ["#F59E0B", "#EF4444"] as const,
 };
 
 interface Props {
@@ -31,13 +32,15 @@ export default function MatchStrip({ matches, onPressMatch, onDiscover }: Props)
     <View style={styles.wrap}>
       <View style={styles.header}>
         <View style={styles.titleRow}>
-          <LinearGradient colors={[...T.cta]} style={styles.sparkle}>
-            <Ionicons name="sparkles" size={11} color="#fff" />
+          <LinearGradient colors={[...T.cta]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.sparkle}>
+            <Ionicons name="sparkles" size={12} color="#fff" />
           </LinearGradient>
-          <Text style={styles.title}>New matches</Text>
+          <Text style={styles.title}>New Matches</Text>
         </View>
         <View style={styles.countPill}>
-          <Text style={styles.countText}>{matches.length}</Text>
+          <LinearGradient colors={["#EC48991A", "#8B5CF61A"]} style={styles.countPillGrad}>
+            <Text style={styles.countText}>{matches.length} NEW</Text>
+          </LinearGradient>
         </View>
       </View>
 
@@ -47,33 +50,53 @@ export default function MatchStrip({ matches, onPressMatch, onDiscover }: Props)
         contentContainerStyle={styles.scroll}
       >
         {matches.map((m) => (
-          <Pressable key={m.id} style={styles.cell} onPress={() => onPressMatch(m)}>
-            <LinearGradient colors={[...T.cta]} style={styles.ring}>
-              <Image source={{ uri: m.avatarUrl }} style={styles.avatar} />
-            </LinearGradient>
-            {m.isOnline ? (
-              <View style={styles.online}>
-                <PulseDot size={5} color="#22C55E" />
-              </View>
-            ) : null}
+          <Pressable
+            key={m.id}
+            style={({ pressed }) => [styles.cell, pressed && styles.cellPressed]}
+            onPress={() => onPressMatch(m)}
+          >
+            <View style={styles.avatarContainer}>
+              <LinearGradient
+                colors={m.isOnline ? [...T.cta] : ["#C4B5FD", "#F472B6"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.ring}
+              >
+                <Image source={{ uri: m.avatarUrl }} style={styles.avatar} />
+              </LinearGradient>
+
+              {m.isOnline ? (
+                <View style={styles.online}>
+                  <PulseDot size={5} color="#22C55E" />
+                </View>
+              ) : null}
+
+              {m.isVerified ? (
+                <View style={styles.verifiedBadge}>
+                  <Ionicons name="checkmark" size={9} color="#fff" />
+                </View>
+              ) : null}
+            </View>
+
             <Text style={styles.name} numberOfLines={1}>
               {m.name.split(" ")[0]}
             </Text>
-            {m.isVerified ? (
-              <Ionicons
-                name="checkmark-circle"
-                size={12}
-                color={T.purple}
-                style={styles.verified}
-              />
-            ) : null}
           </Pressable>
         ))}
-        <Pressable style={styles.newCell} onPress={onDiscover}>
+
+        <Pressable
+          style={({ pressed }) => [styles.newCell, pressed && styles.cellPressed]}
+          onPress={onDiscover}
+        >
           <View style={styles.newRing}>
-            <Ionicons name="add" size={24} color={T.purple} />
+            <LinearGradient
+              colors={["#8B5CF615", "#EC489915"]}
+              style={styles.newRingGrad}
+            >
+              <Ionicons name="add" size={26} color={T.purple} />
+            </LinearGradient>
           </View>
-          <Text style={styles.newLabel}>Find more</Text>
+          <Text style={styles.newLabel}>Discover</Text>
         </Pressable>
       </ScrollView>
     </View>
@@ -83,97 +106,134 @@ export default function MatchStrip({ matches, onPressMatch, onDiscover }: Props)
 const styles = StyleSheet.create({
   wrap: {
     marginBottom: 16,
+    marginHorizontal: 16,
     backgroundColor: T.card,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: T.border,
+    borderColor: "rgba(226, 232, 240, 0.8)",
     paddingVertical: 14,
-    shadowColor: "#0F172A",
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
+    shadowColor: "#7C3AED",
+    shadowOpacity: 0.07,
+    shadowRadius: 16,
     shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
+    elevation: 3,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     marginBottom: 12,
   },
   titleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   sparkle: {
-    width: 22,
-    height: 22,
-    borderRadius: 8,
+    width: 24,
+    height: 24,
+    borderRadius: 9,
     alignItems: "center",
     justifyContent: "center",
   },
   title: {
     fontSize: 14,
-    fontFamily: VibeFonts.bold,
+    fontFamily: VibeFonts.extraBold,
     color: T.ink,
+    letterSpacing: -0.2,
   },
   countPill: {
-    backgroundColor: T.softPink,
-    paddingHorizontal: 9,
-    paddingVertical: 3,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#F9A8D4",
+    borderRadius: 12,
+    overflow: "hidden",
   },
-  countText: { fontSize: 11, fontFamily: VibeFonts.bold, color: T.pink },
-  scroll: { paddingHorizontal: 14, gap: 12 },
-  cell: { alignItems: "center", width: 70, position: "relative" },
+  countPillGrad: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(236, 72, 153, 0.3)",
+  },
+  countText: {
+    fontSize: 10,
+    fontFamily: VibeFonts.extraBold,
+    color: T.pink,
+    letterSpacing: 0.5,
+  },
+  scroll: { paddingHorizontal: 16, gap: 14 },
+  cell: { alignItems: "center", width: 72 },
+  cellPressed: { transform: [{ scale: 0.95 }], opacity: 0.9 },
+  avatarContainer: { position: "relative", marginBottom: 6 },
   ring: {
-    width: 64,
-    height: 64,
-    borderRadius: 22,
+    width: 68,
+    height: 68,
+    borderRadius: 24,
     padding: 2.5,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#8B5CF6",
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
   avatar: {
-    width: 57,
-    height: 57,
-    borderRadius: 19,
+    width: 61,
+    height: 61,
+    borderRadius: 21,
     borderWidth: 2,
-    borderColor: "#fff",
+    borderColor: "#FFFFFF",
   },
   online: {
     position: "absolute",
-    top: 2,
-    right: 4,
-    backgroundColor: T.card,
-    borderRadius: 8,
-    padding: 2,
+    top: 1,
+    right: 1,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 10,
+    padding: 2.5,
     borderWidth: 1.5,
-    borderColor: "#fff",
+    borderColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  name: {
-    fontSize: 11,
-    fontFamily: VibeFonts.semiBold,
-    color: T.ink,
-    marginTop: 6,
-    textAlign: "center",
-  },
-  verified: { position: "absolute", bottom: 18, right: 6 },
-  newCell: { alignItems: "center", width: 70 },
-  newRing: {
-    width: 64,
-    height: 64,
-    borderRadius: 22,
+  verifiedBadge: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 17,
+    height: 17,
+    borderRadius: 8.5,
+    backgroundColor: T.purple,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+  },
+  name: {
+    fontSize: 12,
+    fontFamily: VibeFonts.bold,
+    color: T.ink,
+    textAlign: "center",
+  },
+  newCell: { alignItems: "center", width: 72 },
+  newRing: {
+    width: 68,
+    height: 68,
+    borderRadius: 24,
     borderWidth: 1.5,
     borderColor: "#C4B5FD",
     borderStyle: "dashed",
-    backgroundColor: T.softPurple,
+    overflow: "hidden",
+    marginBottom: 6,
+  },
+  newRingGrad: {
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
   },
   newLabel: {
-    fontSize: 10,
-    fontFamily: VibeFonts.medium,
+    fontSize: 11,
+    fontFamily: VibeFonts.semiBold,
     color: T.muted,
-    marginTop: 6,
   },
 });
+

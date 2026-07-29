@@ -19,20 +19,22 @@ function getTimeLabel(id: string) {
 }
 
 const timeOptions = [
-  { id: "now", label: "NOW", icon: "flash" as const },
-  { id: "30min", label: "+30 MIN", icon: "time" as const },
-  { id: "1hr", label: "+1 HR", icon: "alarm" as const },
-  { id: "6pm", label: "6 PM TODAY", icon: "sunny" as const },
+  { id: "now", label: "RIGHT NOW ⚡", icon: "flash" as const },
+  { id: "today_6pm", label: "TODAY 6 PM 🌆", icon: "sunny" as const },
+  { id: "tonight", label: "TONIGHT 🍺", icon: "moon" as const },
+  { id: "tomorrow", label: "TOMORROW ☀️", icon: "calendar" as const },
 ];
 
 interface Props {
   friendName: string;
   friendAvatar: string;
+  friendEnergy?: string;
   selectedActivity: string;
   selectedTime: string;
   onSelectActivity: (id: string) => void;
   onSelectTime: (id: string) => void;
   onSend: () => void;
+  onWhatsAppSend?: () => void;
 }
 
 function ActivityBtn({ act, selected, onPress }: { act: (typeof VibeActivities)[0]; selected: boolean; onPress: () => void }) {
@@ -71,13 +73,26 @@ function ActivityBtn({ act, selected, onPress }: { act: (typeof VibeActivities)[
 export default function MoveSheet({
   friendName,
   friendAvatar,
+  friendEnergy,
   selectedActivity,
   selectedTime,
   onSelectActivity,
   onSelectTime,
   onSend,
+  onWhatsAppSend,
 }: Props) {
   const act = VibeActivities.find((a) => a.id === selectedActivity);
+
+  const energyLabel = friendEnergy === "LESSGO"
+    ? "🟢 Lessgo (Free)"
+    : friendEnergy === "OFF_GRID"
+    ? "🔴 Off grid"
+    : "🟡 Maybe";
+  const energyColor = friendEnergy === "LESSGO"
+    ? "#22C55E"
+    : friendEnergy === "OFF_GRID"
+    ? "#EF4444"
+    : "#EAB308";
 
   return (
     <Animated.View entering={FadeInUp.duration(600).springify()} style={styles.sheet}>
@@ -86,9 +101,14 @@ export default function MoveSheet({
 
         <View style={styles.header}>
           <Image source={{ uri: friendAvatar }} style={[styles.avatar, act ? { borderColor: act.color } : null]} />
-          <Text style={styles.hangWith}>
-            hang with <Text style={[styles.friendName, act ? { color: act.color } : null]}>{friendName}</Text>
-          </Text>
+          <View>
+            <Text style={styles.hangWith}>
+              hang with <Text style={[styles.friendName, act ? { color: act.color } : null]}>{friendName}</Text>
+            </Text>
+            <Text style={{ fontSize: 11, fontWeight: "600", color: energyColor, marginTop: 2 }}>
+              Status: {energyLabel}
+            </Text>
+          </View>
         </View>
 
         <Text style={styles.title}>
@@ -131,7 +151,7 @@ export default function MoveSheet({
           })}
         </ScrollView>
 
-        <Animated.View entering={FadeInDown.delay(200)}>
+        <Animated.View entering={FadeInDown.delay(200)} style={{ gap: 10 }}>
           <Pressable onPress={onSend}>
             <LinearGradient colors={["#8A56FF", "#FF4B81"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.sendBtn}>
               <Ionicons name="paper-plane" size={18} color="#fff" />
@@ -140,6 +160,13 @@ export default function MoveSheet({
               </Text>
             </LinearGradient>
           </Pressable>
+
+          {onWhatsAppSend && (
+            <Pressable onPress={onWhatsAppSend} style={styles.waBtn}>
+              <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
+              <Text style={styles.waText}>Invite Non-App Contact via WhatsApp</Text>
+            </Pressable>
+          )}
         </Animated.View>
       </LinearGradient>
     </Animated.View>
@@ -208,4 +235,16 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   sendText: { color: "#fff", fontSize: 14, fontFamily: VibeFonts.bold },
+  waBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 16,
+    backgroundColor: "rgba(37,211,102,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(37,211,102,0.3)",
+  },
+  waText: { color: "#25D366", fontSize: 13, fontFamily: VibeFonts.bold },
 });

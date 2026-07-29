@@ -1,13 +1,23 @@
-import { useState, useEffect } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, ScrollView, TextInput } from "react-native";
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  TextInput,
+  Image,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../context/AuthContext";
-import { Colors, Radius, Spacing } from "../../constants/theme";
-import { VibeColors, VibeFonts } from "../../constants/vibeTheme";
-import GlassCard from "../../components/vibe/GlassCard";
+import { Radius, Spacing } from "../../constants/theme";
+import { VibeFonts } from "../../constants/vibeTheme";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -18,8 +28,14 @@ import Animated, {
   Easing,
 } from "react-native-reanimated";
 
-// Local Custom GlassInput component to avoid breaking light-themed onboarding inputs
-function GlassInput({
+const MOCK_AVATARS = [
+  "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&q=80",
+];
+
+// Smooth VibrantInput component without flickering focus state
+function VibrantInput({
   label,
   value,
   onChangeText,
@@ -37,7 +53,7 @@ function GlassInput({
   icon?: keyof typeof Ionicons.glyphMap;
 }) {
   const [focused, setFocused] = useState(false);
-  const filled = value.length > 0;
+  const active = focused || value.length > 0;
 
   return (
     <View style={styles.inputWrap}>
@@ -45,16 +61,15 @@ function GlassInput({
       <View
         style={[
           styles.textInputContainer,
-          focused && styles.inputFocused,
-          filled && styles.inputFilled,
+          focused ? styles.inputFocused : active ? styles.inputFilled : null,
         ]}
       >
         {icon && (
-          <View style={styles.inputIconBox}>
+          <View style={[styles.inputIconBox, active && styles.inputIconBoxActive]}>
             <Ionicons
               name={icon}
               size={18}
-              color={focused || filled ? Colors.accent : "rgba(255,255,255,0.4)"}
+              color={active ? "#7C3AED" : "#94A3B8"}
             />
           </View>
         )}
@@ -63,7 +78,7 @@ function GlassInput({
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor="rgba(255,255,255,0.3)"
+          placeholderTextColor="#94A3B8"
           secureTextEntry={secureTextEntry}
           keyboardType={keyboardType}
           onFocus={() => setFocused(true)}
@@ -82,75 +97,43 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
-  const [agreed, setAgreed] = useState(false);
+  const [agreed, setAgreed] = useState(true);
 
-  // Background Drift Shared Values
-  const orb1X = useSharedValue(0);
   const orb1Y = useSharedValue(0);
-  const orb1Scale = useSharedValue(1);
-
-  const orb2X = useSharedValue(0);
   const orb2Y = useSharedValue(0);
 
-  // Mount/Entry Animations Shared Values
   const headerOpacity = useSharedValue(0);
   const headerTranslateY = useSharedValue(-20);
 
   const formOpacity = useSharedValue(0);
   const formTranslateY = useSharedValue(30);
 
-  // Background Glow animations
   useEffect(() => {
-    orb1X.value = withRepeat(
-      withSequence(
-        withTiming(30, { duration: 6000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(-30, { duration: 6000, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      true
-    );
     orb1Y.value = withRepeat(
       withSequence(
-        withTiming(-40, { duration: 7000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(40, { duration: 7000, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      true
-    );
-    orb1Scale.value = withRepeat(
-      withSequence(
-        withTiming(1.12, { duration: 4000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(0.9, { duration: 4000, easing: Easing.inOut(Easing.ease) })
+        withTiming(-12, { duration: 4000, easing: Easing.inOut(Easing.ease) }),
+        withTiming(12, { duration: 4000, easing: Easing.inOut(Easing.ease) })
       ),
       -1,
       true
     );
 
-    orb2X.value = withRepeat(
-      withSequence(
-        withTiming(-25, { duration: 8000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(25, { duration: 8000, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      true
-    );
     orb2Y.value = withRepeat(
       withSequence(
-        withTiming(35, { duration: 6500, easing: Easing.inOut(Easing.ease) }),
-        withTiming(-35, { duration: 6500, easing: Easing.inOut(Easing.ease) })
+        withTiming(15, { duration: 5000, easing: Easing.inOut(Easing.ease) }),
+        withTiming(-15, { duration: 5000, easing: Easing.inOut(Easing.ease) })
       ),
       -1,
       true
     );
   }, []);
 
-  // Entry Animations on mount
   useEffect(() => {
-    headerOpacity.value = withDelay(100, withTiming(1, { duration: 600 }));
-    headerTranslateY.value = withDelay(100, withTiming(0, { duration: 600 }));
+    headerOpacity.value = withDelay(100, withTiming(1, { duration: 500 }));
+    headerTranslateY.value = withDelay(100, withTiming(0, { duration: 500 }));
 
-    formOpacity.value = withDelay(300, withTiming(1, { duration: 600 }));
-    formTranslateY.value = withDelay(300, withTiming(0, { duration: 600 }));
+    formOpacity.value = withDelay(250, withTiming(1, { duration: 500 }));
+    formTranslateY.value = withDelay(250, withTiming(0, { duration: 500 }));
   }, []);
 
   const handleRegister = async () => {
@@ -181,20 +164,12 @@ export default function RegisterScreen() {
     }
   };
 
-  // Animated styles
   const orb1Style = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: orb1X.value },
-      { translateY: orb1Y.value },
-      { scale: orb1Scale.value },
-    ],
+    transform: [{ translateY: orb1Y.value }],
   }));
 
   const orb2Style = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: orb2X.value },
-      { translateY: orb2Y.value },
-    ],
+    transform: [{ translateY: orb2Y.value }],
   }));
 
   const headerAnimatedStyle = useAnimatedStyle(() => ({
@@ -209,48 +184,80 @@ export default function RegisterScreen() {
 
   return (
     <View style={styles.root}>
-      {/* Dark Theme Background */}
       <LinearGradient
-        colors={["#0A0618", "#050508", "#0F061E"]}
+        colors={["#F8F9FD", "#F3E8FF", "#FFF0F5", "#F8F9FD"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
 
-      {/* Floating Glowing Background Orbs */}
       <Animated.View style={[styles.glowOrb, styles.glow1, orb1Style]} />
       <Animated.View style={[styles.glowOrb, styles.glow2, orb2Style]} />
 
       <SafeAreaView style={styles.safe}>
-        {/* Back Button & Header Area */}
         <Animated.View style={headerAnimatedStyle}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={20} color="#fff" />
-          </TouchableOpacity>
+          <View style={styles.topNavRow}>
+            <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.8}>
+              <Ionicons name="arrow-back" size={20} color="#18181B" />
+            </TouchableOpacity>
+
+            <View style={styles.socialProofPill}>
+              <View style={styles.avatarStack}>
+                {MOCK_AVATARS.map((uri, idx) => (
+                  <Image
+                    key={idx}
+                    source={{ uri }}
+                    style={[styles.stackAvatar, { marginLeft: idx === 0 ? 0 : -8 }]}
+                  />
+                ))}
+              </View>
+              <View style={styles.livePulseDot} />
+              <Text style={styles.socialProofText}>50K+ Live</Text>
+            </View>
+          </View>
 
           <View style={styles.header}>
-            <LinearGradient colors={["rgba(255,215,0,0.2)", "rgba(255,215,0,0.02)"]} style={styles.badge}>
-              <Ionicons name="sparkles" size={11} color="#FFD700" />
-              <Text style={styles.badgeText}>JOIN VIBEMATCH</Text>
+            <LinearGradient
+              colors={["#7C3AED", "#EC4899"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.badge}
+            >
+              <Ionicons name="flash" size={11} color="#FFFFFF" />
+              <Text style={styles.badgeText}>REAL TIME MEETUPS</Text>
             </LinearGradient>
+
             <Text style={styles.title}>Create your vibe ✨</Text>
-            <Text style={styles.subtitle}>Takes 2 minutes — then you're in</Text>
+            <Text style={styles.subtitle}>Takes 2 minutes — then you're ready to hang out!</Text>
+            
+            <LinearGradient
+              colors={["#7C3AED", "#EC4899", "#F59E0B"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.accentLine}
+            />
           </View>
         </Animated.View>
 
-        {/* Register Form Wrapper */}
         <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <Animated.View style={formAnimatedStyle}>
-              {/* Frosted Hint Box */}
-              <GlassCard style={styles.hintBox}>
-                <Ionicons name="shield-checkmark" size={16} color="#22C55E" />
-                <Text style={styles.hintText}>Your data is safe & encrypted</Text>
-              </GlassCard>
+              
+              <View style={styles.formCard}>
+                <View style={styles.securityBanner}>
+                  <LinearGradient
+                    colors={["rgba(16,185,129,0.12)", "rgba(16,185,129,0.04)"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.securityBannerGrad}
+                  >
+                    <Ionicons name="shield-checkmark" size={16} color="#10B981" />
+                    <Text style={styles.securityText}>100% Encrypted & Privacy Safe</Text>
+                  </LinearGradient>
+                </View>
 
-              <GlassCard style={styles.glassCard}>
-                <GlassInput
-                  label="Email Address"
+                <VibrantInput
+                  label="📧 Email Address"
                   value={email}
                   onChangeText={setEmail}
                   placeholder="you@example.com"
@@ -258,8 +265,8 @@ export default function RegisterScreen() {
                   icon="mail-outline"
                 />
 
-                <GlassInput
-                  label="Password"
+                <VibrantInput
+                  label="🔒 Create Password"
                   value={password}
                   onChangeText={setPassword}
                   placeholder="Min 6 characters"
@@ -267,8 +274,8 @@ export default function RegisterScreen() {
                   icon="lock-closed-outline"
                 />
 
-                <GlassInput
-                  label="Confirm Password"
+                <VibrantInput
+                  label="🔑 Confirm Password"
                   value={confirm}
                   onChangeText={setConfirm}
                   placeholder="Re-enter password"
@@ -276,10 +283,9 @@ export default function RegisterScreen() {
                   icon="key-outline"
                 />
 
-                {/* Glassmorphic Checkbox */}
                 <TouchableOpacity style={styles.termsRow} onPress={() => setAgreed(!agreed)} activeOpacity={0.8}>
                   <LinearGradient
-                    colors={agreed ? [Colors.primary, Colors.secondary] : ["rgba(255,255,255,0.05)", "rgba(255,255,255,0.05)"]}
+                    colors={agreed ? ["#7C3AED", "#8B5CF6"] : ["#E2E8F0", "#E2E8F0"]}
                     style={[styles.checkbox, agreed && styles.checkboxActive]}
                   >
                     {agreed && <Ionicons name="checkmark" size={12} color="#fff" />}
@@ -291,7 +297,7 @@ export default function RegisterScreen() {
 
                 <TouchableOpacity onPress={handleRegister} disabled={loading} activeOpacity={0.88}>
                   <LinearGradient
-                    colors={[Colors.primary, Colors.secondary]}
+                    colors={["#7C3AED", "#8B5CF6", "#EC4899"]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.submitBtn}
@@ -303,10 +309,24 @@ export default function RegisterScreen() {
 
                 <TouchableOpacity onPress={() => router.replace("/(auth)/login")} style={styles.linkWrap}>
                   <Text style={styles.linkText}>
-                    Already a member? <Text style={styles.linkTextBold}>Sign In</Text>
+                    Already a member? <Text style={styles.linkTextBold}>Sign In ›</Text>
                   </Text>
                 </TouchableOpacity>
-              </GlassCard>
+              </View>
+
+              <View style={styles.perksRow}>
+                {[
+                  { icon: "flash-outline", label: "Instant Meets" },
+                  { icon: "heart-outline", label: "Real Matches" },
+                  { icon: "lock-closed-outline", label: "Privacy First" },
+                ].map((item) => (
+                  <View key={item.label} style={styles.perkChip}>
+                    <Ionicons name={item.icon as any} size={13} color="#7C3AED" />
+                    <Text style={styles.perkText}>{item.label}</Text>
+                  </View>
+                ))}
+              </View>
+
             </Animated.View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -316,140 +336,196 @@ export default function RegisterScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#050508" },
+  root: { flex: 1, backgroundColor: "#F8F9FD" },
   safe: { flex: 1, paddingHorizontal: Spacing.lg },
   flex: { flex: 1 },
 
-  // Glowing Orbs
-  glowOrb: { position: "absolute", borderRadius: 999, opacity: 0.6 },
+  glowOrb: { position: "absolute", borderRadius: 999, opacity: 0.7 },
   glow1: {
-    width: 250,
-    height: 250,
-    top: -50,
+    width: 280,
+    height: 280,
+    top: -40,
     right: -50,
-    backgroundColor: "rgba(138,86,255,0.18)",
+    backgroundColor: "rgba(124, 58, 237, 0.12)",
   },
   glow2: {
-    width: 220,
-    height: 220,
-    bottom: 120,
-    left: -80,
-    backgroundColor: "rgba(255,75,129,0.12)",
+    width: 240,
+    height: 240,
+    bottom: 80,
+    left: -70,
+    backgroundColor: "rgba(236, 72, 153, 0.1)",
   },
 
-  // Back Button
+  topNavRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.sm,
+  },
   backBtn: {
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: "#E2E8F0",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: Spacing.md,
-    marginBottom: Spacing.lg,
+    shadowColor: "#7C3AED",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
 
-  // Header
+  socialProofPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    borderColor: "rgba(124, 58, 237, 0.15)",
+    shadowColor: "#7C3AED",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  avatarStack: { flexDirection: "row", alignItems: "center" },
+  stackAvatar: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderColor: "#FFFFFF",
+  },
+  livePulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#10B981",
+  },
+  socialProofText: {
+    fontSize: 10,
+    fontFamily: VibeFonts.bold,
+    color: "#18181B",
+  },
+
   header: { marginBottom: Spacing.md },
   badge: {
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
-    gap: 6,
+    gap: 5,
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: Radius.full,
+    marginBottom: 8,
+  },
+  badgeText: { color: "#FFFFFF", fontSize: 9, fontFamily: VibeFonts.bold, letterSpacing: 1 },
+  title: { fontSize: 32, fontFamily: VibeFonts.extraBold, color: "#18181B", letterSpacing: -0.5 },
+  subtitle: { fontSize: 13, fontFamily: VibeFonts.medium, color: "#64748B", marginTop: 4 },
+  accentLine: {
+    height: 3,
+    width: 60,
+    borderRadius: 2,
+    marginTop: 10,
+  },
+
+  formCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 28,
+    padding: Spacing.xl,
     marginBottom: Spacing.md,
     borderWidth: 1,
-    borderColor: "rgba(255,215,0,0.25)",
+    borderColor: "rgba(124, 58, 237, 0.15)",
+    shadowColor: "#7C3AED",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 5,
   },
-  badgeText: { color: "#FFD700", fontSize: 9, fontFamily: VibeFonts.bold, letterSpacing: 1 },
-  title: { fontSize: 32, fontFamily: VibeFonts.extraBold, color: VibeColors.text, letterSpacing: -0.5 },
-  subtitle: { fontSize: 14, fontFamily: VibeFonts.medium, color: VibeColors.textMuted, marginTop: 8 },
 
-  // Hint Box
-  hintBox: {
+  securityBanner: {
+    borderRadius: Radius.md,
+    overflow: "hidden",
+    marginBottom: Spacing.lg,
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.25)",
+  },
+  securityBannerGrad: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.sm,
-    paddingVertical: 12,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: Radius.md,
-    marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: "rgba(34,197,94,0.3)",
-    backgroundColor: "rgba(34,197,94,0.06)",
+    gap: 8,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
   },
-  hintText: { fontSize: 13, fontFamily: VibeFonts.bold, color: "#22C55E" },
+  securityText: { fontSize: 12, fontFamily: VibeFonts.bold, color: "#10B981" },
 
-  // Card Content
-  glassCard: {
-    padding: Spacing.xl,
-    marginBottom: Spacing.xxl,
-  },
-
-  // Glass Inputs
-  inputWrap: { marginBottom: Spacing.lg },
+  inputWrap: { marginBottom: Spacing.md },
   inputLabel: {
     fontSize: 12,
     fontFamily: VibeFonts.bold,
-    color: "rgba(255,255,255,0.8)",
-    marginBottom: Spacing.sm,
-    letterSpacing: 0.2,
+    color: "#18181B",
+    marginBottom: 6,
   },
   textInputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderRadius: Radius.lg,
+    backgroundColor: "#F8F9FD",
+    borderRadius: 16,
     borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.08)",
-    paddingHorizontal: Spacing.md,
+    borderColor: "#E2E8F0",
+    paddingHorizontal: 12,
   },
   inputFocused: {
-    borderColor: Colors.secondary,
-    backgroundColor: "rgba(255,255,255,0.07)",
+    borderColor: "#7C3AED",
+    backgroundColor: "#F5F3FF",
   },
   inputFilled: {
-    borderColor: Colors.primary + "88",
+    borderColor: "rgba(124, 58, 237, 0.4)",
+    backgroundColor: "#FFFFFF",
   },
   inputIconBox: {
     width: 32,
     height: 32,
-    borderRadius: 8,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    borderRadius: 10,
+    backgroundColor: "rgba(124, 58, 237, 0.08)",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: Spacing.sm,
+    marginRight: 10,
+  },
+  inputIconBoxActive: {
+    backgroundColor: "rgba(124, 58, 237, 0.15)",
   },
   textInput: {
     flex: 1,
-    paddingVertical: 14,
-    fontSize: 15,
-    color: "#fff",
+    paddingVertical: 13,
+    fontSize: 14,
+    color: "#18181B",
     fontFamily: VibeFonts.medium,
   },
 
-  // Checkbox terms
-  termsRow: { flexDirection: "row", alignItems: "center", gap: Spacing.md, marginBottom: Spacing.xl, marginTop: Spacing.xs },
+  termsRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: Spacing.lg, marginTop: 4 },
   checkbox: {
     width: 20,
     height: 20,
-    borderRadius: Radius.sm,
+    borderRadius: 6,
     borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.2)",
+    borderColor: "#CBD5E1",
     alignItems: "center",
     justifyContent: "center",
   },
   checkboxActive: {
     borderColor: "transparent",
   },
-  termsText: { flex: 1, fontSize: 13, fontFamily: VibeFonts.medium, color: "rgba(255,255,255,0.65)" },
-  termsBold: { color: Colors.accent, fontFamily: VibeFonts.bold },
+  termsText: { flex: 1, fontSize: 12, fontFamily: VibeFonts.medium, color: "#64748B" },
+  termsBold: { color: "#7C3AED", fontFamily: VibeFonts.bold },
 
-  // Submit Button
   submitBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -457,16 +533,50 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 16,
     borderRadius: Radius.full,
-    marginTop: Spacing.md,
+    shadowColor: "#7C3AED",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 6,
   },
   submitBtnText: {
     fontSize: 16,
     fontFamily: VibeFonts.bold,
-    color: "#fff",
+    color: "#FFFFFF",
+    letterSpacing: 0.3,
   },
 
-  // Link wrapper
   linkWrap: { marginTop: Spacing.lg, alignItems: "center" },
-  linkText: { color: "rgba(255,255,255,0.6)", fontSize: 13, fontFamily: VibeFonts.regular },
-  linkTextBold: { color: Colors.accent, fontFamily: VibeFonts.bold },
+  linkText: { color: "#64748B", fontSize: 13, fontFamily: VibeFonts.regular },
+  linkTextBold: { color: "#7C3AED", fontFamily: VibeFonts.bold },
+
+  perksRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 4,
+    marginBottom: Spacing.xl,
+    paddingHorizontal: 4,
+  },
+  perkChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    borderColor: "rgba(124, 58, 237, 0.12)",
+    shadowColor: "#7C3AED",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  perkText: {
+    fontSize: 10,
+    fontFamily: VibeFonts.semiBold,
+    color: "#475569",
+  },
 });

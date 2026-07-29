@@ -9,6 +9,9 @@ import { StatusBar } from "expo-status-bar";
 import LoadingScreen from "../components/LoadingScreen";
 import Sidebar from "../components/vibe/Sidebar";
 
+import { PremiumProvider } from "../context/PremiumContext";
+import PaywallModal from "../components/paywall/PaywallModal";
+
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
@@ -22,12 +25,14 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <SidebarProvider>
-        <OnboardingProvider>
-          <PlansProvider>
-          <MatchesProvider>
-          {/* dark-content screens (Hangout/Travel/Profile) — avoid light icons on light bg */}
-          <StatusBar style="dark" />
+      <PremiumProvider>
+        <SidebarProvider>
+          <OnboardingProvider>
+            <PlansProvider>
+              <MatchesProvider>
+                <PaywallModal />
+                {/* dark-content screens (Hangout/Travel/Profile) — avoid light icons on light bg */}
+                <StatusBar style="dark" />
           <Stack
             screenOptions={{
               headerShown: false,
@@ -92,6 +97,7 @@ export default function RootLayout() {
           </PlansProvider>
         </OnboardingProvider>
       </SidebarProvider>
+      </PremiumProvider>
     </AuthProvider>
   );
 }

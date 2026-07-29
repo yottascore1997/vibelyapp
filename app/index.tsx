@@ -7,6 +7,7 @@ export default function Index() {
 
   if (loading) return <LoadingScreen />;
   if (!user) return <Redirect href="/(auth)/welcome" />;
-  if (!user.onboardingDone) return <Redirect href="/(auth)/onboarding/basic-info" />;
+  const isOnboardingDone = Boolean(user.onboardingDone ?? (user as any).profile?.onboardingDone ?? false);
+  if (!isOnboardingDone) return <Redirect href="/(auth)/onboarding/basic-info" />;
   return <Redirect href="/(tabs)" />;
 }

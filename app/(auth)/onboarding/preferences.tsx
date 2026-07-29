@@ -9,15 +9,173 @@ import SectionLabel from "../../../components/onboarding/SectionLabel";
 import { useOnboarding } from "../../../context/OnboardingContext";
 import { useAuth } from "../../../context/AuthContext";
 import { GENDER_PREF_OPTIONS, LOOKING_FOR_OPTIONS } from "../../../constants/onboarding";
-import { Colors, Radius, Spacing } from "../../../constants/theme";
+import { Radius, Spacing } from "../../../constants/theme";
+
+// Unified Dual Range Slider Bar Component (Min & Max on single bar)
+function DualRangeSliderBar({
+  minVal,
+  maxVal,
+  minLimit = 18,
+  maxLimit = 65,
+  unit = "y/o",
+  onChange,
+}: {
+  minVal: number;
+  maxVal: number;
+  minLimit?: number;
+  maxLimit?: number;
+  unit?: string;
+  onChange: (min: number, max: number) => void;
+}) {
+  const [trackWidth, setTrackWidth] = useState(0);
+
+  const handleTouch = (locationX: number) => {
+    if (trackWidth <= 0) return;
+    const ratio = Math.max(0, Math.min(1, locationX / trackWidth));
+    const rawVal = Math.round(minLimit + ratio * (maxLimit - minLimit));
+
+    const distToMin = Math.abs(rawVal - minVal);
+    const distToMax = Math.abs(rawVal - maxVal);
+
+    if (distToMin < distToMax) {
+      const newMin = Math.min(rawVal, maxVal - 1);
+      onChange(newMin, maxVal);
+    } else {
+      const newMax = Math.max(rawVal, minVal + 1);
+      onChange(minVal, newMax);
+    }
+  };
+
+  const minPercent = Math.max(0, Math.min(100, ((minVal - minLimit) / (maxLimit - minLimit)) * 100));
+  const maxPercent = Math.max(0, Math.min(100, ((maxVal - minLimit) / (maxLimit - minLimit)) * 100));
+  const rangeWidth = Math.max(0, maxPercent - minPercent);
+
+  return (
+    <View style={styles.sliderContainer}>
+      <View style={styles.sliderHeaderRow}>
+        <Text style={styles.sliderHeaderTitle}>Target Age</Text>
+        <View style={styles.sliderValueBadge}>
+          <Text style={styles.sliderValueBadgeText}>
+            {minVal} – {maxVal} {unit}
+          </Text>
+        </View>
+      </View>
+
+      <View
+        style={styles.sliderTouchArea}
+        onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
+        onStartShouldSetResponder={() => true}
+        onMoveShouldSetResponder={() => true}
+        onResponderGrant={(e) => handleTouch(e.nativeEvent.locationX)}
+        onResponderMove={(e) => handleTouch(e.nativeEvent.locationX)}
+      >
+        <View style={styles.sliderTrackBg}>
+          <LinearGradient
+            colors={["#7C3AED", "#8B5CF6", "#EC4899"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={[
+              styles.sliderTrackFill,
+              { left: `${minPercent}%`, width: `${rangeWidth}%` },
+            ]}
+          />
+        </View>
+
+        {/* Min Thumb Knob */}
+        <View style={[styles.sliderThumb, { left: `${minPercent}%` }]}>
+          <View style={styles.sliderThumbInner} />
+        </View>
+
+        {/* Max Thumb Knob */}
+        <View style={[styles.sliderThumb, { left: `${maxPercent}%` }]}>
+          <View style={styles.sliderThumbInner} />
+        </View>
+      </View>
+
+      <View style={styles.sliderMinMaxRow}>
+        <Text style={styles.sliderMinMaxText}>{minLimit} {unit}</Text>
+        <Text style={styles.sliderMinMaxText}>{maxLimit} {unit}</Text>
+      </View>
+    </View>
+  );
+}
+
+// Single Slider Bar Component (for Distance)
+function InteractiveSliderBar({
+  value,
+  min,
+  max,
+  step = 1,
+  unit = "",
+  onChange,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  unit?: string;
+  onChange: (val: number) => void;
+}) {
+  const [trackWidth, setTrackWidth] = useState(0);
+
+  const calculateValueFromX = (locationX: number) => {
+    if (trackWidth <= 0) return;
+    const ratio = Math.max(0, Math.min(1, locationX / trackWidth));
+    const rawVal = min + ratio * (max - min);
+    const steppedVal = Math.round(rawVal / step) * step;
+    const clampedVal = Math.max(min, Math.min(max, steppedVal));
+    onChange(clampedVal);
+  };
+
+  const percentage = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
+
+  return (
+    <View style={styles.sliderContainer}>
+      <View style={styles.sliderHeaderRow}>
+        <Text style={styles.sliderHeaderTitle}>Distance Limit</Text>
+        <View style={styles.sliderValueBadge}>
+          <Text style={styles.sliderValueBadgeText}>
+            {value} {unit}
+          </Text>
+        </View>
+      </View>
+
+      <View
+        style={styles.sliderTouchArea}
+        onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
+        onStartShouldSetResponder={() => true}
+        onMoveShouldSetResponder={() => true}
+        onResponderGrant={(e) => calculateValueFromX(e.nativeEvent.locationX)}
+        onResponderMove={(e) => calculateValueFromX(e.nativeEvent.locationX)}
+      >
+        <View style={styles.sliderTrackBg}>
+          <LinearGradient
+            colors={["#7C3AED", "#8B5CF6", "#EC4899"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={[styles.sliderTrackFillSingle, { width: `${percentage}%` }]}
+          />
+        </View>
+        <View style={[styles.sliderThumb, { left: `${percentage}%` }]}>
+          <View style={styles.sliderThumbInner} />
+        </View>
+      </View>
+
+      <View style={styles.sliderMinMaxRow}>
+        <Text style={styles.sliderMinMaxText}>{min} {unit}</Text>
+        <Text style={styles.sliderMinMaxText}>{max} {unit}</Text>
+      </View>
+    </View>
+  );
+}
 
 export default function PreferencesScreen() {
   const router = useRouter();
   const { data, update, saveProfile, saving } = useOnboarding();
   const { completeOnboarding } = useAuth();
-  const [minAge, setMinAge] = useState(data.minAge);
-  const [maxAge, setMaxAge] = useState(data.maxAge);
-  const [distance, setDistance] = useState(data.maxDistance);
+  const [minAge, setMinAge] = useState(data.minAge || 18);
+  const [maxAge, setMaxAge] = useState(data.maxAge || 35);
+  const [distance, setDistance] = useState(data.maxDistance || 50);
 
   const toggleLookingFor = (id: string) => {
     const list = data.lookingFor.includes(id)
@@ -32,7 +190,13 @@ export default function PreferencesScreen() {
       return;
     }
     try {
-      await saveProfile({ minAge, maxAge, maxDistance: distance, lookingFor: data.lookingFor, genderPreference: data.genderPreference });
+      await saveProfile({
+        minAge,
+        maxAge,
+        maxDistance: distance,
+        lookingFor: data.lookingFor,
+        genderPreference: data.genderPreference,
+      });
       await completeOnboarding();
       router.replace("/(tabs)");
     } catch (e) {
@@ -40,82 +204,104 @@ export default function PreferencesScreen() {
     }
   };
 
-  const RangeChip = ({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) => (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.85}>
-      {active ? (
-        <LinearGradient colors={["#8A56FF", "#FF4B81"]} style={styles.rangeChipActive}>
-          <Text style={styles.rangeTextActive}>{label}</Text>
-        </LinearGradient>
-      ) : (
-        <View style={styles.rangeChip}>
-          <Text style={styles.rangeText}>{label}</Text>
-        </View>
-      )}
-    </TouchableOpacity>
-  );
-
   return (
     <OnboardingLayout
-      step={5}
-      total={5}
+      step={4}
+      total={4}
       emoji="💫"
       title="Match Preferences"
-      subtitle="Who are you looking for?"
+      subtitle="Slide to customize your age range & distance radius"
       onNext={handleFinish}
       nextLabel={saving ? "Creating profile..." : "Start Matching 🎉"}
       nextDisabled={!data.genderPreference || data.lookingFor.length === 0 || saving}
     >
-      <LinearGradient colors={["#1a0a2e", "#4a1a6b"]} style={styles.ageBanner}>
-        <Text style={styles.ageBannerLabel}>Age Range</Text>
-        <Text style={styles.ageBannerVal}>{minAge} – {maxAge} years</Text>
+      {/* Real-time Stat Hero Banner */}
+      <LinearGradient colors={["#1E1B4B", "#2E1065", "#0F172A"]} style={styles.heroCard}>
+        <View style={styles.heroCardGlow} />
+        <View style={styles.heroRow}>
+          <View style={styles.heroStatItem}>
+            <View style={styles.heroStatIcon}>
+              <Ionicons name="people" size={18} color="#F59E0B" />
+            </View>
+            <View>
+              <Text style={styles.heroStatLabel}>IN-BETWEEN AGE</Text>
+              <Text style={styles.heroStatVal}>{minAge} – {maxAge} yrs</Text>
+            </View>
+          </View>
+          <View style={styles.heroStatDivider} />
+          <View style={styles.heroStatItem}>
+            <View style={styles.heroStatIcon}>
+              <Ionicons name="navigate" size={18} color="#10B981" />
+            </View>
+            <View>
+              <Text style={styles.heroStatLabel}>MAX DISTANCE</Text>
+              <Text style={styles.heroStatVal}>{distance} km</Text>
+            </View>
+          </View>
+        </View>
       </LinearGradient>
 
-      <SectionLabel title="Min Age" />
-      <View style={styles.rangeRow}>
-        {[18, 22, 25, 30, 35, 40, 50, 60].map((age) => (
-          <RangeChip key={`min-${age}`} label={String(age)} active={minAge === age} onPress={() => { setMinAge(age); if (age > maxAge) setMaxAge(age); }} />
-        ))}
-      </View>
+      {/* Single Unified In-Between Dual Age Range Slider */}
+      <SectionLabel title="Age Range (In-Between)" emoji="🎂" />
+      <DualRangeSliderBar
+        minVal={minAge}
+        maxVal={maxAge}
+        minLimit={18}
+        maxLimit={65}
+        unit="y/o"
+        onChange={(min, max) => {
+          setMinAge(min);
+          setMaxAge(max);
+        }}
+      />
 
-      <SectionLabel title="Max Age" />
-      <View style={styles.rangeRow}>
-        {[25, 30, 35, 40, 45, 50, 55, 60].map((age) => (
-          <RangeChip key={`max-${age}`} label={String(age)} active={maxAge === age} onPress={() => { setMaxAge(age); if (age < minAge) setMinAge(age); }} />
-        ))}
-      </View>
+      {/* Distance Radius Interactive Slider */}
+      <SectionLabel title="Distance Radius" emoji="📍" />
+      <InteractiveSliderBar
+        value={distance}
+        min={1}
+        max={100}
+        unit="km"
+        onChange={(val) => setDistance(val)}
+      />
 
-      <LinearGradient colors={["#1a0a2e", "#4a1a6b"]} style={styles.ageBanner}>
-        <Text style={styles.ageBannerLabel}>Distance</Text>
-        <Text style={styles.ageBannerVal}>{distance} km radius</Text>
-      </LinearGradient>
+      {/* Show me */}
+      <SectionLabel title="Show me" emoji="👁️" />
+      <PillSelect
+        options={GENDER_PREF_OPTIONS}
+        value={data.genderPreference}
+        onChange={(v) => update({ genderPreference: v })}
+        columns={3}
+      />
 
-      <View style={styles.rangeRow}>
-        {[5, 10, 25, 50, 100].map((d) => (
-          <RangeChip key={d} label={`${d} km`} active={distance === d} onPress={() => setDistance(d)} />
-        ))}
-      </View>
-
-      <SectionLabel title="Show me" />
-      <PillSelect options={GENDER_PREF_OPTIONS} value={data.genderPreference} onChange={(v) => update({ genderPreference: v })} columns={3} />
-
-      <SectionLabel title="Looking for" subtitle="Select all that apply" />
+      {/* Looking for */}
+      <SectionLabel title="Looking for" emoji="💘" subtitle="Select all relationship goals that apply" />
       <View style={styles.lookingGrid}>
         {LOOKING_FOR_OPTIONS.map((opt) => {
           const active = data.lookingFor.includes(opt.id);
           return (
-            <TouchableOpacity key={opt.id} onPress={() => toggleLookingFor(opt.id)} activeOpacity={0.85}>
+            <TouchableOpacity key={opt.id} onPress={() => toggleLookingFor(opt.id)} activeOpacity={0.88}>
               {active ? (
-                <LinearGradient colors={[opt.color + "DD", opt.color]} style={styles.lookingCardActive}>
-                  <Ionicons name={opt.icon as keyof typeof Ionicons.glyphMap} size={22} color="#fff" />
-                  <Text style={styles.lookingLabelActive}>{opt.label}</Text>
-                  <Ionicons name="checkmark-circle" size={20} color="#fff" />
+                <LinearGradient colors={["#7C3AED", "#8B5CF6"]} style={styles.lookingCardActive}>
+                  <View style={styles.lookingIconBoxActive}>
+                    <Text style={styles.lookingEmoji}>{opt.emoji}</Text>
+                  </View>
+                  <View style={styles.lookingTextGroup}>
+                    <Text style={styles.lookingLabelActive}>{opt.label}</Text>
+                    <Text style={styles.lookingSubActive}>{opt.subtitle}</Text>
+                  </View>
+                  <Ionicons name="checkmark-circle" size={24} color="#FFFFFF" />
                 </LinearGradient>
               ) : (
                 <View style={styles.lookingCard}>
-                  <View style={[styles.lookingIcon, { backgroundColor: opt.color + "18" }]}>
-                    <Ionicons name={opt.icon as keyof typeof Ionicons.glyphMap} size={22} color={opt.color} />
+                  <View style={[styles.lookingIconBox, { backgroundColor: opt.color + "18" }]}>
+                    <Text style={styles.lookingEmoji}>{opt.emoji}</Text>
                   </View>
-                  <Text style={styles.lookingLabel}>{opt.label}</Text>
+                  <View style={styles.lookingTextGroup}>
+                    <Text style={styles.lookingLabel}>{opt.label}</Text>
+                    <Text style={styles.lookingSub}>{opt.subtitle}</Text>
+                  </View>
+                  <View style={styles.checkCircleEmpty} />
                 </View>
               )}
             </TouchableOpacity>
@@ -127,33 +313,195 @@ export default function PreferencesScreen() {
 }
 
 const styles = StyleSheet.create({
-  ageBanner: { padding: Spacing.lg, borderRadius: Radius.lg, marginBottom: Spacing.md, marginTop: Spacing.sm },
-  ageBannerLabel: { fontSize: 12, color: "rgba(255,255,255,0.6)", fontWeight: "600", letterSpacing: 0.5 },
-  ageBannerVal: { fontSize: 24, fontWeight: "800", color: "#fff", marginTop: 4 },
-  rangeRow: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.sm, marginBottom: Spacing.lg },
-  rangeChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: Radius.full, backgroundColor: "#FAFAFE", borderWidth: 1.5, borderColor: "#EDE9FE" },
-  rangeChipActive: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: Radius.full },
-  rangeText: { fontSize: 13, fontWeight: "600", color: Colors.textSecondary },
-  rangeTextActive: { fontSize: 13, fontWeight: "700", color: "#fff" },
+  heroCard: {
+    padding: Spacing.lg,
+    borderRadius: Radius.lg,
+    marginBottom: Spacing.md,
+    marginTop: Spacing.xs,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(124, 58, 237, 0.3)",
+  },
+  heroCardGlow: {
+    position: "absolute",
+    top: -30,
+    right: -30,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "rgba(124, 58, 237, 0.25)",
+  },
+  heroRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  heroStatItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  heroStatIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroStatLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "rgba(255, 255, 255, 0.6)",
+    letterSpacing: 0.8,
+  },
+  heroStatVal: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    marginTop: 2,
+  },
+  heroStatDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+  },
+
+  // Dual & Single Slider Bar Styles
+  sliderContainer: {
+    backgroundColor: "#F8F9FD",
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+    marginBottom: Spacing.md,
+  },
+  sliderHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 6,
+  },
+  sliderHeaderTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#18181B",
+  },
+  sliderValueBadge: {
+    backgroundColor: "#F3E8FF",
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(124, 58, 237, 0.2)",
+  },
+  sliderValueBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#7C3AED",
+  },
+  sliderTouchArea: {
+    height: 30,
+    justifyContent: "center",
+    position: "relative",
+  },
+  sliderTrackBg: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#E2E8F0",
+    overflow: "hidden",
+    width: "100%",
+    position: "relative",
+  },
+  sliderTrackFill: {
+    position: "absolute",
+    height: 8,
+    borderRadius: 4,
+  },
+  sliderTrackFillSingle: {
+    height: 8,
+    borderRadius: 4,
+  },
+  sliderThumb: {
+    position: "absolute",
+    top: 3,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 3,
+    borderColor: "#7C3AED",
+    marginLeft: -12,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#7C3AED",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  sliderThumbInner: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#7C3AED",
+  },
+  sliderMinMaxRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 4,
+  },
+  sliderMinMaxText: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#94A3B8",
+  },
+
   lookingGrid: { gap: Spacing.sm },
   lookingCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.md,
-    padding: Spacing.lg,
+    padding: Spacing.md,
     borderRadius: Radius.lg,
-    backgroundColor: "#FAFAFE",
+    backgroundColor: "#F8F9FD",
     borderWidth: 1.5,
-    borderColor: "#EDE9FE",
+    borderColor: "#E2E8F0",
   },
   lookingCardActive: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.md,
-    padding: Spacing.lg,
+    padding: Spacing.md,
     borderRadius: Radius.lg,
   },
-  lookingIcon: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
-  lookingLabel: { flex: 1, fontSize: 14, fontWeight: "600", color: Colors.text },
-  lookingLabelActive: { flex: 1, fontSize: 14, fontWeight: "700", color: "#fff" },
+  lookingIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  lookingIconBoxActive: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  lookingEmoji: { fontSize: 22 },
+  lookingTextGroup: { flex: 1 },
+  lookingLabel: { fontSize: 14, fontWeight: "700", color: "#18181B" },
+  lookingLabelActive: { fontSize: 14, fontWeight: "700", color: "#FFFFFF" },
+  lookingSub: { fontSize: 11, color: "#64748B", marginTop: 2, fontWeight: "500" },
+  lookingSubActive: { fontSize: 11, color: "rgba(255, 255, 255, 0.8)", marginTop: 2, fontWeight: "500" },
+  checkCircleEmpty: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: "#CBD5E1",
+  },
 });

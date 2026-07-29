@@ -58,6 +58,10 @@ async function fetchApi<T>(
     }
 
     if (!res.ok || (json && json.success === false && json.error)) {
+      if (res.status === 401 || (res.status === 404 && json?.error === "User not found")) {
+        setAuthToken(null);
+        AsyncStorage.multiRemove(["token", "user"]);
+      }
       throw new ApiError(json?.error || `Request failed (${res.status})`, res.status);
     }
 
@@ -184,6 +188,24 @@ export const api = {
         timeLabel: data.timeLabel,
       }),
     }),
+  createPublicInvite: (data: {
+    activityName: string;
+    activityEmoji: string;
+    timeLabel: string;
+    inviteeName?: string;
+    inviteePhone?: string;
+  }) =>
+    fetchApi<{
+      id: string;
+      inviteCode: string;
+      inviteUrl: string;
+      whatsappUrl: string;
+      shareMessage: string;
+      senderName: string;
+    }>("/invites/public-create", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   respondToInvite: (inviteId: string, status: "accepted" | "rejected") =>
     fetchApi<any>("/invites/respond", {
       method: "POST",
@@ -214,7 +236,28 @@ export const api = {
       };
       removed?: boolean;
     }>(`/matches/${matchId}/messages`),
+  getGroupChatMessages: (hangoutId: string) => fetchApi<any[]>(`/hangouts/${hangoutId}/messages`),
+  sendGroupChatMessage: (hangoutId: string, content: string) =>
+    fetchApi(`/hangouts/${hangoutId}/messages`, {
+      method: "POST",
+      body: JSON.stringify({ content }),
+    }),
   unmatch: (otherUserId: string) =>
     fetchApi<{ unmatched: boolean }>(`/matches/${otherUserId}`, { method: "DELETE" }),
-  getGroupChatMessages: (hangoutId: string) => fetchApi<any[]>(`/hangouts/${hangoutId}/messages`),
+  getExpenses: (opts: { hangoutId?: string; eventId?: string }) => {
+    const query = opts.hangoutId ? `hangoutId=${opts.hangoutId}` : `eventId=${opts.eventId}`;
+    return fetchApi<any>(`/expenses?${query}`);
+  },
+  addExpense: (data: {
+    hangoutId?: string;
+    eventId?: string;
+    payerId: string;
+    title: string;
+    amount: number;
+    category?: string;
+    receiptUrl?: string;
+    splitMemberIds?: string[];
+  }) => fetchApi<any>(`/expenses`, { method: "POST", body: JSON.stringify(data) }),
+  settleExpenseSplit: (splitIdOrUserId: string) =>
+    fetchApi<any>(`/expenses/settle`, { method: "POST", body: JSON.stringify({ splitId: splitIdOrUserId, userId: splitIdOrUserId }) }),
 };

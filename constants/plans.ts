@@ -29,12 +29,15 @@ export interface Plan {
   creatorId: string;
   creatorName?: string;
   creatorAvatar?: string | null;
+  visibility?: "PUBLIC" | "FRIENDS" | string;
+  isPrivate?: boolean;
   participants?: PlanParticipant[];
   requests?: PlanRequest[];
 }
 
 export const PLAN_ACTIVITIES = [
   { id: "coffee", name: "Coffee", emoji: "☕", color: "#FEF3C7", image: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&h=300&fit=crop" },
+  { id: "travel", name: "Travel / Trip", emoji: "✈️", color: "#E0F2FE", image: "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=400&h=300&fit=crop" },
   { id: "food", name: "Food", emoji: "🍕", color: "#FFEDD5", image: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400&h=300&fit=crop" },
   { id: "biryani", name: "Biryani", emoji: "🍛", color: "#FEE2E2", image: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=400&h=300&fit=crop" },
   { id: "beer", name: "Beer", emoji: "🍺", color: "#FEF9C3", image: "https://images.unsplash.com/photo-1535958636474-b021ee887b13?w=400&h=300&fit=crop" },

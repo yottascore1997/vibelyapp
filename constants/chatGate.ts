@@ -1,6 +1,6 @@
-/** Client-side mirror of server match opener rules (1 message → 24h reply or expire). */
+/** Client-side mirror of server match opener rules (1 message → 48h reply or expire, permanently unlocks once replied). */
 
-export const MATCH_REPLY_WINDOW_MS = 24 * 60 * 60 * 1000;
+export const MATCH_REPLY_WINDOW_MS = 48 * 60 * 60 * 1000;
 
 export type ChatGate = {
   unlocked: boolean;
@@ -45,8 +45,8 @@ export function evaluateLocalChatGate(params: {
       expired,
       expiresAt,
       reason: expired
-        ? "Match expired — no message within 24 hours"
-        : "Send one hello — they have 24 hours to reply",
+        ? "Match expired — no message within 48 hours"
+        : "Send one hello — they have 48 hours to reply",
     };
   }
 
@@ -66,7 +66,7 @@ export function evaluateLocalChatGate(params: {
       mustSendOpener: false,
       expired: true,
       expiresAt,
-      reason: "Match expired — no reply within 24 hours",
+      reason: "Match expired — no reply within 48 hours",
     };
   }
 
@@ -78,7 +78,7 @@ export function evaluateLocalChatGate(params: {
       mustSendOpener: false,
       expired: false,
       expiresAt,
-      reason: "Waiting for their reply (24h) — then chat unlocks",
+      reason: "Waiting for their reply (48h) — then chat unlocks permanently",
     };
   }
 
@@ -89,6 +89,6 @@ export function evaluateLocalChatGate(params: {
     mustSendOpener: false,
     expired: false,
     expiresAt,
-    reason: "Reply to unlock the chat — or match expires in 24h",
+    reason: "Reply to unlock the chat permanently — or match expires in 48h",
   };
 }

@@ -3,6 +3,8 @@ export interface ChatMessage {
   text: string;
   sentAt: string;
   fromMe: boolean;
+  senderName?: string;
+  senderAvatar?: string;
 }
 
 export interface ChatThread {

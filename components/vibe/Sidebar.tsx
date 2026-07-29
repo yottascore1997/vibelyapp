@@ -7,44 +7,117 @@ import {
   Image,
   Dimensions,
   TouchableOpacity,
+  ScrollView,
 } from "react-native";
-import { BlurView } from "expo-blur";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withSpring,
   withTiming,
 } from "react-native-reanimated";
 import { useRouter, usePathname } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSidebar } from "../../context/SidebarContext";
 import { useAuth } from "../../context/AuthContext";
-import { VibeColors, VibeFonts } from "../../constants/vibeTheme";
-import { Radius, Spacing } from "../../constants/theme";
+import { VibeFonts } from "../../constants/vibeTheme";
 
 const { width } = Dimensions.get("window");
-const DRAWER_WIDTH = width * 0.70;
+const DRAWER_WIDTH = width * 0.62;
 
-const menuItems = [
-  { label: "Home Feed", icon: "home-outline" as const, path: "/index" },
-  { label: "Discover Matches", icon: "heart-outline" as const, path: "/discover" },
-  { label: "Friends Hangout", icon: "people-outline" as const, path: "/reels" },
-  { label: "Events Map", icon: "map-outline" as const, path: "/events-map" },
-  { label: "Travel Partner", icon: "airplane-outline" as const, path: "/travel" },
-  { label: "Vibes (Off Grid)", icon: "flash-outline" as const, path: "/vibes" },
-  { label: "My Matches", icon: "heart-circle-outline" as const, path: "/my-matches" },
-  { label: "Chats", icon: "chatbubble-ellipses-outline" as const, path: "/chats" },
-  { label: "Direct Invites", icon: "mail-unread-outline" as const, path: "/invites" },
-  { label: "Create a Plan", icon: "add-circle-outline" as const, path: "/create-plan" },
-  { label: "Edit Profile", icon: "person-outline" as const, path: "/profile" },
+type IonName = keyof typeof Ionicons.glyphMap;
+
+interface MenuItem {
+  label: string;
+  icon: IonName;
+  activeIcon: IonName;
+  path: string;
+  badge?: string;
+  iconBg: string;
+  iconColor: string;
+}
+
+const menuItems: MenuItem[] = [
+  {
+    label: "Home Feed",
+    icon: "home-outline",
+    activeIcon: "home",
+    path: "/index",
+    iconBg: "#EEF2FF",
+    iconColor: "#4F46E5",
+  },
+  {
+    label: "Discover",
+    icon: "heart-outline",
+    activeIcon: "heart",
+    path: "/discover",
+    iconBg: "#FCE7F3",
+    iconColor: "#DB2777",
+  },
+  {
+    label: "Hangout Hub",
+    icon: "sparkles-outline",
+    activeIcon: "sparkles",
+    path: "/hangout",
+    badge: "LIVE",
+    iconBg: "#F3E8FF",
+    iconColor: "#7C3AED",
+  },
+  {
+    label: "Events Map",
+    icon: "map-outline",
+    activeIcon: "map",
+    path: "/events-map",
+    iconBg: "#D1FAE5",
+    iconColor: "#059669",
+  },
+  {
+    label: "Explore Events",
+    icon: "ticket-outline",
+    activeIcon: "ticket",
+    path: "/explore-events",
+    iconBg: "#FEF3C7",
+    iconColor: "#D97706",
+  },
+  {
+    label: "Create Plan",
+    icon: "add-circle-outline",
+    activeIcon: "add-circle",
+    path: "/create-plan",
+    iconBg: "#E0F2FE",
+    iconColor: "#0284C7",
+  },
+  {
+    label: "Chats",
+    icon: "chatbubble-ellipses-outline",
+    activeIcon: "chatbubble-ellipses",
+    path: "/chats",
+    iconBg: "#FFE4E6",
+    iconColor: "#E11D48",
+  },
+  {
+    label: "My Matches",
+    icon: "heart-circle-outline",
+    activeIcon: "heart-circle",
+    path: "/my-matches",
+    iconBg: "#F3E8FF",
+    iconColor: "#9333EA",
+  },
+  {
+    label: "My Profile",
+    icon: "person-outline",
+    activeIcon: "person",
+    path: "/profile",
+    iconBg: "#F1F5F9",
+    iconColor: "#475569",
+  },
 ];
 
 export default function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
+  const insets = useSafeAreaInsets();
   const { isOpen, closeSidebar } = useSidebar();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   const translateX = useSharedValue(-DRAWER_WIDTH);
   const backdropOpacity = useSharedValue(0);
@@ -52,10 +125,10 @@ export default function Sidebar() {
   useEffect(() => {
     if (isOpen) {
       translateX.value = withTiming(0, { duration: 220 });
-      backdropOpacity.value = withTiming(1, { duration: 220 });
+      backdropOpacity.value = withTiming(0.35, { duration: 220 });
     } else {
       translateX.value = withTiming(-DRAWER_WIDTH, { duration: 200 });
-      backdropOpacity.value = withTiming(0, { duration: 200 });
+      backdropOpacity.value = withTiming(0, { duration: 220 });
     }
   }, [isOpen]);
 
@@ -73,11 +146,25 @@ export default function Sidebar() {
     setTimeout(() => {
       if (path === "/index") {
         router.push("/(tabs)");
-      } else if (path === "/discover" || path === "/profile" || path === "/vibes" || path === "/jar" || path === "/chats") {
+      } else if (
+        path === "/discover" ||
+        path === "/profile" ||
+        path === "/vibes" ||
+        path === "/jar" ||
+        path === "/chats"
+      ) {
         router.push(`/(tabs)${path}`);
       } else {
         router.push(path as any);
       }
+    }, 150);
+  };
+
+  const handleLogout = async () => {
+    closeSidebar();
+    setTimeout(async () => {
+      await logout();
+      router.replace("/(auth)/welcome");
     }, 150);
   };
 
@@ -88,60 +175,49 @@ export default function Sidebar() {
     return pathname.includes(path);
   };
 
+  const userAvatar =
+    user?.avatarUrl ||
+    "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&h=200&fit=crop";
+
   return (
-    <View style={[StyleSheet.absoluteFillObject, { zIndex: 9999 }]} pointerEvents={isOpen ? "auto" : "none"}>
-      {/* Backdrop overlay shadow */}
+    <View
+      style={[StyleSheet.absoluteFillObject, { zIndex: 9999 }]}
+      pointerEvents={isOpen ? "auto" : "none"}
+    >
+      {/* Backdrop */}
       <Animated.View style={[styles.backdrop, backdropAnimStyle]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={closeSidebar} />
       </Animated.View>
 
-      {/* Sidenav Drawer Panel */}
-      <Animated.View style={[styles.drawer, drawerAnimStyle]}>
-
-        {/* Header Profile Summary */}
-        <View style={styles.header}>
-          <LinearGradient
-            colors={["#8A56FF", "#FF4B81"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.avatarBorder}
-          >
-            <Image
-              source={{ uri: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120" }}
-              style={styles.avatar}
-            />
-          </LinearGradient>
-
-          <View style={styles.profileMeta}>
+      {/* Drawer */}
+      <Animated.View
+        style={[
+          styles.drawer,
+          drawerAnimStyle,
+          { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 10 },
+        ]}
+      >
+        {/* Simple Profile Header */}
+        <Pressable
+          style={styles.profileHeader}
+          onPress={() => handleNavigate("/profile")}
+        >
+          <Image source={{ uri: userAvatar }} style={styles.avatar} />
+          <View style={styles.profileInfo}>
             <Text style={styles.profileName} numberOfLines={1}>
-              {user?.name || "Roshani Mayur"}
+              {user?.name || "User"}
             </Text>
-            <Text style={styles.profileLocation}>Nagpur, India</Text>
+            <Text style={styles.profileSub}>View Profile ›</Text>
           </View>
-        </View>
+          <Pressable style={styles.closeBtn} onPress={closeSidebar}>
+            <Ionicons name="close" size={18} color="#64748B" />
+          </Pressable>
+        </Pressable>
 
-        {/* Vibe Score Stats Bar */}
-        <View style={styles.statsCard}>
-          <LinearGradient
-            colors={["rgba(138, 86, 255, 0.12)", "rgba(255, 75, 129, 0.04)"]}
-            style={styles.statsGrad}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <View style={styles.statCol}>
-              <Text style={styles.statVal}>78</Text>
-              <Text style={styles.statLabel}>Vibe Score</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statCol}>
-              <Text style={styles.statVal}>24</Text>
-              <Text style={styles.statLabel}>Matches</Text>
-            </View>
-          </LinearGradient>
-        </View>
+        <View style={styles.divider} />
 
-        {/* Scrollable menu options list */}
-        <View style={styles.menuContainer}>
+        {/* Tight Menu List */}
+        <ScrollView style={styles.menuScroll} showsVerticalScrollIndicator={false}>
           {menuItems.map((item, idx) => {
             const active = getActiveState(item.path);
             return (
@@ -151,37 +227,38 @@ export default function Sidebar() {
                 style={[styles.menuItem, active && styles.menuItemActive]}
                 activeOpacity={0.7}
               >
-                <Ionicons
-                  name={item.icon}
-                  size={20}
-                  color={active ? "#FF4B81" : "rgba(255, 255, 255, 0.6)"}
-                />
+                <View
+                  style={[
+                    styles.iconWrap,
+                    { backgroundColor: active ? item.iconColor : item.iconBg },
+                  ]}
+                >
+                  <Ionicons
+                    name={active ? item.activeIcon : item.icon}
+                    size={16}
+                    color={active ? "#FFFFFF" : item.iconColor}
+                  />
+                </View>
                 <Text style={[styles.menuLabel, active && styles.menuLabelActive]}>
                   {item.label}
                 </Text>
-                {active && <View style={styles.activeIndicatorDot} />}
+                {item.badge ? (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{item.badge}</Text>
+                  </View>
+                ) : null}
               </TouchableOpacity>
             );
           })}
-        </View>
+        </ScrollView>
 
-        {/* Sidenav Footer details */}
-        <View style={styles.footer}>
-          <LinearGradient
-            colors={["rgba(212, 175, 55, 0.15)", "rgba(212, 175, 55, 0.05)"]}
-            style={styles.premiumBox}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Ionicons name="diamond" size={16} color="#D4AF37" style={{ marginRight: 6 }} />
-            <Text style={styles.premiumText}>Vibely Gold Member</Text>
-          </LinearGradient>
+        <View style={styles.divider} />
 
-          <TouchableOpacity style={styles.closeBtn} onPress={closeSidebar}>
-            <Ionicons name="chevron-back" size={20} color="rgba(255, 255, 255, 0.4)" />
-            <Text style={styles.closeText}>Close Menu</Text>
-          </TouchableOpacity>
-        </View>
+        {/* Compact Footer */}
+        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+          <Ionicons name="log-out-outline" size={16} color="#EF4444" />
+          <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
       </Animated.View>
     </View>
   );
@@ -190,7 +267,7 @@ export default function Sidebar() {
 const styles = StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(5, 5, 8, 0.72)",
+    backgroundColor: "rgba(15, 23, 42, 0.35)",
     zIndex: 1000,
   },
   drawer: {
@@ -199,159 +276,118 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     width: DRAWER_WIDTH,
-    backgroundColor: "#0D0B18",
-    borderRightWidth: 1.5,
-    borderRightColor: "rgba(138, 86, 255, 0.22)",
-    shadowColor: "#8A56FF",
+    backgroundColor: "#FFFFFF",
+    borderRightWidth: 1,
+    borderRightColor: "#E2E8F0",
+    shadowColor: "#000",
     shadowOffset: { width: 4, height: 0 },
-    shadowOpacity: 0.18,
+    shadowOpacity: 0.08,
     shadowRadius: 16,
-    elevation: 8,
-    paddingTop: 65,
-    paddingBottom: 25,
-    justifyContent: "space-between",
-    overflow: "hidden",
+    elevation: 16,
     zIndex: 1001,
   },
 
-  // Header Details
-  header: {
+  profileHeader: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: Spacing.lg,
-    marginBottom: Spacing.md,
-  },
-  avatarBorder: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    padding: 1.5,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
+    paddingHorizontal: 14,
+    gap: 10,
   },
   avatar: {
-    width: 49,
-    height: 49,
-    borderRadius: 24.5,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1.5,
+    borderColor: "#7C3AED",
   },
-  profileMeta: {
+  profileInfo: {
     flex: 1,
   },
   profileName: {
-    color: "#fff",
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: VibeFonts.bold,
+    color: "#18181B",
   },
-  profileLocation: {
-    color: "rgba(255, 255, 255, 0.45)",
+  profileSub: {
     fontSize: 11,
     fontFamily: VibeFonts.medium,
-    marginTop: 2,
+    color: "#7C3AED",
+    marginTop: 1,
+  },
+  closeBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
-  // Stats Card
-  statsCard: {
-    paddingHorizontal: Spacing.lg,
-    marginBottom: Spacing.md,
-  },
-  statsGrad: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: Radius.lg,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: "rgba(138, 86, 255, 0.12)",
-  },
-  statCol: {
-    flex: 1,
-    alignItems: "center",
-  },
-  statVal: {
-    color: "#C084FC",
-    fontSize: 14,
-    fontFamily: VibeFonts.bold,
-  },
-  statLabel: {
-    color: "rgba(255, 255, 255, 0.45)",
-    fontSize: 8,
-    fontFamily: VibeFonts.bold,
-    marginTop: 2,
-  },
-  statDivider: {
-    width: 1,
-    height: 25,
-    backgroundColor: "rgba(138, 86, 255, 0.18)",
+  divider: {
+    height: 1,
+    backgroundColor: "#F1F5F9",
+    marginVertical: 8,
+    marginHorizontal: 14,
   },
 
-  // Menu Options
-  menuContainer: {
+  menuScroll: {
     flex: 1,
-    paddingHorizontal: Spacing.md,
-    marginTop: Spacing.sm,
-    gap: 4,
+    paddingHorizontal: 10,
   },
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 11,
-    borderRadius: Radius.md,
-    position: "relative",
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 12,
+    marginBottom: 2,
   },
   menuItemActive: {
-    backgroundColor: "rgba(255, 75, 129, 0.08)",
-    borderWidth: 0.5,
-    borderColor: "rgba(255, 75, 129, 0.15)",
+    backgroundColor: "#F3E8FF",
   },
-  menuLabel: {
-    color: "rgba(255, 255, 255, 0.65)",
-    fontSize: 13,
-    fontFamily: VibeFonts.semiBold,
-    marginLeft: 12,
-  },
-  menuLabelActive: {
-    color: "#fff",
-    fontFamily: VibeFonts.bold,
-  },
-  activeIndicatorDot: {
-    position: "absolute",
-    right: 12,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#FF4B81",
-  },
-
-  // Footer Options
-  footer: {
-    paddingHorizontal: Spacing.lg,
-    gap: Spacing.md,
-  },
-  premiumBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: Radius.full,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: "rgba(212, 175, 55, 0.25)",
-  },
-  premiumText: {
-    color: "#D4AF37",
-    fontSize: 11,
-    fontFamily: VibeFonts.bold,
-  },
-  closeBtn: {
-    flexDirection: "row",
+  iconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 8,
+    marginRight: 10,
   },
-  closeText: {
-    color: "rgba(255, 255, 255, 0.4)",
-    fontSize: 12,
+  menuLabel: {
+    fontSize: 13.5,
+    fontFamily: VibeFonts.medium,
+    color: "#334155",
+    flex: 1,
+  },
+  menuLabelActive: {
+    fontFamily: VibeFonts.extraBold,
+    color: "#7C3AED",
+  },
+  badge: {
+    backgroundColor: "#7C3AED",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  badgeText: {
+    color: "#FFFFFF",
+    fontSize: 8.5,
     fontFamily: VibeFonts.bold,
-    marginLeft: 4,
+  },
+
+  logoutBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    marginHorizontal: 10,
+    borderRadius: 12,
+    backgroundColor: "#FEE2E2",
+  },
+  logoutText: {
+    fontSize: 13,
+    fontFamily: VibeFonts.bold,
+    color: "#EF4444",
   },
 });

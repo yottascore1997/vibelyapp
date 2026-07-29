@@ -60,22 +60,22 @@ export default function LifestyleScreen() {
       <FormInput label="Religion" value={data.religion} onChangeText={(v) => update({ religion: v })} placeholder="Optional" optional icon="heart-outline" />
 
       <SectionLabel title="Smoking" />
-      <PillSelect options={SMOKING_OPTIONS.map((o) => ({ id: o, label: o }))} value={data.smoking} onChange={(v) => update({ smoking: v })} columns={2} />
+      <PillSelect options={SMOKING_OPTIONS} value={data.smoking} onChange={(v) => update({ smoking: v })} columns={2} />
 
       <SectionLabel title="Drinking" />
-      <PillSelect options={DRINKING_OPTIONS.map((o) => ({ id: o, label: o }))} value={data.drinking} onChange={(v) => update({ drinking: v })} columns={2} />
+      <PillSelect options={DRINKING_OPTIONS} value={data.drinking} onChange={(v) => update({ drinking: v })} columns={2} />
 
       <SectionLabel title="Workout" />
-      <PillSelect options={WORKOUT_OPTIONS.map((o) => ({ id: o, label: o }))} value={data.workout} onChange={(v) => update({ workout: v })} columns={2} />
+      <PillSelect options={WORKOUT_OPTIONS} value={data.workout} onChange={(v) => update({ workout: v })} columns={2} />
 
       <SectionLabel title="Diet" />
-      <PillSelect options={DIET_OPTIONS.map((o) => ({ id: o, label: o }))} value={data.diet} onChange={(v) => update({ diet: v })} columns={2} />
+      <PillSelect options={DIET_OPTIONS} value={data.diet} onChange={(v) => update({ diet: v })} columns={2} />
 
       <SectionLabel title="Pets" />
-      <PillSelect options={PETS_OPTIONS.map((o) => ({ id: o, label: o }))} value={data.pets} onChange={(v) => update({ pets: v })} columns={2} />
+      <PillSelect options={PETS_OPTIONS} value={data.pets} onChange={(v) => update({ pets: v })} columns={2} />
 
       <SectionLabel title="Zodiac" subtitle="Optional" />
-      <PillSelect options={ZODIAC_OPTIONS.map((o) => ({ id: o, label: o }))} value={data.zodiac} onChange={(v) => update({ zodiac: v })} columns={3} />
+      <PillSelect options={ZODIAC_OPTIONS} value={data.zodiac} onChange={(v) => update({ zodiac: v })} columns={3} />
     </OnboardingLayout>
   );
 }

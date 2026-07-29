@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { View, Text, TextInput, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors, Radius, Spacing } from "../../constants/theme";
+import { Radius, Spacing } from "../../constants/theme";
 
 interface Props {
   label: string;
@@ -25,7 +26,8 @@ export default function FormInput({
   keyboardType = "default",
   icon,
 }: Props) {
-  const filled = value.length > 0;
+  const [focused, setFocused] = useState(false);
+  const active = focused || value.length > 0;
 
   return (
     <View style={styles.wrap}>
@@ -33,10 +35,15 @@ export default function FormInput({
         {label}
         {optional && <Text style={styles.optional}> · Optional</Text>}
       </Text>
-      <View style={[styles.inputWrap, filled && styles.inputWrapFilled]}>
+      <View
+        style={[
+          styles.inputWrap,
+          focused ? styles.inputWrapFocused : active ? styles.inputWrapFilled : null,
+        ]}
+      >
         {icon && (
-          <View style={styles.iconBox}>
-            <Ionicons name={icon} size={18} color={filled ? Colors.primary : Colors.textLight} />
+          <View style={[styles.iconBox, active && styles.iconBoxActive]}>
+            <Ionicons name={icon} size={18} color={active ? "#7C3AED" : "#94A3B8"} />
           </View>
         )}
         <TextInput
@@ -44,10 +51,12 @@ export default function FormInput({
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder || label}
-          placeholderTextColor={Colors.textLight}
+          placeholderTextColor="#94A3B8"
           multiline={multiline}
           maxLength={maxLength}
           keyboardType={keyboardType}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
         />
       </View>
       {maxLength && (
@@ -63,42 +72,39 @@ export default function FormInput({
 }
 
 const styles = StyleSheet.create({
-  wrap: { marginBottom: Spacing.lg },
-  label: { fontSize: 13, fontWeight: "700", color: Colors.text, marginBottom: Spacing.sm, letterSpacing: 0.2 },
-  optional: { fontWeight: "500", color: Colors.textLight },
+  wrap: { marginBottom: 14 },
+  label: { fontSize: 13, fontWeight: "700", color: "#18181B", marginBottom: Spacing.xs, letterSpacing: 0.2 },
+  optional: { fontWeight: "500", color: "#94A3B8" },
   inputWrap: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FAFAFE",
+    backgroundColor: "#F8F9FD",
     borderRadius: Radius.lg,
     borderWidth: 1.5,
-    borderColor: "#EDE9FE",
+    borderColor: "#E2E8F0",
     paddingHorizontal: Spacing.md,
-    shadowColor: "#8A56FF",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 1,
   },
-  inputWrapFilled: { borderColor: Colors.primary + "55", backgroundColor: "#FDF4FF" },
+  inputWrapFocused: { borderColor: "#7C3AED", backgroundColor: "#F5F3FF" },
+  inputWrapFilled: { borderColor: "rgba(124, 58, 237, 0.4)", backgroundColor: "#FFFFFF" },
   iconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: "#fff",
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: "rgba(124, 58, 237, 0.08)",
     alignItems: "center",
     justifyContent: "center",
     marginRight: Spacing.sm,
   },
+  iconBoxActive: { backgroundColor: "rgba(124, 58, 237, 0.15)" },
   input: {
     flex: 1,
-    paddingVertical: 16,
+    paddingVertical: 14,
     fontSize: 15,
-    color: Colors.text,
+    color: "#18181B",
     fontWeight: "500",
   },
-  multiline: { height: 120, textAlignVertical: "top", paddingTop: 16 },
+  multiline: { height: 110, textAlignVertical: "top", paddingTop: 14 },
   counterRow: { flexDirection: "row", alignItems: "center", marginTop: 8, gap: 8 },
-  progressMini: { flex: 1, height: 3, backgroundColor: Colors.primary, borderRadius: 2, maxWidth: "70%" },
-  counter: { fontSize: 11, color: Colors.textLight, fontWeight: "600" },
+  progressMini: { flex: 1, height: 3, backgroundColor: "#7C3AED", borderRadius: 2, maxWidth: "70%" },
+  counter: { fontSize: 11, color: "#94A3B8", fontWeight: "600" },
 });

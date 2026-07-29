@@ -45,58 +45,58 @@ function buildHtml(
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
-    html, body, #map { margin:0; padding:0; height:100%; width:100%; background:#E8EEF8; }
+    html, body, #map { margin:0; padding:0; height:100%; width:100%; background:#F8F9FD; }
     .leaflet-control-attribution {
       font-size:9px !important;
-      background:rgba(255,251,254,0.82) !important;
+      background:rgba(255,255,255,0.85) !important;
       border-radius:8px 0 0 0 !important;
-      color:#6B7280 !important;
+      color:#64748B !important;
     }
     .leaflet-control-zoom {
       border:none !important;
-      box-shadow:0 8px 20px rgba(15,11,26,0.16) !important;
+      box-shadow:0 8px 20px rgba(15,23,42,0.12) !important;
       border-radius:14px !important;
       overflow:hidden;
     }
     .leaflet-control-zoom a {
       width:36px !important; height:36px !important; line-height:36px !important;
-      color:#1A1F36 !important; background:rgba(255,251,254,0.94) !important;
+      color:#18181B !important; background:rgba(255,255,255,0.95) !important;
       border:none !important; font-size:16px !important;
     }
     .pin {
       width:46px; height:46px; border-radius:23px;
       display:flex; align-items:center; justify-content:center;
       border:3px solid #fff;
-      box-shadow:0 8px 18px rgba(15,11,26,0.28), 0 0 0 1px rgba(139,92,246,0.12);
+      box-shadow:0 8px 18px rgba(15,23,42,0.22), 0 0 0 1px rgba(124,58,237,0.15);
       position:relative;
-      background:linear-gradient(145deg,#8B5CF6,#EC4899);
+      background:linear-gradient(145deg,#7C3AED,#8B5CF6);
       font-size:20px;
       transform: translateZ(0);
     }
     .pin.person {
       overflow:hidden; padding:0;
       background:#fff;
-      box-shadow:0 8px 18px rgba(15,11,26,0.22);
+      box-shadow:0 8px 18px rgba(15,23,42,0.18);
     }
     .pin.person img { width:100%; height:100%; object-fit:cover; border-radius:23px; }
     .pin.active {
       width:56px; height:56px; border-radius:28px; border-width:3.5px;
-      box-shadow:0 10px 24px rgba(139,92,246,0.48), 0 0 0 4px rgba(139,92,246,0.18);
+      box-shadow:0 10px 24px rgba(124,58,237,0.45), 0 0 0 4px rgba(124,58,237,0.2);
     }
     .pin.online::after {
       content:''; position:absolute; right:1px; top:1px; width:11px; height:11px;
-      background:#22C55E; border:2px solid #fff; border-radius:6px;
-      box-shadow:0 0 0 2px rgba(34,197,94,0.25);
+      background:#10B981; border:2px solid #fff; border-radius:6px;
+      box-shadow:0 0 0 2px rgba(16,185,129,0.3);
     }
     .pin .badge {
       position:absolute; bottom:-2px; left:-2px; width:17px; height:17px;
-      border-radius:9px; background:#1A1F36; color:#fff;
+      border-radius:9px; background:#7C3AED; color:#fff;
       display:flex; align-items:center; justify-content:center;
       font-size:9px; box-shadow:0 2px 6px rgba(0,0,0,0.25);
     }
     .pin .ring {
       position:absolute; inset:-7px; border-radius:50%;
-      border:2px solid rgba(236,72,153,0.4);
+      border:2px solid rgba(236,72,153,0.45);
       animation: pulse 1.5s ease-out infinite;
     }
     @keyframes pulse {

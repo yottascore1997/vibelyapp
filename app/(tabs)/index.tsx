@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
+  TouchableOpacity,
   Image,
   TextInput,
   ActivityIndicator,
@@ -32,6 +33,7 @@ import { useAuth } from "../../context/AuthContext";
 import { api } from "../../services/api";
 import { API_URL, Colors, Radius, Spacing } from "../../constants/theme";
 import { VibeColors, VibeFonts } from "../../constants/vibeTheme";
+import SpotBeaconModal from "../../components/vibe/SpotBeaconModal";
 
 const homeActivities = [
   { id: "1", name: "Coffee", emoji: "☕", count: 12, bgLight: "#FFF7ED", borderLight: "rgba(249, 115, 22, 0.15)", textColor: "#C2410C" },
@@ -48,7 +50,7 @@ const APP_FEATURES = [
   { id: "hangout", title: "Hangout", icon: "cafe" as const, colors: ["#8A56FF", "#A855F7"] as const, route: "/hangout" },
   { id: "map", title: "Events Map", icon: "map" as const, colors: ["#14B8A6", "#0D9488"] as const, route: "/events-map" },
   { id: "friends", title: "Friends", icon: "people" as const, colors: ["#22C55E", "#16A34A"] as const, route: "/reels" },
-  { id: "travel", title: "Travel", icon: "airplane" as const, colors: ["#3B82F6", "#2563EB"] as const, route: "/travel" },
+  // { id: "travel", title: "Travel", icon: "airplane" as const, colors: ["#3B82F6", "#2563EB"] as const, route: "/travel" },
   { id: "events", title: "Events", icon: "calendar" as const, colors: ["#D4AF37", "#B8860B"] as const, route: "/explore-events" },
   { id: "create", title: "Create", icon: "add" as const, colors: ["#F97316", "#EA580C"] as const, route: "/create-plan" },
 ];
@@ -95,7 +97,7 @@ const PROMO_BANNERS = [
     colors: ["#7C3AED", "#8B5CF6", "#14B8A6"] as const,
     route: "/vibematch",
   },
-  {
+  /* {
     id: "b4",
     tag: "TRAVEL",
     title: "Find your travel buddy",
@@ -104,7 +106,7 @@ const PROMO_BANNERS = [
     emoji: "✈️",
     colors: ["#3B82F6", "#6366F1", "#8B5CF6"] as const,
     route: "/travel",
-  },
+  }, */
 ];
 
 const HOME_TODAY_EVENTS = [
@@ -186,29 +188,30 @@ const BANNER_W = SCREEN_W - 40;
 
 /** Light premium Hangout-matched palette */
 const Luxe = {
-  bg: "#EEE9F8",
-  bgSoft: "#F7F4FC",
-  ink: "#1A1F36",
-  inkSoft: "#6B7280",
-  inkFaint: "#9CA3AF",
-  gold: "#D4AF37",
-  goldBright: "#E8C547",
-  goldSoft: "rgba(212,175,55,0.16)",
+  bg: "#F8F9FD",
+  bgSoft: "#FFFFFF",
+  ink: "#18181B",
+  inkSoft: "#64748B",
+  inkFaint: "#94A3B8",
+  gold: "#F59E0B",
+  goldBright: "#FBBF24",
+  goldSoft: "rgba(245,158,11,0.16)",
   rose: "#EC4899",
   roseSoft: "rgba(236,72,153,0.12)",
-  emerald: "#22C55E",
-  emeraldBright: "#16A34A",
+  emerald: "#10B981",
+  emeraldBright: "#059669",
   white: "#FFFFFF",
-  card: "#FFFBFE",
+  card: "#FFFFFF",
   cardElevated: "#FFFFFF",
-  border: "#E4DFF0",
-  purple: "#8B5CF6",
-  purpleDeep: "#7C3AED",
-  softPurple: "#EDE7FF",
+  border: "#E2E8F0",
+  purple: "#7C3AED",
+  purpleDeep: "#6D28D9",
+  purpleBright: "#8B5CF6",
+  softPurple: "#F3E8FF",
   pink: "#EC4899",
-  cta: ["#8B5CF6", "#EC4899"] as const,
-  ctaSoft: ["#A78BFA", "#F472B6"] as const,
-  welcome: ["#FFFFFF", "#F8F4FF", "#FFF0F8"] as const,
+  cta: ["#7C3AED", "#8B5CF6"] as const,
+  ctaSoft: ["#8B5CF6", "#EC4899"] as const,
+  welcome: ["#FFFFFF", "#F8F9FD"] as const,
 };
 
 function Firecracker({ delay }: { delay: number }) {
@@ -358,6 +361,21 @@ export default function HomeScreen() {
   };
 
   useEffect(() => {
+    (async () => {
+      try {
+        const res: any = await api.getSocialStatus();
+        if (res?.energy) {
+          if (res.energy === "LESSGO") setMyVibe("Lessgo");
+          else if (res.energy === "MAYBE") setMyVibe("Maybe");
+          else if (res.energy === "OFF_GRID") setMyVibe("Off grid");
+        }
+      } catch (err) {
+        console.error("Failed to load social status:", err);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
     const id = setInterval(() => {
       setBannerIndex((prev) => {
         const next = (prev + 1) % PROMO_BANNERS.length;
@@ -444,6 +462,7 @@ export default function HomeScreen() {
   const [profile, setProfile] = useState<any>(null);
   const [loadingActive, setLoadingActive] = useState(true);
   const [loadingSuggestions, setLoadingSuggestions] = useState(true);
+  const [spotModalVisible, setSpotModalVisible] = useState(false);
 
   useEffect(() => {
     async function loadHomeData() {
@@ -549,56 +568,118 @@ export default function HomeScreen() {
         tagline="Find your vibe"
       />
 
-      {/* Live Status — replaces welcome hero */}
+      {/* Live Social Energy Card — exact match to Hangouts */}
       <Animated.View entering={FadeInUp.duration(450).springify()}>
-        <SectionHeader light title="Live Status" subtitle="Tell people if you're free" onAction={() => router.push("/(tabs)/vibes")} action="Open ›" />
-        <LinearGradient
-          colors={["#FFFFFF", "#F8F4FF"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.vibeSelectorCard}
-        >
-          <View style={styles.orbsRow}>
-            <Pressable style={styles.orbItem} onPress={() => handleOrbPress("Lessgo")}>
-              <View style={styles.orbWrapper}>
-                {myVibe === "Lessgo" && <View style={[styles.glowRing, { borderColor: "#22C55E", shadowColor: "#22C55E", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 8, elevation: 4 }]} />}
-                <LinearGradient colors={["#E6FDEE", "#4ADE80", "#16A34A"]} style={styles.glassOrb}>
-                  <View style={styles.shineSpot} />
+        <View style={styles.socialEnergyCard}>
+          <Text style={styles.socialEnergyTitle}>What's your social energy today?</Text>
+          <View style={styles.orbsContainer}>
+            {/* Lessgo */}
+            <TouchableOpacity
+              style={styles.orbWrapper}
+              activeOpacity={0.8}
+              onPress={() => handleOrbPress("Lessgo")}
+            >
+              <View
+                style={[
+                  styles.orbSphere,
+                  styles.orbSphereGreen,
+                  myVibe === "Lessgo" && styles.orbActiveGreen,
+                ]}
+              >
+                <LinearGradient
+                  colors={["#4ADE80", "#22C55E", "#15803D"]}
+                  start={{ x: 0.2, y: 0.2 }}
+                  end={{ x: 0.8, y: 0.8 }}
+                  style={styles.orbGrad}
+                >
+                  <View style={styles.orbGlint} />
                 </LinearGradient>
               </View>
-              <Text style={[styles.orbTitle, { color: "#22C55E" }, myVibe === "Lessgo" && styles.orbTitleActive]}>
-                Lessgo
-              </Text>
-              <Text style={styles.orbSubtitle}>I'm up for anything!</Text>
-            </Pressable>
+              <Text style={[styles.orbLabel, { color: "#16A34A" }]}>Lessgo</Text>
+            </TouchableOpacity>
 
-            <Pressable style={styles.orbItem} onPress={() => handleOrbPress("Maybe")}>
-              <View style={styles.orbWrapper}>
-                {myVibe === "Maybe" && <View style={[styles.glowRing, { borderColor: "#EAB308", shadowColor: "#EAB308", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 8, elevation: 4 }]} />}
-                <LinearGradient colors={["#FFFDEB", "#FDE047", "#CA8A04"]} style={styles.glassOrb}>
-                  <View style={styles.shineSpot} />
+            {/* Maybe */}
+            <TouchableOpacity
+              style={styles.orbWrapper}
+              activeOpacity={0.8}
+              onPress={() => handleOrbPress("Maybe")}
+            >
+              <View
+                style={[
+                  styles.orbSphere,
+                  styles.orbSphereYellow,
+                  myVibe === "Maybe" && styles.orbActiveYellow,
+                ]}
+              >
+                <LinearGradient
+                  colors={["#FDE047", "#F59E0B", "#B45309"]}
+                  start={{ x: 0.2, y: 0.2 }}
+                  end={{ x: 0.8, y: 0.8 }}
+                  style={styles.orbGrad}
+                >
+                  <View style={styles.orbGlint} />
                 </LinearGradient>
               </View>
-              <Text style={[styles.orbTitle, { color: "#EAB308" }, myVibe === "Maybe" && styles.orbTitleActive]}>
-                Maybe
-              </Text>
-              <Text style={styles.orbSubtitle}>Not sure yet</Text>
-            </Pressable>
+              <Text style={[styles.orbLabel, { color: "#D97706" }]}>Maybe</Text>
+            </TouchableOpacity>
 
-            <Pressable style={styles.orbItem} onPress={() => handleOrbPress("Off grid")}>
-              <View style={styles.orbWrapper}>
-                {myVibe === "Off grid" && <View style={[styles.glowRing, { borderColor: "#EF4444", shadowColor: "#EF4444", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 8, elevation: 4 }]} />}
-                <LinearGradient colors={["#FFEFEF", "#F87171", "#DC2626"]} style={styles.glassOrb}>
-                  <View style={styles.shineSpot} />
+            {/* Off grid */}
+            <TouchableOpacity
+              style={styles.orbWrapper}
+              activeOpacity={0.8}
+              onPress={() => handleOrbPress("Off grid")}
+            >
+              <View
+                style={[
+                  styles.orbSphere,
+                  styles.orbSphereRed,
+                  myVibe === "Off grid" && styles.orbActiveRed,
+                ]}
+              >
+                <LinearGradient
+                  colors={["#FCA5A5", "#EF4444", "#991B1B"]}
+                  start={{ x: 0.2, y: 0.2 }}
+                  end={{ x: 0.8, y: 0.8 }}
+                  style={styles.orbGrad}
+                >
+                  <View style={styles.orbGlint} />
                 </LinearGradient>
               </View>
-              <Text style={[styles.orbTitle, { color: "#EF4444" }, myVibe === "Off grid" && styles.orbTitleActive]}>
-                Off grid
-              </Text>
-              <Text style={styles.orbSubtitle}>Need my space</Text>
-            </Pressable>
+              <Text style={[styles.orbLabel, { color: "#DC2626" }]}>Off grid</Text>
+            </TouchableOpacity>
           </View>
-        </LinearGradient>
+        </View>
+      </Animated.View>
+
+      {/* Live Cafe Spot Beacon Hero Card */}
+      <Animated.View entering={FadeInUp.delay(60).duration(400).springify()}>
+        <TouchableOpacity
+          style={styles.spotHeroCard}
+          onPress={() => setSpotModalVisible(true)}
+          activeOpacity={0.88}
+        >
+          <LinearGradient
+            colors={["#7C3AED", "#8B5CF6", "#EC4899"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.spotHeroGrad}
+          >
+            <View style={styles.spotHeroRow}>
+              <View style={styles.spotHeroIconWrap}>
+                <Ionicons name="flash" size={24} color="#FFF" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={styles.spotBadge}>
+                  <Text style={styles.spotBadgeText}>INSTANT MEETUP BEACON ⚡</Text>
+                </View>
+                <Text style={styles.spotHeroTitle}>Bored at a Cafe right now?</Text>
+                <Text style={styles.spotHeroSub}>
+                  Drop a Spot to find nearby companions in 30 mins →
+                </Text>
+              </View>
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
       </Animated.View>
 
       {/* Auto-sliding promo banners */}
@@ -619,7 +700,7 @@ export default function HomeScreen() {
           renderItem={({ item }) => (
             <Pressable onPress={() => router.push(item.route as any)} style={{ width: BANNER_W, marginRight: 12 }}>
               <LinearGradient
-                colors={[...item.colors]}
+                colors={item.colors as any}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.promoBanner}
@@ -965,11 +1046,69 @@ export default function HomeScreen() {
         onPress={() => router.push("/(tabs)/discover")}
       />
     </PremiumScreen>
+
+    <SpotBeaconModal
+      visible={spotModalVisible}
+      onClose={() => setSpotModalVisible(false)}
+    />
   </View>
   );
 }
 
 const styles = StyleSheet.create({
+  spotHeroCard: {
+    borderRadius: 22,
+    overflow: "hidden",
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(124,58,237,0.2)",
+    shadowColor: "#7C3AED",
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  spotHeroGrad: {
+    padding: 16,
+  },
+  spotHeroRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  spotHeroIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  spotBadge: {
+    backgroundColor: "rgba(255,255,255,0.22)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Radius.full,
+    alignSelf: "flex-start",
+    marginBottom: 3,
+  },
+  spotBadgeText: {
+    color: "#FFF",
+    fontSize: 9,
+    fontFamily: VibeFonts.extraBold,
+    letterSpacing: 0.6,
+  },
+  spotHeroTitle: {
+    color: "#FFF",
+    fontSize: 16,
+    fontFamily: VibeFonts.extraBold,
+  },
+  spotHeroSub: {
+    color: "rgba(255,255,255,0.9)",
+    fontSize: 11,
+    fontFamily: VibeFonts.medium,
+    marginTop: 2,
+  },
   coolOrb: {
     position: "absolute",
     top: "40%",
@@ -1361,13 +1500,13 @@ const styles = StyleSheet.create({
   featureHubTitle: {
     fontSize: 15,
     fontFamily: VibeFonts.bold,
-    color: "#1A1F36",
+    color: "#18181B",
     letterSpacing: -0.2,
   },
   featureHubLink: {
     fontSize: 12,
     fontFamily: VibeFonts.semiBold,
-    color: "#8B5CF6",
+    color: "#7C3AED",
   },
   featureChipScroll: {
     marginBottom: Spacing.sm,
@@ -1381,14 +1520,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "#FFFBFE",
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#E4DFF0",
+    borderColor: "#E2E8F0",
     paddingLeft: 6,
     paddingRight: 12,
     paddingVertical: 6,
     borderRadius: 999,
     marginRight: 8,
+    shadowColor: "#000",
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    elevation: 1,
   },
   featureChipIcon: {
     width: 28,
@@ -1400,7 +1543,7 @@ const styles = StyleSheet.create({
   featureChipText: {
     fontSize: 12,
     fontFamily: VibeFonts.bold,
-    color: "#1A1F36",
+    color: "#18181B",
   },
 
   searchBar: {
@@ -1410,21 +1553,21 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     marginBottom: Spacing.md,
     marginTop: Spacing.sm,
-    backgroundColor: "#FFFBFE",
+    backgroundColor: "#FFFFFF",
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: "#E4DFF0",
-    shadowColor: "#8B5CF6",
-    shadowOpacity: 0.06,
+    borderColor: "#E2E8F0",
+    shadowColor: "#7C3AED",
+    shadowOpacity: 0.05,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
-    elevation: 1,
+    elevation: 2,
   },
   searchInput: {
     flex: 1,
     fontSize: 13,
     fontFamily: VibeFonts.medium,
-    color: "#1A1F36",
+    color: "#18181B",
     paddingVertical: 14,
   },
   filterBtn: {
@@ -1565,31 +1708,56 @@ const styles = StyleSheet.create({
     marginTop: 1,
     letterSpacing: -0.1,
   },
-  vibeSelectorCard: {
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    borderRadius: 22,
+  socialEnergyCard: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 16,
+    borderRadius: 24,
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#EDE7FF",
-    alignItems: "center",
-    overflow: "hidden",
-    marginBottom: Spacing.md,
-    shadowColor: "#8B5CF6",
+    borderColor: "#F1F5F9",
+    shadowColor: "#7C3AED",
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
+    elevation: 3,
   },
-  orbsRow: {
+  socialEnergyTitle: {
+    fontSize: 15,
+    fontFamily: VibeFonts.extraBold,
+    color: "#18181B",
+    textAlign: "center",
+    marginBottom: 14,
+  },
+  orbsContainer: {
     flexDirection: "row",
     justifyContent: "space-around",
-    width: "100%",
-  },
-  orbItem: {
     alignItems: "center",
-    flex: 1,
   },
   orbWrapper: {
+    alignItems: "center",
+    gap: 6,
+  },
+  orbSphere: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    overflow: "hidden",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  orbSphereGreen: { shadowColor: "#22C55E" },
+  orbSphereYellow: { shadowColor: "#F59E0B" },
+  orbSphereRed: { shadowColor: "#EF4444" },
+  orbActiveGreen: { borderWidth: 2, borderColor: "#4ADE80", transform: [{ scale: 1.08 }] },
+  orbActiveYellow: { borderWidth: 2, borderColor: "#FDE047", transform: [{ scale: 1.08 }] },
+  orbActiveRed: { borderWidth: 2, borderColor: "#FCA5A5", transform: [{ scale: 1.08 }] },
+  orbGrad: { width: "100%", height: "100%", borderRadius: 27, padding: 5 },
+  orbGlint: { width: 12, height: 12, borderRadius: 6, backgroundColor: "rgba(255, 255, 255, 0.65)", marginLeft: 4, marginTop: 2 },
+  orbLabel: { fontSize: 11, fontFamily: VibeFonts.bold },
+  orbWrapperOuter: {
     width: 70,
     height: 70,
     alignItems: "center",

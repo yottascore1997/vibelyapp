@@ -22,26 +22,28 @@ interface Props {
   activityName: string;
   activityEmoji: string;
   friendName: string;
+  friendEnergy?: string;
   timeLabel: string;
   friendAvatar?: string;
   myAvatar?: string;
   loading?: boolean;
   onClose?: () => void;
   onConfirm?: () => void;
+  onWhatsAppConfirm?: () => void;
 }
 
 const T = {
-  bg: "#FFFBFE",
+  bg: "#FFFFFF",
   card: "#FFFFFF",
-  ink: "#1A1F36",
-  muted: "#6B7280",
-  faint: "#9CA3AF",
-  border: "#E4DFF0",
-  purple: "#8B5CF6",
+  ink: "#18181B",
+  muted: "#64748B",
+  faint: "#94A3B8",
+  border: "#F1F5F9",
+  purple: "#7C3AED",
   pink: "#EC4899",
   green: "#22C55E",
-  cta: ["#8B5CF6", "#EC4899"] as const,
-  softPurple: "#EDE7FF",
+  cta: ["#7C3AED", "#EC4899"] as const,
+  softPurple: "#F3E8FF",
 };
 
 function BurstSpark({
@@ -114,6 +116,7 @@ export default function InviteCard({
   loading = false,
   onClose,
   onConfirm,
+  onWhatsAppConfirm,
 }: Props) {
   const defaultMyAvatar =
     "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop";
@@ -260,6 +263,17 @@ export default function InviteCard({
               )}
             </LinearGradient>
           </Pressable>
+
+          {onWhatsAppConfirm ? (
+            <Pressable onPress={onWhatsAppConfirm} disabled={loading} style={{ width: "100%", marginTop: 10 }}>
+              <View style={{ backgroundColor: "rgba(37,211,102,0.12)", borderWidth: 1.5, borderColor: "#25D366", borderRadius: 18, paddingVertical: 12, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8 }}>
+                <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
+                <Text style={{ fontSize: 14, fontFamily: VibeFonts.bold, color: "#25D366" }}>
+                  Invite via WhatsApp 💬
+                </Text>
+              </View>
+            </Pressable>
+          ) : null}
         </LinearGradient>
       </Animated.View>
     </Animated.View>

@@ -18,7 +18,7 @@ import Animated, {
   Easing,
 } from "react-native-reanimated";
 
-// Local Custom GlassInput component to avoid breaking light-themed onboarding inputs
+// Local Custom Light GlassInput component matching Hangout theme (no focus flicker)
 function GlassInput({
   label,
   value,
@@ -37,7 +37,7 @@ function GlassInput({
   icon?: keyof typeof Ionicons.glyphMap;
 }) {
   const [focused, setFocused] = useState(false);
-  const filled = value.length > 0;
+  const active = focused || value.length > 0;
 
   return (
     <View style={styles.inputWrap}>
@@ -45,16 +45,15 @@ function GlassInput({
       <View
         style={[
           styles.textInputContainer,
-          focused && styles.inputFocused,
-          filled && styles.inputFilled,
+          focused ? styles.inputFocused : active ? styles.inputFilled : null,
         ]}
       >
         {icon && (
-          <View style={styles.inputIconBox}>
+          <View style={[styles.inputIconBox, active && styles.inputIconBoxActive]}>
             <Ionicons
               name={icon}
               size={18}
-              color={focused || filled ? Colors.accent : "rgba(255,255,255,0.4)"}
+              color={active ? "#7C3AED" : "#94A3B8"}
             />
           </View>
         )}
@@ -63,7 +62,7 @@ function GlassInput({
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor="rgba(255,255,255,0.3)"
+          placeholderTextColor="#94A3B8"
           secureTextEntry={secureTextEntry}
           keyboardType={keyboardType}
           onFocus={() => setFocused(true)}
@@ -195,15 +194,15 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.root}>
-      {/* Dark Theme Background */}
+      {/* Light Clean Theme Background matching Hangout theme */}
       <LinearGradient
-        colors={["#0A0618", "#050508", "#0F061E"]}
+        colors={["#F8F9FD", "#F3E8FF", "#F8F9FD"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
 
-      {/* Floating Glowing Background Orbs */}
+      {/* Floating Ambient Mesh Glow Orbs */}
       <Animated.View style={[styles.glowOrb, styles.glow1, orb1Style]} />
       <Animated.View style={[styles.glowOrb, styles.glow2, orb2Style]} />
 
@@ -211,14 +210,14 @@ export default function LoginScreen() {
         {/* Back Button & Header Area */}
         <Animated.View style={headerAnimatedStyle}>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={20} color="#fff" />
+            <Ionicons name="arrow-back" size={20} color="#18181B" />
           </TouchableOpacity>
 
           <View style={styles.header}>
-            <LinearGradient colors={["rgba(255,215,0,0.2)", "rgba(255,215,0,0.02)"]} style={styles.badge}>
-              <Ionicons name="sparkles" size={11} color="#FFD700" />
+            <View style={styles.badge}>
+              <Ionicons name="sparkles" size={11} color="#7C3AED" />
               <Text style={styles.badgeText}>WELCOME BACK</Text>
-            </LinearGradient>
+            </View>
             <Text style={styles.title}>Good to see you 👋</Text>
             <Text style={styles.subtitle}>Log in and pick up where you left off</Text>
           </View>
@@ -228,7 +227,7 @@ export default function LoginScreen() {
         <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <Animated.View style={formAnimatedStyle}>
-              <GlassCard style={styles.glassCard}>
+              <View style={styles.glassCard}>
                 <GlassInput
                   label="Email Address"
                   value={email}
@@ -249,7 +248,7 @@ export default function LoginScreen() {
 
                 <TouchableOpacity onPress={handleLogin} disabled={loading} activeOpacity={0.88}>
                   <LinearGradient
-                    colors={[Colors.primary, Colors.secondary]}
+                    colors={["#7C3AED", "#8B5CF6"]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.submitBtn}
@@ -264,7 +263,7 @@ export default function LoginScreen() {
                     New here? <Text style={styles.linkTextBold}>Create free account</Text>
                   </Text>
                 </TouchableOpacity>
-              </GlassCard>
+              </View>
             </Animated.View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -274,7 +273,7 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#050508" },
+  root: { flex: 1, backgroundColor: "#F8F9FD" },
   safe: { flex: 1, paddingHorizontal: Spacing.lg },
   flex: { flex: 1 },
 
@@ -285,14 +284,14 @@ const styles = StyleSheet.create({
     height: 250,
     top: -50,
     right: -50,
-    backgroundColor: "rgba(138,86,255,0.18)",
+    backgroundColor: "rgba(124, 58, 237, 0.08)",
   },
   glow2: {
     width: 220,
     height: 220,
     bottom: 120,
     left: -80,
-    backgroundColor: "rgba(255,75,129,0.12)",
+    backgroundColor: "rgba(139, 92, 246, 0.06)",
   },
 
   // Back Button
@@ -300,13 +299,18 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: "#E2E8F0",
     alignItems: "center",
     justifyContent: "center",
     marginTop: Spacing.md,
     marginBottom: Spacing.lg,
+    shadowColor: "#7C3AED",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
 
   // Header
@@ -320,58 +324,72 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: Radius.full,
     marginBottom: Spacing.md,
+    backgroundColor: "rgba(124, 58, 237, 0.08)",
     borderWidth: 1,
-    borderColor: "rgba(255,215,0,0.25)",
+    borderColor: "rgba(124, 58, 237, 0.2)",
   },
-  badgeText: { color: "#FFD700", fontSize: 9, fontFamily: VibeFonts.bold, letterSpacing: 1 },
-  title: { fontSize: 32, fontFamily: VibeFonts.extraBold, color: VibeColors.text, letterSpacing: -0.5 },
-  subtitle: { fontSize: 14, fontFamily: VibeFonts.medium, color: VibeColors.textMuted, marginTop: 8 },
+  badgeText: { color: "#7C3AED", fontSize: 9, fontFamily: VibeFonts.bold, letterSpacing: 1 },
+  title: { fontSize: 32, fontFamily: VibeFonts.extraBold, color: "#18181B", letterSpacing: -0.5 },
+  subtitle: { fontSize: 14, fontFamily: VibeFonts.medium, color: "#64748B", marginTop: 8 },
 
   // Card Content
   glassCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
     padding: Spacing.xl,
     marginBottom: Spacing.xxl,
+    borderWidth: 1,
+    borderColor: "rgba(124, 58, 237, 0.12)",
+    shadowColor: "#7C3AED",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
 
-  // Glass Inputs
+  // Inputs
   inputWrap: { marginBottom: Spacing.lg },
   inputLabel: {
     fontSize: 12,
     fontFamily: VibeFonts.bold,
-    color: "rgba(255,255,255,0.8)",
+    color: "#18181B",
     marginBottom: Spacing.sm,
     letterSpacing: 0.2,
   },
   textInputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    backgroundColor: "#F8F9FD",
     borderRadius: Radius.lg,
     borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: "#E2E8F0",
     paddingHorizontal: Spacing.md,
   },
   inputFocused: {
-    borderColor: Colors.secondary,
-    backgroundColor: "rgba(255,255,255,0.07)",
+    borderColor: "#7C3AED",
+    backgroundColor: "#F5F3FF",
   },
   inputFilled: {
-    borderColor: Colors.primary + "88",
+    borderColor: "rgba(124, 58, 237, 0.4)",
+    backgroundColor: "#FFFFFF",
   },
   inputIconBox: {
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "rgba(124, 58, 237, 0.08)",
     alignItems: "center",
     justifyContent: "center",
     marginRight: Spacing.sm,
+  },
+  inputIconBoxActive: {
+    backgroundColor: "rgba(124, 58, 237, 0.15)",
   },
   textInput: {
     flex: 1,
     paddingVertical: 14,
     fontSize: 15,
-    color: "#fff",
+    color: "#18181B",
     fontFamily: VibeFonts.medium,
   },
 
@@ -384,6 +402,11 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: Radius.full,
     marginTop: Spacing.md,
+    shadowColor: "#7C3AED",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
   submitBtnText: {
     fontSize: 16,
@@ -393,6 +416,6 @@ const styles = StyleSheet.create({
 
   // Link wrapper
   linkWrap: { marginTop: Spacing.lg, alignItems: "center" },
-  linkText: { color: "rgba(255,255,255,0.6)", fontSize: 13, fontFamily: VibeFonts.regular },
-  linkTextBold: { color: Colors.accent, fontFamily: VibeFonts.bold },
+  linkText: { color: "#64748B", fontSize: 13, fontFamily: VibeFonts.regular },
+  linkTextBold: { color: "#7C3AED", fontFamily: VibeFonts.bold },
 });

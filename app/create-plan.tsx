@@ -16,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import AppHeader from "../components/vibe/AppHeader";
 import Animated, {
   FadeInDown,
   FadeInRight,
@@ -57,21 +58,21 @@ const ACT_3D: Record<string, string> = {
 };
 
 const T = {
-  bg: "#EEE9F8",
-  card: "#FFFBFE",
-  ink: "#1A1F36",
-  muted: "#6B7280",
-  faint: "#9CA3AF",
-  border: "#E4DFF0",
+  bg: "#F8F9FD",
+  card: "#FFFFFF",
+  ink: "#18181B",
+  muted: "#475569",
+  faint: "#94A3B8",
+  border: "#F1F5F9",
   pink: "#EC4899",
-  purple: "#8B5CF6",
-  purpleDeep: "#7C3AED",
-  softPurple: "#EDE7FF",
+  purple: "#7C3AED",
+  purpleDeep: "#6D28D9",
+  softPurple: "#F3E8FF",
   softPink: "#FCE7F3",
-  green: "#22C55E",
+  green: "#10B981",
   amber: "#F59E0B",
-  cta: ["#8B5CF6", "#EC4899"] as const,
-  promo: ["#8B5CF6", "#D946EF", "#EC4899"] as const,
+  cta: ["#7C3AED", "#EC4899"] as const,
+  promo: ["#7C3AED", "#D946EF", "#EC4899"] as const,
 };
 
 type IonName = keyof typeof Ionicons.glyphMap;
@@ -238,8 +239,131 @@ function FloatingFriends3D() {
   );
 }
 
-/** Game-style activity tile with premium 3D icon */
+function getActivityCardStyle(id: string) {
+  switch (id) {
+    case "coffee":
+      return {
+        darkBg: ["#231709", "#110B03"],
+        border: "#F59E0B",
+        glow: "#D97706",
+        text: "#FBBF24",
+        effects: ["♨️", "💨", "☁️"],
+        type: "smoke",
+      };
+    case "food":
+    case "biryani":
+      return {
+        darkBg: ["#261007", "#130703"],
+        border: "#F97316",
+        glow: "#EA580C",
+        text: "#FB923C",
+        effects: ["🔥", "♨️", "💨"],
+        type: "steam",
+      };
+    case "movie":
+      return {
+        darkBg: ["#1C0E2B", "#0D0617"],
+        border: "#A855F7",
+        glow: "#7C3AED",
+        text: "#C084FC",
+        effects: ["⭐", "✨", "🌟"],
+        type: "stars",
+      };
+    case "sports":
+      return {
+        darkBg: ["#0A2114", "#04110A"],
+        border: "#10B981",
+        glow: "#059669",
+        text: "#34D399",
+        effects: ["⚡", "💨", "💥"],
+        type: "speed",
+      };
+    case "beer":
+    case "drinks":
+      return {
+        darkBg: ["#231F07", "#111002"],
+        border: "#FACC15",
+        glow: "#CA8A04",
+        text: "#FDE047",
+        effects: ["🫧", "⚪", "🫧"],
+        type: "bubbles",
+      };
+    default:
+      return {
+        darkBg: ["#270C1B", "#13040C"],
+        border: "#EC4899",
+        glow: "#DB2777",
+        text: "#F472B6",
+        effects: ["✨", "💫", "🌟"],
+        type: "sparkle",
+      };
+  }
+}
+
+/** Realistic Hot Steam Smoke / Sizzling Aroma / Carbonated Bubbles Component */
+function IconContextEffect({ effects, active }: { effects: string[]; active: boolean }) {
+  const smokeVal = useSharedValue(0);
+
+  useEffect(() => {
+    smokeVal.value = withRepeat(
+      withTiming(1, { duration: 2200, easing: Easing.out(Easing.quad) }),
+      -1,
+      false
+    );
+  }, []);
+
+  const smokeStyle1 = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: interpolate(smokeVal.value, [0, 1], [6, -26]) },
+      { translateX: interpolate(smokeVal.value, [0, 0.5, 1], [-2, 4, -3]) },
+      { scale: interpolate(smokeVal.value, [0, 0.5, 1], [0.5, 1.2, 0.8]) },
+      { rotate: `${interpolate(smokeVal.value, [0, 1], [-10, 20])}deg` },
+    ],
+    opacity: interpolate(smokeVal.value, [0, 0.2, 0.7, 1], [0, 0.95, 0.5, 0]),
+  }));
+
+  const smokeStyle2 = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: interpolate(smokeVal.value, [0, 1], [4, -30]) },
+      { translateX: interpolate(smokeVal.value, [0, 0.5, 1], [3, -6, 5]) },
+      { scale: interpolate(smokeVal.value, [0, 0.5, 1], [0.4, 1.1, 0.6]) },
+      { rotate: `${interpolate(smokeVal.value, [0, 1], [10, -25])}deg` },
+    ],
+    opacity: interpolate(smokeVal.value, [0, 0.25, 0.75, 1], [0, 0.9, 0.4, 0]),
+  }));
+
+  const smokeStyle3 = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: interpolate(smokeVal.value, [0, 1], [8, -20]) },
+      { translateX: interpolate(smokeVal.value, [0, 0.5, 1], [0, 3, -1]) },
+      { scale: interpolate(smokeVal.value, [0, 0.5, 1], [0.6, 1.3, 0.9]) },
+    ],
+    opacity: interpolate(smokeVal.value, [0, 0.15, 0.65, 1], [0, 0.85, 0.35, 0]),
+  }));
+
+  return (
+    <View style={styles.vapourContainer} pointerEvents="none">
+      {/* Smoke Trail 1 (Left Cup Rim) */}
+      <Animated.Text style={[styles.vapourParticle, { left: 4 }, smokeStyle1]}>
+        {effects[0]}
+      </Animated.Text>
+
+      {/* Smoke Trail 2 (Right Cup Rim) */}
+      <Animated.Text style={[styles.vapourParticle, { right: 4 }, smokeStyle2]}>
+        {effects[1]}
+      </Animated.Text>
+
+      {/* Smoke Trail 3 (Center Cup Rising Steam) */}
+      <Animated.Text style={[styles.vapourParticle, { left: "38%" }, smokeStyle3]}>
+        {effects[2]}
+      </Animated.Text>
+    </View>
+  );
+}
+
+/** Game-style activity tile with realistic hot coffee smoke & contextual visual effects */
 function GameActivityTile({
+  id,
   name,
   icon3d,
   accent,
@@ -247,8 +371,8 @@ function GameActivityTile({
   active,
   delay,
   onPress,
-  dark = false,
 }: {
+  id: string;
   name: string;
   icon3d: string;
   accent: string;
@@ -259,23 +383,12 @@ function GameActivityTile({
   dark?: boolean;
 }) {
   const scale = useSharedValue(1);
-  const bob = useSharedValue(0);
-
-  useEffect(() => {
-    bob.value = withDelay(
-      delay % 400,
-      withRepeat(
-        withTiming(1, { duration: 2200 + (delay % 300), easing: Easing.inOut(Easing.sin) }),
-        -1,
-        true
-      )
-    );
-  }, []);
+  const styleMeta = getActivityCardStyle(id);
 
   useEffect(() => {
     if (active) {
       scale.value = withSequence(
-        withSpring(1.06, { damping: 12, stiffness: 240 }),
+        withSpring(1.08, { damping: 12, stiffness: 260 }),
         withSpring(1.02, { damping: 14 })
       );
     } else {
@@ -284,10 +397,7 @@ function GameActivityTile({
   }, [active]);
 
   const pressStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: scale.value },
-      { translateY: interpolate(bob.value, [0, 1], [0, dark ? -1.5 : -3]) },
-    ],
+    transform: [{ scale: scale.value }],
   }));
 
   return (
@@ -295,43 +405,62 @@ function GameActivityTile({
       <Pressable
         onPress={onPress}
         onPressIn={() => {
-          scale.value = withSpring(0.94, { damping: 14 });
+          scale.value = withSpring(0.92, { damping: 14 });
         }}
         onPressOut={() => {
           scale.value = withSpring(active ? 1.02 : 1);
         }}
       >
-        <Animated.View
-          style={[
-            dark ? styles.actBtnDark : styles.actBtn,
-            active && {
-              borderColor: accent,
-              backgroundColor: soft,
-            },
-            pressStyle,
-          ]}
-        >
-          {active ? (
-            <View style={[styles.actCheck, { backgroundColor: accent }]}>
-              <Ionicons name="checkmark" size={8} color="#fff" />
-            </View>
-          ) : null}
-          <View style={dark ? styles.actIconPadDark : styles.actIconPad}>
-            <Image
-              source={{ uri: icon3d }}
-              style={dark ? styles.actIcon3dDark : styles.actIcon3d}
-              resizeMode="contain"
-            />
-          </View>
-          <Text
+        <Animated.View style={pressStyle}>
+          <LinearGradient
+            colors={active ? (styleMeta.darkBg as any) : ["#0B0B0F", "#16161E"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
             style={[
-              dark ? styles.actNameDark : styles.actName,
-              active && { color: accent },
+              styles.actBtn,
+              active
+                ? {
+                    borderColor: styleMeta.border,
+                    borderWidth: 2.5,
+                    shadowColor: styleMeta.glow,
+                    shadowOpacity: 0.5,
+                    shadowRadius: 14,
+                    elevation: 7,
+                  }
+                : {
+                    borderColor: "rgba(255, 255, 255, 0.12)",
+                    borderWidth: 1,
+                  },
             ]}
-            numberOfLines={1}
           >
-            {name}
-          </Text>
+            {active ? (
+              <Animated.View
+                entering={ZoomIn.duration(200)}
+                style={[styles.actCheck, { backgroundColor: styleMeta.border }]}
+              >
+                <Ionicons name="checkmark" size={10} color="#fff" />
+              </Animated.View>
+            ) : null}
+
+            <View style={styles.actIconPad}>
+              <Image
+                source={{ uri: icon3d }}
+                style={styles.actIcon3d}
+                resizeMode="contain"
+              />
+            </View>
+
+            <Text
+              style={[
+                styles.actName,
+                { color: active ? styleMeta.text : "#F1F5F9" },
+                active && { fontFamily: VibeFonts.extraBold },
+              ]}
+              numberOfLines={1}
+            >
+              {name}
+            </Text>
+          </LinearGradient>
         </Animated.View>
       </Pressable>
     </Animated.View>
@@ -582,6 +711,7 @@ export default function CreatePlanScreen() {
   const [customDate, setCustomDate] = useState("");
   const [customTime, setCustomTime] = useState("15:00");
   const [maxPeople, setMaxPeople] = useState(4);
+  const [visibility, setVisibility] = useState<"PUBLIC" | "FRIENDS">("PUBLIC");
   const [showCalendar, setShowCalendar] = useState(false);
   const [place, setPlace] = useState("");
   const [planCityId, setPlanCityId] = useState<CityId>("nagpur");
@@ -665,6 +795,8 @@ export default function CreatePlanScreen() {
         location,
         description: description.trim() ? `${energyLabel} ${description.trim()}` : energyLabel,
         imageUrl: activity.image,
+        visibility,
+        isPrivate: visibility === "FRIENDS",
       });
 
       await AsyncStorage.setItem("@vibely_map_city", planCityId);
@@ -706,6 +838,8 @@ export default function CreatePlanScreen() {
       <View style={styles.coolOrb} />
       <View style={styles.pinkOrb} />
 
+      <AppHeader variant="light" tagline="Craft a spontaneous hang" />
+
       {/* Header */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) }]}>
         <Pressable style={styles.iconBtn} onPress={() => router.back()}>
@@ -740,10 +874,10 @@ export default function CreatePlanScreen() {
             <View style={styles.heroBlobB} />
             <View style={styles.heroCopy}>
               <View style={styles.heroPill}>
-                <Ionicons name="rocket" size={11} color={T.purple} />
-                <Text style={styles.heroPillText}>GO LIVE</Text>
+                <Ionicons name="sparkles" size={11} color={T.purple} />
+                <Text style={styles.heroPillText}>HANGOUT MOVES</Text>
               </View>
-              <Text style={styles.heroTitle}>Craft your{"\n"}perfect hang</Text>
+              <Text style={styles.heroTitle}>Craft your{"\n"}perfect hang 🚀</Text>
               <Text style={styles.heroSub}>
                 Squad up · pick a quest · go live nearby.
               </Text>
@@ -764,115 +898,20 @@ export default function CreatePlanScreen() {
         </Animated.View>
 
         {/* Progress */}
-        <Animated.View entering={FadeIn.delay(60).duration(350)}>
-          <ProgressStepper filled={progressFilled} />
-        </Animated.View>
-
-        {/* Quick summary chips */}
-        <Animated.View entering={FadeInDown.delay(90).duration(360)} style={styles.summaryRow}>
-          <View style={[styles.summaryChip, { backgroundColor: vibe.soft }]}>
-            <Ionicons name={vibe.icon} size={13} color={vibe.accent} />
-            <Text style={[styles.summaryChipText, { color: vibe.accent }]}>{selectedVibe}</Text>
-          </View>
-          <View style={[styles.summaryChip, { backgroundColor: actMeta.soft }]}>
-            <Image source={{ uri: actMeta.icon3d }} style={styles.summaryIcon3d} />
-            <Text style={[styles.summaryChipText, { color: actMeta.accent }]}>
-              {activity.name}
-            </Text>
-          </View>
-          <View style={[styles.summaryChip, { backgroundColor: T.softPurple }]}>
-            <Ionicons name="time" size={13} color={T.purpleDeep} />
-            <Text style={[styles.summaryChipText, { color: T.purpleDeep }]} numberOfLines={1}>
-              {schedule.timeLabel}
-            </Text>
-          </View>
-        </Animated.View>
-
-        {/* Step 1 — Vibe (dark panel) */}
+        {/* Step 1 — Activity (Primary Focus!) */}
         <Animated.View entering={FadeInDown.delay(120).duration(400)} style={styles.section}>
-          <LinearGradient
-            colors={["#1A1428", "#120F1C", "#1B1230"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.sectionCardDark}
-          >
-            <View style={styles.darkGlowA} />
-            <View style={styles.darkGlowB} />
-            <View style={styles.sectionHead}>
-              <LinearGradient colors={[...T.cta]} style={styles.stepBadge}>
-                <Ionicons name="sparkles" size={11} color="#fff" />
-              </LinearGradient>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.sectionTitleDark}>Plan energy</Text>
-                <Text style={styles.sectionSubDark}>How are you showing up tonight?</Text>
-              </View>
-              <View style={styles.sectionHintDark}>
-                <Ionicons name="hand-left" size={10} color="#C4B5FD" />
-              </View>
-            </View>
-
-            <View style={styles.vibeRow}>
-              {VIBE_ORBS.map((orb) => {
-                const active = selectedVibe === orb.id;
-                return (
-                  <Pressable
-                    key={orb.id}
-                    onPress={() => setSelectedVibe(orb.id)}
-                    style={[
-                      styles.vibeCardDark,
-                      active && {
-                        borderColor: orb.accent,
-                        backgroundColor: `${orb.accent}22`,
-                      },
-                    ]}
-                  >
-                    {active ? (
-                      <Animated.View entering={ZoomIn.duration(200)} style={styles.checkBadgeDark}>
-                        <Ionicons name="checkmark-circle" size={14} color={orb.accent} />
-                      </Animated.View>
-                    ) : null}
-                    <LinearGradient
-                      colors={orb.colors}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={[styles.vibeOrbDark, active && styles.vibeOrbActive]}
-                    >
-                      <Ionicons name={orb.icon} size={15} color="#fff" />
-                    </LinearGradient>
-                    <Text style={[styles.vibeLabelDark, active && { color: orb.accent }]}>
-                      {orb.label}
-                    </Text>
-                    <Text style={styles.vibeDescDark} numberOfLines={1}>
-                      {orb.description}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </LinearGradient>
-        </Animated.View>
-
-        {/* Step 2 — Activity (dark panel) */}
-        <Animated.View entering={FadeInDown.delay(180).duration(400)} style={styles.section}>
-          <LinearGradient
-            colors={["#1A1428", "#120F1C", "#1B1230"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.sectionCardDark}
-          >
-            <View style={styles.darkGlowA} />
-            <View style={styles.darkGlowB} />
+          <View style={styles.sectionCardLight}>
             <View style={styles.sectionHead}>
               <LinearGradient colors={[...T.cta]} style={styles.stepBadge}>
                 <Ionicons name="game-controller" size={11} color="#fff" />
               </LinearGradient>
               <View style={{ flex: 1 }}>
-                <Text style={styles.sectionTitleDark}>Pick activity</Text>
-                <Text style={styles.sectionSubDark}>Tap a 3D power-up to choose your hang</Text>
+                <Text style={styles.sectionTitleDark}>Pick Activity</Text>
+                <Text style={styles.sectionSubDark}>Tap a 3D move to start</Text>
               </View>
               <View style={styles.xpPillCompact}>
                 <Ionicons name="flash" size={9} color="#fff" />
-                <Text style={styles.xpPillText}>XP</Text>
+                <Text style={styles.xpPillText}>HOT</Text>
               </View>
             </View>
 
@@ -882,6 +921,7 @@ export default function CreatePlanScreen() {
                 return (
                   <GameActivityTile
                     key={act.id}
+                    id={act.id}
                     name={act.name}
                     icon3d={meta.icon3d}
                     accent={meta.accent}
@@ -889,34 +929,29 @@ export default function CreatePlanScreen() {
                     active={activityId === act.id}
                     delay={200 + idx * 35}
                     onPress={() => setActivityId(act.id)}
-                    dark
+                    dark={false}
                   />
                 );
               })}
             </View>
-          </LinearGradient>
+          </View>
         </Animated.View>
 
-        {/* Step 3 — When (date + time combined, dark) */}
+
+
+        {/* Step 3 — When */}
         <Animated.View entering={FadeInDown.delay(240).duration(400)} style={styles.section}>
-          <LinearGradient
-            colors={["#1A1428", "#120F1C", "#1B1230"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.sectionCardDark}
-          >
-            <View style={styles.darkGlowA} />
-            <View style={styles.darkGlowB} />
+          <View style={styles.sectionCardLight}>
             <View style={styles.sectionHead}>
               <LinearGradient colors={[...T.cta]} style={styles.stepBadge}>
                 <Ionicons name="calendar" size={11} color="#fff" />
               </LinearGradient>
               <View style={{ flex: 1 }}>
-                <Text style={styles.sectionTitleDark}>When</Text>
-                <Text style={styles.sectionSubDark}>Today, tomorrow, or calendar</Text>
+                <Text style={styles.sectionTitleDark}>When & Where</Text>
+                <Text style={styles.sectionSubDark}>Schedule, venue, and people</Text>
               </View>
-              <View style={styles.optionalPillDark}>
-                <Text style={styles.optionalPillTextDark}>Optional</Text>
+              <View style={styles.optionalPill}>
+                <Text style={styles.optionalPillText}>Quick Pick</Text>
               </View>
             </View>
 
@@ -1051,6 +1086,61 @@ export default function CreatePlanScreen() {
                   );
                 })}
               </View>
+
+              <Text style={[styles.simpleFieldLabel, { marginTop: 14 }]}>Audience / Privacy</Text>
+              <View style={{ flexDirection: "row", gap: 10, marginTop: 6 }}>
+                <Pressable
+                  onPress={() => setVisibility("PUBLIC")}
+                  style={[
+                    styles.simpleSeg,
+                    { flex: 1 },
+                    visibility === "PUBLIC" && styles.simpleSegActiveWrap,
+                  ]}
+                >
+                  {visibility === "PUBLIC" ? (
+                    <LinearGradient
+                      colors={[...T.cta]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.simpleSegActive}
+                    >
+                      <Ionicons name="earth" size={14} color="#fff" />
+                      <Text style={styles.simpleSegTextActive}>Public 🌍</Text>
+                    </LinearGradient>
+                  ) : (
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <Ionicons name="earth-outline" size={14} color="#C4B5FD" />
+                      <Text style={styles.simpleSegText}>Public 🌍</Text>
+                    </View>
+                  )}
+                </Pressable>
+
+                <Pressable
+                  onPress={() => setVisibility("FRIENDS")}
+                  style={[
+                    styles.simpleSeg,
+                    { flex: 1 },
+                    visibility === "FRIENDS" && styles.simpleSegActiveWrap,
+                  ]}
+                >
+                  {visibility === "FRIENDS" ? (
+                    <LinearGradient
+                      colors={["#7C3AED", "#6D28D9"]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.simpleSegActive}
+                    >
+                      <Ionicons name="lock-closed" size={14} color="#fff" />
+                      <Text style={styles.simpleSegTextActive}>Friends Only 🔒</Text>
+                    </LinearGradient>
+                  ) : (
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <Ionicons name="lock-closed-outline" size={14} color="#C4B5FD" />
+                      <Text style={styles.simpleSegText}>Friends Only 🔒</Text>
+                    </View>
+                  )}
+                </Pressable>
+              </View>
             </View>
 
             <CalendarPickerModal
@@ -1086,13 +1176,13 @@ export default function CreatePlanScreen() {
             </ScrollView>
 
             <View style={styles.inputRowDark}>
-              <Ionicons name="navigate" size={14} color="#FB7185" />
+              <Ionicons name="navigate" size={16} color="#7C3AED" />
               <TextInput
                 style={styles.inputDark}
                 value={place}
                 onChangeText={setPlace}
                 placeholder={`Place in ${planCity.name} · cafe, park, mall...`}
-                placeholderTextColor="rgba(226,232,240,0.35)"
+                placeholderTextColor="#64748B"
               />
               {place.trim() ? (
                 <Ionicons name="checkmark-circle" size={16} color={T.green} />
@@ -1100,19 +1190,18 @@ export default function CreatePlanScreen() {
             </View>
 
             <View style={[styles.inputRowDark, styles.noteRowDark]}>
-              <Ionicons name="chatbubble-ellipses" size={14} color="#C4B5FD" style={{ marginTop: 2 }} />
+              <Ionicons name="chatbubble-ellipses" size={16} color="#7C3AED" style={{ marginTop: 2 }} />
               <TextInput
                 style={[styles.inputDark, styles.noteInputDark]}
                 value={description}
                 onChangeText={setDescription}
                 placeholder="Note · one line for the squad..."
-                placeholderTextColor="rgba(226,232,240,0.35)"
+                placeholderTextColor="#64748B"
                 multiline
                 maxLength={120}
               />
-              <Text style={styles.charCountDark}>{description.length}/120</Text>
             </View>
-          </LinearGradient>
+          </View>
         </Animated.View>
 
         {/* Live preview */}
@@ -1550,18 +1639,31 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 2,
   },
-  sectionCardDark: {
-    borderRadius: 18,
+  sectionCardLight: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: "rgba(167,139,250,0.22)",
-    padding: 11,
+    borderColor: "#F1F5F9",
+    padding: 16,
     overflow: "hidden",
-    // soft premium edge — no heavy drop shadow bleed
-    shadowColor: "#8B5CF6",
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
+    shadowColor: "#7C3AED",
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
+  },
+  sectionCardDark: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
+    padding: 16,
+    overflow: "hidden",
+    shadowColor: "#7C3AED",
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
   },
   darkGlowA: {
     position: "absolute",
@@ -1606,14 +1708,14 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   sectionTitleDark: {
-    fontSize: 14,
-    fontFamily: VibeFonts.bold,
-    color: "#F8FAFC",
+    fontSize: 16,
+    fontFamily: VibeFonts.extraBold,
+    color: "#18181B",
   },
   sectionSubDark: {
     fontSize: 11,
     fontFamily: VibeFonts.medium,
-    color: "rgba(226,232,240,0.55)",
+    color: "#64748B",
     marginTop: 1,
   },
   sectionHint: {
@@ -1662,9 +1764,9 @@ const styles = StyleSheet.create({
     color: "#C4B5FD",
   },
   simpleFieldLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: VibeFonts.bold,
-    color: "rgba(226,232,240,0.5)",
+    color: "#64748B",
     letterSpacing: 0.6,
     textTransform: "uppercase",
     marginBottom: 7,
@@ -1680,10 +1782,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 5,
     paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    borderRadius: 14,
+    backgroundColor: "#F3E8FF",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: "#DDD6FE",
   },
   simpleSegActiveWrap: {
     padding: 0,
@@ -1699,12 +1801,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 5,
     paddingVertical: 10,
-    borderRadius: 12,
+    borderRadius: 14,
   },
   simpleSegText: {
     fontSize: 12,
     fontFamily: VibeFonts.semiBold,
-    color: "rgba(248,250,252,0.75)",
+    color: "#7C3AED",
   },
   simpleSegTextActive: {
     fontSize: 11,
@@ -1720,23 +1822,52 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 8,
   },
-  peopleStepBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.08)",
+  inputRowDark: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 14,
+    marginTop: 10,
+    backgroundColor: "#F8F9FD",
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor: "#E2E8F0",
+  },
+  inputDark: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: VibeFonts.medium,
+    color: "#18181B",
+    paddingVertical: 13,
+  },
+  noteRowDark: {
+    alignItems: "flex-start",
+    marginTop: 10,
+    paddingVertical: 10,
+  },
+  noteInputDark: {
+    minHeight: 44,
+    textAlignVertical: "top",
+    paddingTop: 0,
+    color: "#18181B",
+  },
+  peopleStepBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: "#F3E8FF",
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
     alignItems: "center",
     justifyContent: "center",
   },
   peopleValueBox: {
-    minWidth: 72,
-    height: 34,
-    borderRadius: 10,
-    backgroundColor: "rgba(167,139,250,0.16)",
+    minWidth: 80,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: "#F3E8FF",
     borderWidth: 1,
-    borderColor: "rgba(196,181,253,0.3)",
+    borderColor: "#DDD6FE",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -1744,44 +1875,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   peopleValue: {
-    fontSize: 15,
-    fontFamily: VibeFonts.bold,
-    color: "#F8FAFC",
+    fontSize: 17,
+    fontFamily: VibeFonts.extraBold,
+    color: "#7C3AED",
   },
   peopleValueHint: {
     fontSize: 10,
-    fontFamily: VibeFonts.medium,
-    color: "rgba(226,232,240,0.5)",
-  },
-  peopleQuickRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 5,
-    flex: 1,
+    fontFamily: VibeFonts.bold,
+    color: "#7C3AED",
   },
   peopleChip: {
-    minWidth: 30,
-    height: 28,
-    borderRadius: 8,
-    paddingHorizontal: 8,
+    minWidth: 32,
+    height: 32,
+    borderRadius: 10,
+    paddingHorizontal: 10,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "#F8F9FD",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: "#E2E8F0",
   },
   peopleChipActive: {
-    backgroundColor: "rgba(34,197,94,0.22)",
-    borderColor: "#22C55E",
+    backgroundColor: "#7C3AED",
+    borderColor: "#7C3AED",
   },
   peopleChipText: {
-    fontSize: 12,
-    fontFamily: VibeFonts.semiBold,
-    color: "rgba(248,250,252,0.7)",
+    fontSize: 13,
+    fontFamily: VibeFonts.bold,
+    color: "#18181B",
   },
   peopleChipTextActive: {
-    color: "#86EFAC",
-    fontFamily: VibeFonts.bold,
+    color: "#FFFFFF",
+    fontFamily: VibeFonts.extraBold,
   },
   pickedDateRow: {
     marginTop: 8,
@@ -1916,32 +2041,21 @@ const styles = StyleSheet.create({
     fontFamily: VibeFonts.bold,
     color: "#fff",
   },
-  inputRowDark: {
+  peopleQuickRow: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 11,
-    backgroundColor: "rgba(255,255,255,0.05)",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-  },
-  inputDark: {
+    flexWrap: "wrap",
+    gap: 5,
     flex: 1,
-    fontSize: 13,
-    fontFamily: VibeFonts.medium,
-    color: "#F8FAFC",
-    paddingVertical: 10,
   },
   whenDivider: {
     height: 1,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "#F1F5F9",
     marginVertical: 10,
   },
   cityPickLabel: {
     fontSize: 11,
     fontFamily: VibeFonts.bold,
-    color: "rgba(226,232,240,0.55)",
+    color: "#64748B",
     letterSpacing: 0.8,
     textTransform: "uppercase",
     marginBottom: 8,
@@ -1957,38 +2071,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "#F8F9FD",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: "#E2E8F0",
   },
   cityPickChipActive: {
-    backgroundColor: "rgba(139,92,246,0.28)",
-    borderColor: "rgba(196,181,253,0.55)",
+    backgroundColor: "#7C3AED",
+    borderColor: "#7C3AED",
   },
   cityPickEmoji: { fontSize: 14 },
   cityPickText: {
     fontSize: 12,
     fontFamily: VibeFonts.semiBold,
-    color: "rgba(226,232,240,0.55)",
+    color: "#18181B",
   },
   cityPickTextActive: {
-    color: "#F8FAFC",
+    color: "#FFFFFF",
     fontFamily: VibeFonts.bold,
   },
-  noteRowDark: {
-    alignItems: "flex-start",
-    marginTop: 8,
-    paddingVertical: 8,
-  },
-  noteInputDark: {
-    minHeight: 44,
-    textAlignVertical: "top",
-    paddingTop: 0,
-  },
   charCountDark: {
-    fontSize: 9,
+    fontSize: 10,
     fontFamily: VibeFonts.medium,
-    color: "rgba(226,232,240,0.4)",
+    color: "#64748B",
     marginTop: 2,
   },
   vibeRow: { flexDirection: "row", gap: 8 },
@@ -2073,78 +2177,80 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    rowGap: 7,
+    rowGap: 10,
   },
-  actCell: { width: "23.5%" },
+  actCell: { width: "31%" },
   actBtn: {
-    aspectRatio: 0.88,
-    borderRadius: 20,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 2,
-    borderColor: T.border,
+    aspectRatio: 0.92,
+    borderRadius: 22,
+    backgroundColor: "#0B0B0F",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.12)",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 4,
     paddingTop: 10,
     paddingBottom: 8,
     overflow: "hidden",
-  },
-  actBtnDark: {
-    aspectRatio: 1,
-    borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 3,
-    paddingTop: 7,
-    paddingBottom: 6,
-    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 4,
   },
   actCheck: {
     position: "absolute",
-    top: 3,
-    right: 3,
-    width: 13,
-    height: 13,
-    borderRadius: 7,
+    top: 6,
+    right: 6,
+    width: 17,
+    height: 17,
+    borderRadius: 9,
     alignItems: "center",
     justifyContent: "center",
     zIndex: 4,
   },
-  actIconPad: {
-    width: 48,
-    height: 48,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 2,
+  cardCenterGlow: {
+    position: "absolute",
+    top: "15%",
+    left: "15%",
+    width: "70%",
+    height: "70%",
+    borderRadius: 30,
+    backgroundColor: "rgba(255, 255, 255, 0.07)",
   },
-  actIconPadDark: {
-    width: 32,
-    height: 32,
+  actIconPadFull: {
+    width: 58,
+    height: 58,
     alignItems: "center",
     justifyContent: "center",
+    marginBottom: 4,
+  },
+  vapourContainer: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  vapourParticle: {
+    position: "absolute",
+    fontSize: 10,
+    top: 6,
+  },
+  actIconPad: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 4,
   },
   actIcon3d: {
-    width: 46,
-    height: 46,
-  },
-  actIcon3dDark: {
-    width: 30,
-    height: 30,
+    width: 52,
+    height: 52,
   },
   actName: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: VibeFonts.bold,
-    color: T.muted,
-    textAlign: "center",
-    marginTop: 2,
-  },
-  actNameDark: {
-    fontSize: 9,
-    fontFamily: VibeFonts.bold,
-    color: "rgba(248,250,252,0.72)",
+    color: "#18181B",
     textAlign: "center",
     marginTop: 2,
   },

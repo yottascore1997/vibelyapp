@@ -22,8 +22,8 @@ export default function InterestsScreen() {
 
   return (
     <OnboardingLayout
-      step={4}
-      total={5}
+      step={3}
+      total={4}
       emoji="🎯"
       title="Your Vibes"
       subtitle="Pick at least 3 — we'll match you better"

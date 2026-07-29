@@ -28,6 +28,7 @@ import Animated, {
 } from "react-native-reanimated";
 import PulseDot from "../../components/home/PulseDot";
 import GlassCard from "../../components/vibe/GlassCard";
+import VibeSplitModal from "../../components/vibe/VibeSplitModal";
 import { useMatches } from "../../context/MatchesContext";
 import { usePlans } from "../../context/PlansContext";
 import { formatMessageTime } from "../../constants/chats";
@@ -37,22 +38,32 @@ import { Radius, Spacing, API_URL } from "../../constants/theme";
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 const T = {
-  bg: "#EEE9F8",
-  card: "#FFFBFE",
-  ink: "#1A1F36",
-  muted: "#6B7280",
-  faint: "#9CA3AF",
-  border: "#E4DFF0",
-  softPurple: "#EDE7FF",
-  softPink: "#FCE7F3",
-  purple: VibeColors.glowPurple || "#8B5CF6",
-  purpleDeep: "#7C3AED",
-  pink: VibeColors.neonPink || "#EC4899",
-  green: "#16A34A",
-  greenSoft: "#DCFCE7",
+  bg: "#F8F9FD",
+  card: "#FFFFFF",
+  cardElevated: "#FFFFFF",
+  ink: "#18181B",
+  muted: "#64748B",
+  faint: "#94A3B8",
+  border: "#E2E8F0",
+  softPurple: "#F3E8FF",
+  softPink: "#FDF2F8",
+  purple: "#7C3AED",
+  purpleDeep: "#6D28D9",
+  purpleBright: "#8B5CF6",
+  pink: "#EC4899",
+  green: "#10B981",
+  greenSoft: "rgba(16, 185, 129, 0.15)",
   red: "#EF4444",
-  glass: "rgba(255,251,254,0.96)",
-  cta: ["#8B5CF6", "#EC4899"] as const,
+  glass: "rgba(255, 255, 255, 0.94)",
+  cta: ["#7C3AED", "#8B5CF6"] as const,
+};
+
+const MEMBER_COLORS = ["#A855F7", "#EC4899", "#3B82F6", "#10B981", "#F59E0B", "#06B6D4"];
+const getMemberColor = (name?: string) => {
+  if (!name) return MEMBER_COLORS[0];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return MEMBER_COLORS[Math.abs(hash) % MEMBER_COLORS.length];
 };
 
 const SparkParticle = ({ 
@@ -66,7 +77,7 @@ const SparkParticle = ({
   rocketDelay: number; 
   originX: number; 
   originY: number; 
-  hasExploded: Animated.SharedValue<boolean>;
+  hasExploded: any;
 }) => {
   const angle = (index / 35) * 2 * Math.PI + Math.random() * 0.4;
   const speed = 4 + Math.random() * 7;
@@ -202,11 +213,13 @@ export default function ChatScreen() {
   } = useMatches();
   const { myPlans, nearbyPlans } = usePlans();
   const [text, setText] = useState("");
+  const [showSplitModal, setShowSplitModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [showEmojiPanel, setShowEmojiPanel] = useState(false);
   const [showHangoutPanel, setShowHangoutPanel] = useState(false);
+  const [showAttachPanel, setShowAttachPanel] = useState(false);
   const [confettiActive, setConfettiActive] = useState(false);
   const [confettiKey, setConfettiKey] = useState(0);
 
@@ -218,10 +231,20 @@ export default function ChatScreen() {
     }, 5500);
   };
 
+  const toggleAttachPanel = () => {
+    if (!showAttachPanel) {
+      Keyboard.dismiss();
+      setShowEmojiPanel(false);
+      setShowHangoutPanel(false);
+    }
+    setShowAttachPanel((prev) => !prev);
+  };
+
   const toggleEmojiPanel = () => {
     if (!showEmojiPanel) {
       Keyboard.dismiss();
       setShowHangoutPanel(false);
+      setShowAttachPanel(false);
     }
     setShowEmojiPanel((prev) => !prev);
   };
@@ -230,6 +253,7 @@ export default function ChatScreen() {
     if (!showHangoutPanel) {
       Keyboard.dismiss();
       setShowEmojiPanel(false);
+      setShowAttachPanel(false);
     }
     setShowHangoutPanel((prev) => !prev);
   };
@@ -322,14 +346,50 @@ export default function ChatScreen() {
       );
     }
 
+    if (msg.text && msg.text.includes("[VibeSplit]")) {
+      const isSettlement = msg.text.includes("settled");
+      const cleanText = msg.text.replace(/^[💳🤝]\s*\[VibeSplit\]\s*/, "");
+
+      return (
+        <TouchableOpacity
+          activeOpacity={0.88}
+          onPress={() => thread?.isGroup && setShowSplitModal(true)}
+          style={[styles.vibeSplitCard, isSettlement ? styles.vibeSplitCardSettled : styles.vibeSplitCardExpense]}
+        >
+          <View style={styles.vibeSplitHeaderRow}>
+            <LinearGradient
+              colors={isSettlement ? ["#10B981", "#059669"] : ["#8B5CF6", "#EC4899"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.vibeSplitBadge}
+            >
+              <Ionicons name={isSettlement ? "checkmark-circle" : "wallet"} size={13} color="#FFF" />
+              <Text style={styles.vibeSplitBadgeText}>{isSettlement ? "SETTLED UP" : "VIBESPLIT BILL"}</Text>
+            </LinearGradient>
+
+            {thread?.isGroup ? (
+              <View style={styles.vibeSplitTapPill}>
+                <Text style={styles.vibeSplitTapText}>Details</Text>
+                <Ionicons name="chevron-forward" size={12} color="#A78BFA" />
+              </View>
+            ) : null}
+          </View>
+
+          <Text style={styles.vibeSplitCardText}>{cleanText}</Text>
+        </TouchableOpacity>
+      );
+    }
+
     return msg.fromMe ? (
       <LinearGradient colors={[...T.cta]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.bubbleGrad}>
         <Text style={styles.bubbleTextMe}>{msg.text}</Text>
       </LinearGradient>
     ) : (
       <View style={{ paddingHorizontal: 14, paddingVertical: 10 }}>
-        {thread.isGroup && msg.senderName ? (
-          <Text style={styles.senderNameLabel}>{msg.senderName}</Text>
+        {thread?.isGroup && msg.senderName ? (
+          <Text style={[styles.senderNameLabel, { color: getMemberColor(msg.senderName) }]}>
+            {msg.senderName}
+          </Text>
         ) : null}
         <Text style={styles.bubbleTextThem}>{msg.text}</Text>
       </View>
@@ -519,9 +579,21 @@ export default function ChatScreen() {
               <Ionicons name="close-circle-outline" size={22} color={T.pink} />
             </Pressable>
           ) : (
-            <Pressable style={styles.moreBtn}>
-              <Ionicons name="ellipsis-vertical" size={20} color={T.purple} />
-            </Pressable>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <TouchableOpacity
+                style={styles.headerSplitBadge}
+                onPress={() => setShowSplitModal(true)}
+                activeOpacity={0.8}
+              >
+                <LinearGradient colors={["#8B5CF6", "#EC4899"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.headerSplitGrad}>
+                  <Ionicons name="wallet-outline" size={13} color="#FFF" />
+                  <Text style={styles.headerSplitText}>Split 💳</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+              <Pressable style={styles.moreBtn} onPress={() => setShowDetailsModal(true)}>
+                <Ionicons name="ellipsis-vertical" size={20} color={T.purple} />
+              </Pressable>
+            </View>
           )}
         </View>
 
@@ -542,13 +614,23 @@ export default function ChatScreen() {
                 color={thread.isGroup ? T.purple : T.pink}
               />
             </View>
-            <Text style={styles.matchBannerText}>
+            <Text style={[styles.matchBannerText, thread.isGroup && { flex: 1 }]}>
               {thread.isGroup
-                ? "Hangout group chat — coordinate plans here"
+                ? "Hangout group chat — coordinate & split bills"
                 : chatGate?.unlocked
                   ? "Chat unlocked — ab freely baat karo"
                   : chatGate?.reason || "You matched — send one hello to start"}
             </Text>
+            {thread.isGroup && (
+              <TouchableOpacity
+                onPress={() => setShowSplitModal(true)}
+                style={styles.bannerSplitPill}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="card" size={11} color="#8B5CF6" />
+                <Text style={styles.bannerSplitPillText}>Split Bill 💳</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </SafeAreaView>
@@ -598,13 +680,13 @@ export default function ChatScreen() {
 
         <SafeAreaView edges={["bottom"]} style={styles.inputBar}>
           <View style={styles.inputRow}>
-            <Pressable style={styles.attachBtn}>
-              <Ionicons name="add" size={22} color={T.purple} />
+            <Pressable style={styles.attachBtn} onPress={toggleAttachPanel}>
+              <Ionicons name={showAttachPanel ? "close" : "add"} size={22} color={T.purple} />
             </Pressable>
 
             <Pressable style={styles.emojiToggleBtn} onPress={toggleEmojiPanel}>
               <Ionicons
-                name={showEmojiPanel ? "keyboard-outline" : "happy-outline"}
+                name={showEmojiPanel ? "keypad-outline" : "happy-outline"}
                 size={22}
                 color={T.purple}
               />
@@ -614,6 +696,23 @@ export default function ChatScreen() {
               <Ionicons name="cafe-outline" size={22} color={T.purple} />
             </Pressable>
 
+            {thread.isGroup && (
+              <Pressable
+                style={styles.splitToggleBtn}
+                onPress={() => {
+                  Keyboard.dismiss();
+                  setShowEmojiPanel(false);
+                  setShowHangoutPanel(false);
+                  setShowAttachPanel(false);
+                  setShowSplitModal(true);
+                }}
+              >
+                <LinearGradient colors={["#8B5CF6", "#EC4899"]} style={styles.splitBtnGrad}>
+                  <Ionicons name="wallet-outline" size={16} color="#fff" />
+                </LinearGradient>
+              </Pressable>
+            )}
+
             <TextInput
               style={[styles.input, !canSend && styles.inputDisabled]}
               value={text}
@@ -621,6 +720,7 @@ export default function ChatScreen() {
               onFocus={() => {
                 setShowEmojiPanel(false);
                 setShowHangoutPanel(false);
+                setShowAttachPanel(false);
               }}
               placeholder={
                 !canSend
@@ -647,6 +747,63 @@ export default function ChatScreen() {
               )}
             </Pressable>
           </View>
+
+          {showAttachPanel && (
+            <View style={styles.attachPanel}>
+              <Text style={styles.attachPanelTitle}>Group Quick Options</Text>
+              <Text style={styles.attachPanelSub}>
+                Split bills, send hangout invites, or react!
+              </Text>
+              <View style={styles.attachOptionsRow}>
+                {thread.isGroup && (
+                  <TouchableOpacity
+                    style={styles.attachOptionCard}
+                    activeOpacity={0.85}
+                    onPress={() => {
+                      setShowAttachPanel(false);
+                      setShowSplitModal(true);
+                    }}
+                  >
+                    <LinearGradient colors={["#8B5CF6", "#EC4899"]} style={styles.attachOptionIconBg}>
+                      <Ionicons name="card" size={20} color="#FFF" />
+                    </LinearGradient>
+                    <Text style={styles.attachOptionLabel}>Split Bills</Text>
+                    <Text style={styles.attachOptionSub}>VibeSplit 💳</Text>
+                  </TouchableOpacity>
+                )}
+
+                <TouchableOpacity
+                  style={styles.attachOptionCard}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    setShowAttachPanel(false);
+                    toggleHangoutPanel();
+                  }}
+                >
+                  <LinearGradient colors={["#F59E0B", "#D97706"]} style={styles.attachOptionIconBg}>
+                    <Ionicons name="cafe" size={20} color="#FFF" />
+                  </LinearGradient>
+                  <Text style={styles.attachOptionLabel}>Hangout</Text>
+                  <Text style={styles.attachOptionSub}>Proposal ☕</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.attachOptionCard}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    setShowAttachPanel(false);
+                    toggleEmojiPanel();
+                  }}
+                >
+                  <LinearGradient colors={["#06B6D4", "#0284C7"]} style={styles.attachOptionIconBg}>
+                    <Ionicons name="happy" size={20} color="#FFF" />
+                  </LinearGradient>
+                  <Text style={styles.attachOptionLabel}>Emojis</Text>
+                  <Text style={styles.attachOptionSub}>Reactions 😊</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
 
           {showEmojiPanel && (
             <View style={styles.emojiPanel}>
@@ -678,6 +835,7 @@ export default function ChatScreen() {
               <View style={styles.hangoutOptionsRow}>
                 {[
                   { name: "Coffee Date", emoji: "☕", gradient: ["#F59E0B", "#D97706"] as const },
+                  { name: "Travel Trip", emoji: "✈️", gradient: ["#06B6D4", "#0284C7"] as const },
                   { name: "Movie Night", emoji: "🍿", gradient: ["#EC4899", "#DB2777"] as const },
                   { name: "Dinner", emoji: "🍽️", gradient: ["#10B981", "#059669"] as const },
                   { name: "Drinks", emoji: "🍺", gradient: ["#3B82F6", "#2563EB"] as const },
@@ -718,6 +876,32 @@ export default function ChatScreen() {
                   <Image source={{ uri: thread.avatarUrl }} style={styles.modalAvatarLarge} />
                 </View>
                 <Text style={styles.modalTitle}>{thread.matchName}</Text>
+
+                {/* VibeSplit Quick Banner in Group Info Modal */}
+                <TouchableOpacity
+                  style={styles.modalSplitCard}
+                  onPress={() => {
+                    setShowDetailsModal(false);
+                    setShowSplitModal(true);
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <LinearGradient
+                    colors={["#8B5CF6", "#EC4899"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.modalSplitGrad}
+                  >
+                    <View style={styles.modalSplitIconCircle}>
+                      <Ionicons name="wallet" size={18} color="#FFF" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.modalSplitTitle}>VibeSplit — Split Bills 💳💸</Text>
+                      <Text style={styles.modalSplitSub}>Add expenses & settle balances for this hangout group</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color="#FFF" />
+                  </LinearGradient>
+                </TouchableOpacity>
 
                 {plan ? (
                   <View style={styles.groupInfoBox}>
@@ -827,87 +1011,111 @@ export default function ChatScreen() {
           ))}
         </View>
       )}
+
+      {thread.isGroup && (
+        <VibeSplitModal
+          visible={showSplitModal}
+          onClose={() => setShowSplitModal(false)}
+          hangoutId={id}
+          titleName={thread.matchName || "Hangout"}
+        />
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: T.bg },
-  topGlow: { position: "absolute", top: 0, left: 0, right: 0, height: 180 },
+  topGlow: { position: "absolute", top: 0, left: 0, right: 0, height: 220 },
   safe: { backgroundColor: "transparent" },
   flex: { flex: 1 },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 14,
-    paddingBottom: 10,
-    gap: 10,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    gap: 12,
   },
   backBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 15,
+    width: 44,
+    height: 44,
+    borderRadius: 16,
     backgroundColor: T.glass,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.75)",
+    borderColor: "#FFFFFF",
     shadowColor: "#0F172A",
     shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
-  headerCenter: { flex: 1, flexDirection: "row", alignItems: "center", gap: 10 },
+  headerCenter: { flex: 1, flexDirection: "row", alignItems: "center", gap: 12 },
   headerAvatarRing: {
-    width: 46,
-    height: 46,
-    borderRadius: 16,
-    padding: 2,
+    width: 48,
+    height: 48,
+    borderRadius: 18,
+    padding: 2.5,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#8B5CF6",
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
   headerAvatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+    width: 43,
+    height: 43,
+    borderRadius: 15,
     borderWidth: 2,
-    borderColor: "#fff",
+    borderColor: "#FFFFFF",
   },
   headerName: {
-    fontSize: 16,
+    fontSize: 17,
     fontFamily: VibeFonts.extraBold,
     color: T.ink,
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
   },
-  headerMeta: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
-  headerStatus: { fontSize: 11, fontFamily: VibeFonts.semiBold, color: T.green },
+  headerMeta: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 2 },
+  headerStatus: { fontSize: 11, fontFamily: VibeFonts.bold, color: T.green },
   moreBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 15,
+    width: 44,
+    height: 44,
+    borderRadius: 16,
     backgroundColor: T.glass,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.75)",
+    borderColor: "#FFFFFF",
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
-  matchBanner: { paddingHorizontal: 14, paddingBottom: 10 },
+  matchBanner: { paddingHorizontal: 16, paddingBottom: 10 },
   matchBannerGrad: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
     paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 16,
+    paddingHorizontal: 14,
+    borderRadius: 18,
     backgroundColor: T.card,
     borderWidth: 1,
     borderColor: T.border,
+    shadowColor: "#7C3AED",
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   matchBannerIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 10,
+    width: 30,
+    height: 30,
+    borderRadius: 11,
     backgroundColor: T.softPink,
     alignItems: "center",
     justifyContent: "center",
@@ -917,10 +1125,10 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: VibeFonts.semiBold,
     color: T.muted,
-    lineHeight: 15,
+    lineHeight: 16,
   },
   messages: { flex: 1 },
-  messagesContent: { padding: 16, paddingBottom: 12, gap: 14 },
+  messagesContent: { padding: 16, paddingBottom: 16, gap: 14 },
   bubbleWrap: { maxWidth: "82%" },
   bubbleWrapMe: { alignSelf: "flex-end", alignItems: "flex-end" },
   bubbleWrapThem: {
@@ -930,47 +1138,51 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   msgAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: "#fff",
+    borderColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  bubble: { borderRadius: 20, overflow: "hidden", maxWidth: "100%" },
+  bubble: { borderRadius: 22, overflow: "hidden", maxWidth: "100%" },
   bubbleMe: {
     borderBottomRightRadius: 6,
     shadowColor: "#8B5CF6",
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
+    shadowOpacity: 0.28,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
   bubbleThem: {
     backgroundColor: T.card,
     borderWidth: 1,
-    borderColor: T.border,
+    borderColor: "rgba(226, 232, 240, 0.9)",
     borderBottomLeftRadius: 6,
     shadowColor: "#0F172A",
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
-  bubbleGrad: { paddingHorizontal: 14, paddingVertical: 11 },
+  bubbleGrad: { paddingHorizontal: 16, paddingVertical: 12 },
   bubbleTextMe: {
-    fontSize: 14,
+    fontSize: 14.5,
     fontFamily: VibeFonts.medium,
-    color: "#fff",
-    lineHeight: 20,
+    color: "#FFFFFF",
+    lineHeight: 21,
   },
   bubbleTextThem: {
-    fontSize: 14,
+    fontSize: 14.5,
     fontFamily: VibeFonts.medium,
     color: T.ink,
-    lineHeight: 20,
+    lineHeight: 21,
   },
   msgTime: {
-    fontSize: 9,
+    fontSize: 10,
     fontFamily: VibeFonts.medium,
     color: T.faint,
     marginTop: 4,
@@ -981,58 +1193,76 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: T.border,
     backgroundColor: T.glass,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: -3 },
   },
   inputRow: {
     flexDirection: "row",
     alignItems: "flex-end",
     gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
   attachBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
+    width: 42,
+    height: 42,
+    borderRadius: 15,
     backgroundColor: T.softPurple,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
   },
   input: {
     flex: 1,
-    maxHeight: 100,
+    maxHeight: 110,
     backgroundColor: T.card,
-    borderRadius: 18,
-    paddingHorizontal: 14,
+    borderRadius: 20,
+    paddingHorizontal: 16,
     paddingVertical: 11,
     fontSize: 14,
     fontFamily: VibeFonts.medium,
     color: T.ink,
     borderWidth: 1,
     borderColor: T.border,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
   },
   inputDisabled: { opacity: 0.55 },
   sendBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#EC4899",
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
   sendBtnDisabled: {
     backgroundColor: T.softPurple,
     borderWidth: 1,
     borderColor: T.border,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   missing: {
     color: T.ink,
     textAlign: "center",
     marginTop: 40,
-    fontFamily: VibeFonts.medium,
+    fontFamily: VibeFonts.bold,
+    fontSize: 16,
   },
 
   modalOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(15,11,26,0.45)",
+    backgroundColor: "rgba(15, 11, 26, 0.55)",
     zIndex: 99,
     justifyContent: "center",
     padding: Spacing.xl,
@@ -1041,20 +1271,28 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
     alignItems: "center",
     borderColor: T.border,
-    maxHeight: "80%",
+    maxHeight: "82%",
     backgroundColor: T.card,
+    borderRadius: 28,
+    shadowColor: "#7C3AED",
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
   },
   modalCloseIcon: {
     position: "absolute",
-    top: 15,
-    right: 15,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    top: 16,
+    right: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: T.softPurple,
     alignItems: "center",
     justifyContent: "center",
     zIndex: 10,
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
   },
   modalContent: {
     width: "100%",
@@ -1063,42 +1301,43 @@ const styles = StyleSheet.create({
   avatarGlowContainer: {
     shadowColor: "#8B5CF6",
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 14,
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
     elevation: 6,
-    borderRadius: 50,
+    borderRadius: 55,
     marginBottom: Spacing.md,
   },
   modalAvatarLarge: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 3,
-    borderColor: "#fff",
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    borderWidth: 3.5,
+    borderColor: "#FFFFFF",
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontFamily: VibeFonts.extraBold,
     color: T.ink,
     textAlign: "center",
     marginBottom: Spacing.sm,
+    letterSpacing: -0.4,
   },
-  groupInfoBox: { width: "100%", gap: 8 },
-  matchInfoBox: { width: "100%", gap: 10, marginTop: Spacing.xs },
+  groupInfoBox: { width: "100%", gap: 10 },
+  matchInfoBox: { width: "100%", gap: 12, marginTop: Spacing.xs },
   groupDesc: {
-    fontSize: 13,
+    fontSize: 13.5,
     fontFamily: VibeFonts.medium,
     color: T.muted,
     textAlign: "center",
-    lineHeight: 18,
+    lineHeight: 19,
     marginBottom: Spacing.xs,
   },
   infoRowInline: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
     backgroundColor: T.softPurple,
-    padding: 10,
+    padding: 12,
     borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: "#DDD6FE",
@@ -1106,34 +1345,35 @@ const styles = StyleSheet.create({
   infoTextInline: {
     color: T.ink,
     fontSize: 13,
-    fontFamily: VibeFonts.medium,
+    fontFamily: VibeFonts.semiBold,
     flex: 1,
   },
   membersTitle: {
     fontSize: 12,
-    fontFamily: VibeFonts.bold,
+    fontFamily: VibeFonts.extraBold,
     color: T.faint,
     textTransform: "uppercase",
+    letterSpacing: 0.5,
     marginTop: Spacing.sm,
     marginBottom: 4,
   },
   membersScroll: { maxHeight: 160, width: "100%" },
-  membersScrollContent: { gap: 6 },
+  membersScrollContent: { gap: 8 },
   memberRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
     backgroundColor: T.card,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: T.border,
   },
   memberAvatar: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: T.border,
   },
@@ -1144,19 +1384,24 @@ const styles = StyleSheet.create({
   },
   modalConfirmBtn: {
     width: "100%",
-    borderRadius: 16,
+    borderRadius: 18,
     overflow: "hidden",
     marginTop: Spacing.lg,
+    shadowColor: "#8B5CF6",
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
   modalConfirmGrad: {
-    paddingVertical: 13,
+    paddingVertical: 14,
     alignItems: "center",
-    borderRadius: 16,
+    borderRadius: 18,
   },
   modalConfirmBtnText: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontFamily: VibeFonts.bold,
-    fontSize: 13,
+    fontSize: 14,
   },
   errorTextInline: {
     color: T.muted,
@@ -1164,18 +1409,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   senderNameLabel: {
-    fontSize: 10,
-    fontFamily: VibeFonts.bold,
+    fontSize: 11,
+    fontFamily: VibeFonts.extraBold,
     color: T.purple,
-    marginBottom: 2,
+    marginBottom: 3,
   },
   emojiToggleBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
+    width: 42,
+    height: 42,
+    borderRadius: 15,
     backgroundColor: T.softPurple,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
   },
   emojiPanel: {
     height: 250,
@@ -1200,15 +1447,17 @@ const styles = StyleSheet.create({
   emojiPanelText: { fontSize: 24 },
   emojiText: { fontSize: 15 },
   hangoutToggleBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
+    width: 42,
+    height: 42,
+    borderRadius: 15,
     backgroundColor: T.softPurple,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
   },
   hangoutPanel: {
-    paddingVertical: 14,
+    paddingVertical: 16,
     paddingHorizontal: Spacing.md,
     borderTopWidth: 1,
     borderTopColor: T.border,
@@ -1216,17 +1465,17 @@ const styles = StyleSheet.create({
   },
   hangoutPanelTitle: {
     color: T.ink,
-    fontFamily: VibeFonts.bold,
-    fontSize: 15,
+    fontFamily: VibeFonts.extraBold,
+    fontSize: 16,
     textAlign: "center",
   },
   hangoutPanelSub: {
     color: T.muted,
     fontFamily: VibeFonts.medium,
-    fontSize: 11,
+    fontSize: 12,
     textAlign: "center",
     marginTop: 2,
-    marginBottom: 12,
+    marginBottom: 14,
   },
   hangoutOptionsRow: {
     flexDirection: "row",
@@ -1239,64 +1488,79 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: T.border,
     borderRadius: Radius.md,
-    paddingVertical: 12,
+    paddingVertical: 14,
     alignItems: "center",
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   hangoutOptionIconBg: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 6,
+    marginBottom: 8,
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
-  hangoutOptionEmoji: { fontSize: 18 },
+  hangoutOptionEmoji: { fontSize: 20 },
   hangoutOptionLabel: {
     color: T.ink,
     fontFamily: VibeFonts.bold,
-    fontSize: 11,
+    fontSize: 12,
     textAlign: "center",
   },
   bubbleInvite: {
     backgroundColor: T.card,
     borderWidth: 1,
-    borderColor: T.border,
-    borderRadius: 20,
+    borderColor: "rgba(226, 232, 240, 0.9)",
+    borderRadius: 22,
     overflow: "hidden",
-    width: 250,
+    width: 260,
+    shadowColor: "#7C3AED",
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
-  inviteCard: { padding: 12 },
+  inviteCard: { padding: 14 },
   inviteHeader: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
   },
   inviteIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: T.softPurple,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "#DDD6FE",
   },
-  inviteIconText: { fontSize: 20 },
+  inviteIconText: { fontSize: 22 },
   inviteTitle: {
     color: T.ink,
-    fontFamily: VibeFonts.bold,
-    fontSize: 14,
+    fontFamily: VibeFonts.extraBold,
+    fontSize: 15,
   },
   inviteSub: {
     color: T.muted,
-    fontFamily: VibeFonts.medium,
-    fontSize: 10,
+    fontFamily: VibeFonts.semiBold,
+    fontSize: 11,
     marginTop: 1,
   },
   inviteDivider: {
     height: 1,
     backgroundColor: T.border,
-    marginVertical: 10,
+    marginVertical: 12,
   },
   inviteStatusContainer: {
     flexDirection: "row",
@@ -1306,8 +1570,8 @@ const styles = StyleSheet.create({
   },
   inviteStatusTextPending: {
     color: T.purple,
-    fontFamily: VibeFonts.semiBold,
-    fontSize: 12,
+    fontFamily: VibeFonts.bold,
+    fontSize: 12.5,
   },
   inviteActions: { flexDirection: "row", gap: 8 },
   inviteActionBtn: {
@@ -1315,15 +1579,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
-    paddingVertical: 8,
+    gap: 5,
+    paddingVertical: 9,
     borderRadius: Radius.sm,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   inviteAcceptBtn: { backgroundColor: T.green },
   inviteDeclineBtn: { backgroundColor: T.red },
   inviteActionBtnText: {
-    color: "#fff",
-    fontFamily: VibeFonts.bold,
+    color: "#FFFFFF",
+    fontFamily: VibeFonts.extraBold,
     fontSize: 12,
   },
   inviteStatusContainerAccepted: {
@@ -1335,7 +1603,7 @@ const styles = StyleSheet.create({
   },
   inviteStatusTextAccepted: {
     color: T.green,
-    fontFamily: VibeFonts.bold,
+    fontFamily: VibeFonts.extraBold,
     fontSize: 13,
   },
   inviteStatusContainerDeclined: {
@@ -1347,8 +1615,194 @@ const styles = StyleSheet.create({
   },
   inviteStatusTextDeclined: {
     color: T.red,
-    fontFamily: VibeFonts.bold,
+    fontFamily: VibeFonts.extraBold,
     fontSize: 13,
+  },
+  vibeSplitCard: {
+    padding: 14,
+    borderRadius: 20,
+    backgroundColor: T.card,
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.25)",
+    maxWidth: 280,
+    gap: 8,
+    shadowColor: "#8B5CF6",
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  vibeSplitCardExpense: {
+    backgroundColor: "#FFFFFF",
+    borderColor: "rgba(139, 92, 246, 0.3)",
+  },
+  vibeSplitCardSettled: {
+    backgroundColor: "#F0FDF4",
+    borderColor: "rgba(16, 185, 129, 0.3)",
+  },
+  vibeSplitHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  vibeSplitTapPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: "rgba(139, 92, 246, 0.1)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  vibeSplitTapText: {
+    fontSize: 10,
+    fontFamily: VibeFonts.bold,
+    color: "#7C3AED",
+  },
+  vibeSplitBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    alignSelf: "flex-start",
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  vibeSplitBadgeText: {
+    color: "#FFFFFF",
+    fontFamily: VibeFonts.extraBold,
+    fontSize: 10,
+    letterSpacing: 0.5,
+  },
+  vibeSplitCardText: {
+    color: T.ink,
+    fontFamily: VibeFonts.semiBold,
+    fontSize: 13.5,
+    lineHeight: 19,
+  },
+  headerSplitBadge: {
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  headerSplitGrad: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+  },
+  headerSplitText: {
+    color: "#FFFFFF",
+    fontFamily: VibeFonts.bold,
+    fontSize: 11,
+  },
+  bannerSplitPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.3)",
+  },
+  bannerSplitPillText: {
+    fontSize: 10,
+    fontFamily: VibeFonts.bold,
+    color: "#7C3AED",
+  },
+  splitToggleBtn: {
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  splitBtnGrad: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  attachPanel: {
+    padding: 14,
+    backgroundColor: T.card,
+    borderTopWidth: 1,
+    borderColor: T.border,
+  },
+  attachPanelTitle: {
+    fontSize: 14,
+    fontFamily: VibeFonts.extraBold,
+    color: T.ink,
+  },
+  attachPanelSub: {
+    fontSize: 11,
+    fontFamily: VibeFonts.medium,
+    color: T.muted,
+    marginBottom: 10,
+    marginTop: 2,
+  },
+  attachOptionsRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  attachOptionCard: {
+    flex: 1,
+    alignItems: "center",
+    padding: 10,
+    backgroundColor: T.softPurple,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.15)",
+  },
+  attachOptionIconBg: {
+    width: 38,
+    height: 38,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 6,
+  },
+  attachOptionLabel: {
+    fontSize: 11,
+    fontFamily: VibeFonts.bold,
+    color: T.ink,
+  },
+  attachOptionSub: {
+    fontSize: 10,
+    fontFamily: VibeFonts.medium,
+    color: T.muted,
+    marginTop: 1,
+  },
+  modalSplitCard: {
+    borderRadius: 18,
+    overflow: "hidden",
+    marginBottom: 12,
+  },
+  modalSplitGrad: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 12,
+  },
+  modalSplitIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalSplitTitle: {
+    fontSize: 13,
+    fontFamily: VibeFonts.extraBold,
+    color: "#FFFFFF",
+  },
+  modalSplitSub: {
+    fontSize: 10.5,
+    fontFamily: VibeFonts.medium,
+    color: "rgba(255, 255, 255, 0.85)",
+    marginTop: 1,
   },
 });
 

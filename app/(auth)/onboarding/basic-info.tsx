@@ -7,7 +7,7 @@ import PillSelect from "../../../components/onboarding/PillSelect";
 import SectionLabel from "../../../components/onboarding/SectionLabel";
 import { useOnboarding } from "../../../context/OnboardingContext";
 import { GENDER_OPTIONS, INTERESTED_IN_OPTIONS, PRONOUNS_OPTIONS } from "../../../constants/onboarding";
-import { Colors, Spacing } from "../../../constants/theme";
+import { Spacing } from "../../../constants/theme";
 
 function calcAge(dob: string) {
   const birth = new Date(dob);
@@ -41,7 +41,7 @@ export default function BasicInfoScreen() {
   return (
     <OnboardingLayout
       step={1}
-      total={5}
+      total={4}
       emoji="👋"
       title="Let's meet you"
       subtitle="Basic info — takes 30 seconds"
@@ -53,18 +53,18 @@ export default function BasicInfoScreen() {
       <FormInput label="Date of Birth" value={dob} onChangeText={setDob} placeholder="2000-05-15" icon="calendar-outline" />
       <Text style={styles.hint}>Must be 18+ · Format: YYYY-MM-DD</Text>
 
-      <SectionLabel title="I am a..." />
+      <SectionLabel title="I am a..." emoji="👤" />
       <PillSelect options={GENDER_OPTIONS} value={data.gender} onChange={(v) => update({ gender: v })} columns={3} />
 
-      <SectionLabel title="Interested in" />
+      <SectionLabel title="Interested in" emoji="💘" />
       <PillSelect options={INTERESTED_IN_OPTIONS} value={data.interestedIn} onChange={(v) => update({ interestedIn: v })} columns={3} />
 
-      <SectionLabel title="Pronouns" subtitle="Optional — helps others address you right" />
-      <PillSelect options={PRONOUNS_OPTIONS.map((p) => ({ id: p, label: p }))} value={data.pronouns} onChange={(v) => update({ pronouns: v })} columns={2} />
+      <SectionLabel title="Pronouns" emoji="🏷️" subtitle="Optional — helps others address you right" />
+      <PillSelect options={PRONOUNS_OPTIONS} value={data.pronouns} onChange={(v) => update({ pronouns: v })} columns={2} />
     </OnboardingLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  hint: { fontSize: 12, color: Colors.textLight, marginTop: -8, marginBottom: Spacing.md, fontWeight: "500" },
+  hint: { fontSize: 12, color: "#94A3B8", marginTop: -8, marginBottom: Spacing.md, fontWeight: "500" },
 });

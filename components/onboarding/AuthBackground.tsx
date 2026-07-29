@@ -4,12 +4,17 @@ import { LinearGradient } from "expo-linear-gradient";
 export default function AuthBackground({ children }: { children: React.ReactNode }) {
   return (
     <View style={styles.root}>
-      <LinearGradient colors={["#1a0a2e", "#2d1b69", "#4a1a6b", "#1a0a2e"]} style={StyleSheet.absoluteFill} />
+      <LinearGradient
+        colors={["#F8F9FD", "#F3E8FF", "#FFF0F5", "#F8F9FD"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
       <View style={[styles.orb, styles.orb1]} />
       <View style={[styles.orb, styles.orb2]} />
       <View style={[styles.orb, styles.orb3]} />
       <LinearGradient
-        colors={["transparent", "rgba(248,247,252,0.95)", "#F8F7FC"]}
+        colors={["transparent", "rgba(248,249,253,0.8)", "#F8F9FD"]}
         style={styles.fadeBottom}
       />
       {children}
@@ -18,28 +23,28 @@ export default function AuthBackground({ children }: { children: React.ReactNode
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#1a0a2e" },
+  root: { flex: 1, backgroundColor: "#F8F9FD" },
   orb: { position: "absolute", borderRadius: 999 },
   orb1: {
     width: 280,
     height: 280,
     top: -80,
     right: -60,
-    backgroundColor: "rgba(138,86,255,0.35)",
+    backgroundColor: "rgba(124, 58, 237, 0.12)",
   },
   orb2: {
     width: 200,
     height: 200,
     top: 120,
     left: -80,
-    backgroundColor: "rgba(255,75,129,0.25)",
+    backgroundColor: "rgba(236, 72, 153, 0.1)",
   },
   orb3: {
     width: 160,
     height: 160,
     bottom: 200,
     right: 20,
-    backgroundColor: "rgba(168,85,247,0.2)",
+    backgroundColor: "rgba(139, 92, 246, 0.08)",
   },
   fadeBottom: {
     position: "absolute",

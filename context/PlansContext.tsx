@@ -21,6 +21,8 @@ interface CreatePlanInput {
   endDate?: string;
   latitude?: number;
   longitude?: number;
+  visibility?: "PUBLIC" | "FRIENDS" | string;
+  isPrivate?: boolean;
 }
 
 interface PlansContextType {
@@ -121,6 +123,8 @@ export function PlansProvider({ children }: { children: ReactNode }) {
       kind: input.kind || "HANGOUT",
       latitude: input.latitude,
       longitude: input.longitude,
+      visibility: input.visibility || (input.isPrivate ? "FRIENDS" : "PUBLIC"),
+      isPrivate: input.isPrivate ?? (input.visibility === "FRIENDS"),
     });
 
     if (!plan) throw new Error("Could not create plan. Check your connection.");

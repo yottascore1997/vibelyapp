@@ -35,24 +35,33 @@ import { useAuth } from "../context/AuthContext";
 import { usePlans } from "../context/PlansContext";
 import { api } from "../services/api";
 import { VibeFonts } from "../constants/vibeTheme";
+import AppHeader from "../components/vibe/AppHeader";
+import TabBar from "../components/TabBar";
 
 const CITY_STORAGE_KEY = "@vibely_map_city";
 
 const T = {
-  bg: "#EEE9F8",
-  card: "#FFFBFE",
-  ink: "#1A1F36",
-  muted: "#6B7280",
-  faint: "#9CA3AF",
-  border: "#E4DFF0",
-  purple: "#8B5CF6",
-  purpleDeep: "#7C3AED",
+  bg: "#F8F9FD",
+  card: "#FFFFFF",
+  cardElevated: "#FFFFFF",
+  ink: "#18181B",
+  muted: "#64748B",
+  faint: "#94A3B8",
+  border: "#E2E8F0",
+  purple: "#7C3AED",
+  purpleDeep: "#6D28D9",
+  purpleBright: "#8B5CF6",
+  softPurple: "#F3E8FF",
   pink: "#EC4899",
-  softPurple: "#EDE7FF",
-  dark: "#0F0B1A",
-  darkSoft: "#1A1230",
-  glass: "rgba(255,251,254,0.92)",
-  cta: ["#8B5CF6", "#EC4899"] as const,
+  green: "#10B981",
+  yellow: "#F59E0B",
+  red: "#EF4444",
+  blue: "#2563EB",
+  dark: "#18181B",
+  darkSoft: "#27272A",
+  glass: "rgba(255,255,255,0.92)",
+  cta: ["#7C3AED", "#8B5CF6"] as const,
+  promo: ["#7C3AED", "#8B5CF6", "#EC4899"] as const,
 };
 
 type MapMode = "events" | "people";
@@ -269,125 +278,99 @@ export default function EventsMapScreen() {
 
       {/* Soft premium washes */}
       <LinearGradient
-        colors={["rgba(15,11,26,0.55)", "rgba(15,11,26,0.12)", "transparent"]}
-        style={[styles.topWash, { height: insets.top + 200 }]}
+        colors={["rgba(248,249,253,0.98)", "rgba(248,249,253,0.85)", "rgba(248,249,253,0.4)", "transparent"]}
+        style={[styles.topWash, { height: insets.top + 180 }]}
         pointerEvents="none"
       />
       <LinearGradient
-        colors={["transparent", "rgba(238,233,248,0.55)", "rgba(238,233,248,0.92)"]}
+        colors={["transparent", "rgba(248,249,253,0.55)", "rgba(248,249,253,0.95)"]}
         style={styles.bottomWash}
         pointerEvents="none"
       />
 
-      {/* Premium glass header */}
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <Pressable style={styles.iconBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={20} color={T.ink} />
-        </Pressable>
+      {/* Fixed Top Container (AppHeader + City Controls + Mode Switcher) */}
+      <View style={styles.fixedTopOverlay}>
+        <AppHeader variant="light" tagline="Explore live events & squad nearby" />
 
-        <Pressable style={styles.cityBtn} onPress={() => setShowCityPicker(true)}>
-          <LinearGradient colors={["#1A1230", "#2A1854"]} style={styles.cityEmojiWrap}>
-            <Text style={styles.cityEmoji}>{city.emoji}</Text>
-          </LinearGradient>
-          <View style={{ flex: 1 }}>
-            <View style={styles.headerBrandRow}>
-              <Text style={styles.headerTitle}>Live Map</Text>
-              <View style={styles.premiumDot}>
-                <Text style={styles.premiumDotText}>PRO</Text>
+        <View style={styles.headerControlsRow}>
+          <Pressable style={styles.iconBtn} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={20} color={T.ink} />
+          </Pressable>
+
+          <Pressable style={styles.cityBtn} onPress={() => setShowCityPicker(true)}>
+            <LinearGradient colors={[...T.cta]} style={styles.cityEmojiWrap}>
+              <Text style={styles.cityEmoji}>{city.emoji}</Text>
+            </LinearGradient>
+            <View style={{ flex: 1 }}>
+              <View style={styles.headerBrandRow}>
+                <Text style={styles.headerTitle}>Live Map</Text>
+                <View style={styles.premiumDot}>
+                  <Text style={styles.premiumDotText}>PRO</Text>
+                </View>
+              </View>
+              <View style={styles.headerCityRow}>
+                <Ionicons name="location" size={11} color={T.purple} />
+                <Text style={styles.headerCity}>
+                  {city.name} · {mode === "people" ? people.length : events.length} nearby
+                </Text>
+                <Ionicons name="chevron-down" size={12} color={T.muted} />
               </View>
             </View>
-            <View style={styles.headerCityRow}>
-              <Ionicons name="location" size={11} color={T.purple} />
-              <Text style={styles.headerCity}>
-                {city.name} · {mode === "people" ? people.length : events.length} nearby
-              </Text>
-              <Ionicons name="chevron-down" size={12} color={T.muted} />
-            </View>
-          </View>
-        </Pressable>
-
-        <Pressable style={styles.iconBtn} onPress={useMyCity}>
-          <Ionicons name="navigate" size={18} color={T.purple} />
-        </Pressable>
-      </View>
-
-      {/* Segmented mode — gradient active */}
-      <View style={[styles.modeRow, { top: insets.top + 86 }]}>
-        <View style={styles.modeTrack}>
-          <Pressable
-            style={styles.modeChip}
-            onPress={() => {
-              setMode("events");
-              setSelectedPerson(null);
-            }}
-          >
-            {mode === "events" ? (
-              <LinearGradient colors={[...T.cta]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.modeChipFill}>
-                <Ionicons name="calendar" size={14} color="#fff" />
-                <Text style={styles.modeTextActive}>Events</Text>
-              </LinearGradient>
-            ) : (
-              <View style={styles.modeChipFill}>
-                <Ionicons name="calendar-outline" size={14} color={T.muted} />
-                <Text style={styles.modeText}>Events</Text>
-              </View>
-            )}
           </Pressable>
-          <Pressable
-            style={styles.modeChip}
-            onPress={() => {
-              setMode("people");
-              setSelectedEvent(null);
-            }}
-          >
-            {mode === "people" ? (
-              <LinearGradient colors={[...T.cta]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.modeChipFill}>
-                <Ionicons name="people" size={14} color="#fff" />
-                <Text style={styles.modeTextActive}>People</Text>
-              </LinearGradient>
-            ) : (
-              <View style={styles.modeChipFill}>
-                <Ionicons name="people-outline" size={14} color={T.muted} />
-                <Text style={styles.modeText}>People</Text>
-              </View>
-            )}
+
+          <Pressable style={styles.iconBtn} onPress={useMyCity}>
+            <Ionicons name="navigate" size={18} color={T.purple} />
           </Pressable>
         </View>
-      </View>
 
-      {/* Search glass */}
-      <View style={[styles.searchBar, { top: insets.top + 146 }]}>
-        <Ionicons name="search" size={16} color={T.purple} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder={mode === "people" ? `Find people in ${city.name}…` : `Search hangouts in ${city.name}…`}
-          placeholderTextColor={T.faint}
-          value={search}
-          onChangeText={setSearch}
-        />
-        {search ? (
-          <Pressable onPress={() => setSearch("")}>
-            <Ionicons name="close-circle" size={16} color={T.faint} />
-          </Pressable>
-        ) : (
-          <View style={styles.searchHint}>
-            <Text style={styles.searchHintText}>
-              {mode === "people" ? people.length : events.length}
-            </Text>
+        {/* Mode Switcher */}
+        <View style={styles.modeRow}>
+          <View style={styles.modeTrack}>
+            <Pressable
+              style={styles.modeChip}
+              onPress={() => {
+                setMode("events");
+                setSelectedPerson(null);
+              }}
+            >
+              {mode === "events" ? (
+                <LinearGradient colors={[...T.cta]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.modeChipFill}>
+                  <Ionicons name="calendar" size={14} color="#fff" />
+                  <Text style={styles.modeTextActive}>Events</Text>
+                </LinearGradient>
+              ) : (
+                <View style={styles.modeChipFill}>
+                  <Ionicons name="calendar-outline" size={14} color={T.muted} />
+                  <Text style={styles.modeText}>Events</Text>
+                </View>
+              )}
+            </Pressable>
+            <Pressable
+              style={styles.modeChip}
+              onPress={() => {
+                setMode("people");
+                setSelectedEvent(null);
+              }}
+            >
+              {mode === "people" ? (
+                <LinearGradient colors={[...T.cta]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.modeChipFill}>
+                  <Ionicons name="people" size={14} color="#fff" />
+                  <Text style={styles.modeTextActive}>People</Text>
+                </LinearGradient>
+              ) : (
+                <View style={styles.modeChipFill}>
+                  <Ionicons name="people-outline" size={14} color={T.muted} />
+                  <Text style={styles.modeText}>People</Text>
+                </View>
+              )}
+            </Pressable>
           </View>
-        )}
-      </View>
-
-      {mode === "people" ? (
-        <View style={[styles.hintPill, { top: insets.top + 202 }]}>
-          <Ionicons name="sparkles" size={12} color={T.purple} />
-          <Text style={styles.hintText}>Pinch zoom · drag map · tap a face</Text>
         </View>
-      ) : null}
+      </View>
 
       {/* Floating legend when nothing selected */}
       {!selectedEvent && !selectedPerson ? (
-        <View style={[styles.floatLegend, { bottom: Math.max(insets.bottom, 12) + 72 }]}>
+        <View style={[styles.floatLegend, { bottom: Math.max(insets.bottom, 12) + 145 }]}>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: T.purple }]} />
             <Text style={styles.legendLabel}>Events</Text>
@@ -404,7 +387,7 @@ export default function EventsMapScreen() {
       {selectedEvent ? (
         <Animated.View
           entering={FadeInDown.springify().damping(16)}
-          style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}
+          style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) + 75 }]}
         >
           <View style={styles.sheetHandle} />
           <View style={styles.sheetCard}>
@@ -492,7 +475,7 @@ export default function EventsMapScreen() {
       {selectedPerson ? (
         <Animated.View
           entering={FadeInDown.springify().damping(16)}
-          style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}
+          style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) + 75 }]}
         >
           <View style={styles.sheetHandle} />
           <View style={styles.personCard}>
@@ -534,7 +517,7 @@ export default function EventsMapScreen() {
       {!selectedEvent && !selectedPerson ? (
         <Animated.View
           entering={ZoomIn.duration(280)}
-          style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 14) }]}
+          style={[styles.bottomBar, { bottom: Math.max(insets.bottom, 14) + 68 }]}
         >
           <Pressable
             style={styles.createFab}
@@ -561,7 +544,7 @@ export default function EventsMapScreen() {
         <View style={styles.pickerOverlay}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowCityPicker(false)} />
           <View style={[styles.pickerSheet, { paddingBottom: Math.max(insets.bottom, 20) }]}>
-            <LinearGradient colors={["#1A1230", "#2A1854"]} style={styles.pickerHero}>
+            <LinearGradient colors={["#7C3AED", "#6D28D9"]} style={styles.pickerHero}>
               <View style={styles.pickerHandle} />
               <Text style={styles.pickerKicker}>VIBELY MAP</Text>
               <Text style={styles.pickerTitle}>Choose your city</Text>
@@ -610,12 +593,24 @@ export default function EventsMapScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Absolute Fixed Bottom Navigation Bar */}
+      <View style={styles.fixedBottomNav}>
+        <TabBar dark={false} />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: T.dark },
+  root: { flex: 1, backgroundColor: T.bg },
+  fixedBottomNav: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+  },
   loadingWrap: { alignItems: "center", justifyContent: "center", gap: 12 },
   loadingText: { fontFamily: VibeFonts.semiBold, color: T.muted, fontSize: 13 },
   topWash: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 2 },
@@ -628,48 +623,52 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
 
-  header: {
+  fixedTopOverlay: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
+    zIndex: 40,
+  },
+  headerControlsRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 14,
     gap: 10,
-    zIndex: 20,
+    marginTop: 2,
+    marginBottom: 6,
   },
   iconBtn: {
     width: 44,
     height: 44,
     borderRadius: 16,
-    backgroundColor: T.glass,
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.55)",
+    borderColor: T.border,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#0F172A",
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
+    shadowColor: "#64748B",
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
+    elevation: 4,
   },
   cityBtn: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: T.glass,
+    backgroundColor: "#FFFFFF",
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.55)",
+    borderColor: T.border,
     paddingHorizontal: 8,
     paddingVertical: 7,
-    shadowColor: "#0F172A",
-    shadowOpacity: 0.1,
-    shadowRadius: 14,
+    shadowColor: "#64748B",
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
+    elevation: 4,
   },
   cityEmojiWrap: {
     width: 38,
@@ -687,7 +686,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
   premiumDot: {
-    backgroundColor: T.ink,
+    backgroundColor: T.purple,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
@@ -702,24 +701,22 @@ const styles = StyleSheet.create({
   headerCity: { fontSize: 11, fontFamily: VibeFonts.semiBold, color: T.muted },
 
   modeRow: {
-    position: "absolute",
-    left: 14,
-    right: 14,
-    zIndex: 20,
+    paddingHorizontal: 14,
+    marginBottom: 6,
   },
   modeTrack: {
     flexDirection: "row",
-    backgroundColor: T.glass,
+    backgroundColor: "#FFFFFF",
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.5)",
+    borderColor: T.border,
     padding: 4,
     gap: 4,
-    shadowColor: "#0F172A",
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
+    shadowColor: "#64748B",
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
-    elevation: 5,
+    elevation: 4,
   },
   modeChip: {
     flex: 1,
@@ -731,31 +728,28 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    paddingVertical: 11,
+    paddingVertical: 10,
     borderRadius: 14,
   },
   modeText: { fontSize: 13, fontFamily: VibeFonts.bold, color: T.muted },
   modeTextActive: { fontSize: 13, fontFamily: VibeFonts.bold, color: "#fff" },
 
-  searchBar: {
-    position: "absolute",
-    left: 14,
-    right: 14,
-    zIndex: 20,
+  searchBarRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: T.glass,
+    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.55)",
+    borderColor: T.border,
     paddingHorizontal: 14,
+    marginHorizontal: 14,
     height: 44,
-    shadowColor: "#0F172A",
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
+    shadowColor: "#64748B",
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
-    elevation: 4,
+    elevation: 3,
   },
   searchInput: {
     flex: 1,
@@ -779,23 +773,21 @@ const styles = StyleSheet.create({
     color: T.purpleDeep,
   },
 
-  hintPill: {
-    position: "absolute",
-    left: 24,
-    right: 24,
-    zIndex: 20,
+  hintPillRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    backgroundColor: T.glass,
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.55)",
-    paddingVertical: 9,
+    borderColor: T.border,
+    paddingVertical: 7,
+    marginHorizontal: 24,
+    marginTop: 6,
     borderRadius: 999,
-    shadowColor: "#0F172A",
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
+    shadowColor: "#64748B",
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
     elevation: 3,
   },
@@ -808,21 +800,26 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: "rgba(15,11,26,0.88)",
+    backgroundColor: "#FFFFFF",
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: T.border,
+    shadowColor: "#64748B",
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 6 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
   legendLabel: {
     fontSize: 11,
     fontFamily: VibeFonts.semiBold,
-    color: "rgba(255,255,255,0.9)",
+    color: T.ink,
   },
-  legendDivider: { width: 1, height: 12, backgroundColor: "rgba(255,255,255,0.2)" },
+  legendDivider: { width: 1, height: 12, backgroundColor: T.border },
 
   sheet: {
     position: "absolute",
@@ -837,7 +834,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: "rgba(26,31,54,0.25)",
+    backgroundColor: T.border,
     marginBottom: 10,
   },
   sheetCard: {
@@ -845,12 +842,12 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.85)",
-    shadowColor: "#0F172A",
-    shadowOpacity: 0.2,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 16,
+    borderColor: T.border,
+    shadowColor: "#18181B",
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 12,
   },
   sheetHero: {
     position: "relative",
@@ -877,7 +874,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    backgroundColor: "#16A34A",
+    backgroundColor: T.green,
     paddingHorizontal: 9,
     paddingVertical: 4,
     borderRadius: 999,
@@ -941,7 +938,7 @@ const styles = StyleSheet.create({
   sheetDesc: {
     fontSize: 13,
     fontFamily: VibeFonts.medium,
-    color: "#374151",
+    color: T.ink,
     lineHeight: 19,
     marginTop: 10,
   },
@@ -969,15 +966,15 @@ const styles = StyleSheet.create({
     backgroundColor: T.card,
     borderRadius: 28,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.85)",
+    borderColor: T.border,
     padding: 16,
     flexDirection: "row",
     gap: 14,
-    shadowColor: "#0F172A",
-    shadowOpacity: 0.18,
+    shadowColor: "#18181B",
+    shadowOpacity: 0.12,
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 8 },
-    elevation: 14,
+    elevation: 12,
   },
   personAvatarWrap: {
     width: 76,
@@ -1001,7 +998,7 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: "#22C55E",
+    backgroundColor: T.green,
     borderWidth: 2,
     borderColor: T.card,
   },
@@ -1015,7 +1012,7 @@ const styles = StyleSheet.create({
   onlineLabel: {
     fontSize: 11,
     fontFamily: VibeFonts.bold,
-    color: "#16A34A",
+    color: T.green,
     marginTop: 4,
   },
 
@@ -1032,11 +1029,11 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 18,
     overflow: "hidden",
-    shadowColor: "#8B5CF6",
-    shadowOpacity: 0.35,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
+    shadowColor: T.purple,
+    shadowOpacity: 0.28,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 7,
   },
   createFabGrad: {
     flexDirection: "row",
@@ -1050,21 +1047,21 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 16,
-    backgroundColor: T.glass,
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.55)",
+    borderColor: T.border,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#0F172A",
-    shadowOpacity: 0.1,
+    shadowColor: "#64748B",
+    shadowOpacity: 0.08,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
-    elevation: 5,
+    elevation: 4,
   },
 
   pickerOverlay: {
     flex: 1,
-    backgroundColor: "rgba(15,11,26,0.58)",
+    backgroundColor: "rgba(24,24,27,0.5)",
     justifyContent: "flex-end",
   },
   pickerSheet: {
@@ -1093,7 +1090,7 @@ const styles = StyleSheet.create({
   pickerKicker: {
     fontSize: 10,
     fontFamily: VibeFonts.extraBold,
-    color: "rgba(255,255,255,0.55)",
+    color: "rgba(255,255,255,0.7)",
     letterSpacing: 1.2,
     marginBottom: 4,
   },
@@ -1106,7 +1103,7 @@ const styles = StyleSheet.create({
   pickerSubLight: {
     fontSize: 13,
     fontFamily: VibeFonts.medium,
-    color: "rgba(255,255,255,0.72)",
+    color: "rgba(255,255,255,0.85)",
     marginTop: 4,
   },
   cityRow: {

@@ -102,6 +102,49 @@ const AVATARS = [
   "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&h=80&fit=crop",
 ];
 
+const CATEGORIES: { id: CategoryId; label: string; emoji: string; tint: string }[] = [
+  { id: "all", label: "All Trips", emoji: "✨", tint: "#8B5CF6" },
+  { id: "weekend", label: "Weekend", emoji: "🏕️", tint: "#F59E0B" },
+  { id: "mountains", label: "Mountains", emoji: "🏔️", tint: "#10B981" },
+  { id: "beach", label: "Beach", emoji: "🏖️", tint: "#06B6D4" },
+  { id: "international", label: "Overseas", emoji: "✈️", tint: "#EC4899" },
+  { id: "more", label: "More", emoji: "🗺️", tint: "#6366F1" },
+];
+
+interface WhyCard {
+  title: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
+  bg: readonly [string, string, ...string[]];
+}
+
+const WHY_CARDS: WhyCard[] = [
+  {
+    title: "Verified Travelers",
+    icon: "shield-checkmark",
+    color: "#8B5CF6",
+    bg: ["#F5F3FF", "#EDE9FE"],
+  },
+  {
+    title: "Split Expenses",
+    icon: "wallet",
+    color: "#EC4899",
+    bg: ["#FDF2F8", "#FCE7F3"],
+  },
+  {
+    title: "Shared Memories",
+    icon: "camera",
+    color: "#F59E0B",
+    bg: ["#FEF3C7", "#FDE68A"],
+  },
+  {
+    title: "Safety First",
+    icon: "people",
+    color: "#10B981",
+    bg: ["#ECFDF5", "#D1FAE5"],
+  },
+];
+
 function mapApiPlanToTravel(p: Plan): TravelPlan {
   const style = p.activity || "Travel";
   const low = style.toLowerCase();
@@ -454,7 +497,7 @@ export default function TravelPartnersScreen() {
                 returnKeyType="search"
               />
               <SoftPress style={styles.searchBtn} onPress={() => {}}>
-                <LinearGradient colors={[...T.cta]} style={styles.searchBtnGrad}>
+                <LinearGradient colors={T.cta} style={styles.searchBtnGrad}>
                   <Ionicons name="search" size={18} color="#fff" />
                 </LinearGradient>
               </SoftPress>
@@ -475,7 +518,7 @@ export default function TravelPartnersScreen() {
                 <SoftPress style={styles.catItem} onPress={() => setCategory(c.id)}>
                   {active ? (
                     <View style={styles.catActiveRing}>
-                      <LinearGradient colors={[...T.cta]} style={styles.catCircleActive}>
+                      <LinearGradient colors={T.cta} style={styles.catCircleActive}>
                         <Text style={styles.catEmoji}>{c.emoji}</Text>
                       </LinearGradient>
                     </View>
@@ -632,7 +675,7 @@ export default function TravelPartnersScreen() {
         {/* Why travel together */}
         <View style={styles.whyHead}>
           <Text style={styles.sectionTitle}>Why travel together?</Text>
-          <LinearGradient colors={[...T.cta]} style={styles.whyArrow}>
+          <LinearGradient colors={T.cta} style={styles.whyArrow}>
             <Ionicons name="arrow-forward" size={14} color="#fff" />
           </LinearGradient>
         </View>
@@ -643,7 +686,7 @@ export default function TravelPartnersScreen() {
               entering={ZoomIn.delay(120 + i * 70).springify()}
               style={{ width: (SCREEN_W - 40 - 10) / 2 }}
             >
-              <LinearGradient colors={[...card.bg]} style={styles.whyCard}>
+              <LinearGradient colors={card.bg} style={styles.whyCard}>
                 <View style={styles.whyIcon}>
                   <Ionicons name={card.icon} size={18} color={card.color} />
                 </View>

@@ -104,7 +104,7 @@ export default function VibeMatchScreen() {
 
   if (loading) {
     return (
-      <PremiumScreen>
+      <PremiumScreen title="VibeMatch" heroImage="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600">
         <View style={styles.center}>
           <ActivityIndicator color={VibeColors.neonPink} size="large" />
           <Text style={styles.loadingText}>Finding best vibes near you…</Text>
@@ -115,7 +115,7 @@ export default function VibeMatchScreen() {
 
   if (!current) {
     return (
-      <PremiumScreen>
+      <PremiumScreen title="VibeMatch" heroImage="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600">
         <View style={styles.center}>
           <Ionicons name="sparkles" size={36} color={VibeColors.neonPurple} />
           <Text style={styles.emptyTitle}>No live plans nearby</Text>
@@ -130,6 +130,8 @@ export default function VibeMatchScreen() {
 
   return (
     <PremiumScreen
+      title="VibeMatch"
+      heroImage="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600"
       footer={
         <View style={styles.footerRow}>
           <Pressable

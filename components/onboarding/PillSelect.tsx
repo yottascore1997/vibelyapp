@@ -1,12 +1,13 @@
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors, Radius, Spacing } from "../../constants/theme";
+import { Radius, Spacing } from "../../constants/theme";
 
-interface Option {
+export interface Option {
   id: string;
   label: string;
   icon?: string;
+  emoji?: string;
 }
 
 interface Props {
@@ -31,15 +32,27 @@ export default function PillSelect({ options, value, onChange, columns = 2 }: Pr
             activeOpacity={0.85}
           >
             {active ? (
-              <LinearGradient colors={["#8A56FF", "#FF4B81"]} style={styles.pillGradient}>
+              <LinearGradient colors={["#7C3AED", "#8B5CF6"]} style={styles.pillGradient}>
                 <View style={styles.pillInner}>
-                  {opt.icon && <Ionicons name={opt.icon as keyof typeof Ionicons.glyphMap} size={20} color={Colors.primary} />}
+                  {opt.emoji ? (
+                    <Text style={styles.emojiText}>{opt.emoji}</Text>
+                  ) : opt.icon ? (
+                    <View style={styles.iconBoxActive}>
+                      <Ionicons name={opt.icon as keyof typeof Ionicons.glyphMap} size={16} color="#7C3AED" />
+                    </View>
+                  ) : null}
                   <Text style={[styles.pillText, styles.pillTextActive]}>{opt.label}</Text>
                 </View>
               </LinearGradient>
             ) : (
               <View style={styles.pill}>
-                {opt.icon && <Ionicons name={opt.icon as keyof typeof Ionicons.glyphMap} size={20} color={Colors.textSecondary} />}
+                {opt.emoji ? (
+                  <Text style={styles.emojiText}>{opt.emoji}</Text>
+                ) : opt.icon ? (
+                  <View style={styles.iconBox}>
+                    <Ionicons name={opt.icon as keyof typeof Ionicons.glyphMap} size={16} color="#64748B" />
+                  </View>
+                ) : null}
                 <Text style={styles.pillText}>{opt.label}</Text>
               </View>
             )}
@@ -52,35 +65,52 @@ export default function PillSelect({ options, value, onChange, columns = 2 }: Pr
 
 const styles = StyleSheet.create({
   grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", gap: Spacing.sm },
-  pillWrap: { marginBottom: Spacing.sm },
+  pillWrap: { marginBottom: Spacing.xs },
   pillGradient: { borderRadius: Radius.lg, padding: 2 },
   pillInner: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
     borderRadius: Radius.lg - 2,
-    backgroundColor: "#FDF4FF",
+    backgroundColor: "#F3E8FF",
   },
   pill: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
     borderRadius: Radius.lg,
-    backgroundColor: "#fff",
+    backgroundColor: "#FFFFFF",
     borderWidth: 1.5,
-    borderColor: "#EDE9FE",
-    shadowColor: "#000",
+    borderColor: "#E2E8F0",
+    shadowColor: "#7C3AED",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.03,
     shadowRadius: 4,
     elevation: 1,
   },
-  pillText: { fontSize: 13, fontWeight: "600", color: Colors.textSecondary },
-  pillTextActive: { color: Colors.primary, fontWeight: "700" },
+  emojiText: { fontSize: 18 },
+  iconBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(100, 116, 139, 0.08)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconBoxActive: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(124, 58, 237, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pillText: { fontSize: 13, fontWeight: "600", color: "#64748B" },
+  pillTextActive: { color: "#7C3AED", fontWeight: "700" },
 });

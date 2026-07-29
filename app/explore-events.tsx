@@ -10,1607 +10,1815 @@ import {
   Dimensions,
   Modal,
   Pressable,
-  ImageBackground,
   Alert,
+  Linking,
+  FlatList,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import Animated, { FadeInDown, ZoomIn } from "react-native-reanimated";
+import Animated, { FadeInDown, FadeInUp, ZoomIn } from "react-native-reanimated";
 import TabBar from "../components/TabBar";
-import { VibeColors, VibeFonts } from "../constants/vibeTheme";
-import { Radius, Spacing } from "../constants/theme";
+import AppHeader from "../components/vibe/AppHeader";
+import { VibeFonts } from "../constants/vibeTheme";
 import { useAuth } from "../context/AuthContext";
-import { api } from "../services/api";
-import type { Plan } from "../constants/plans";
 
 const { width } = Dimensions.get("window");
 
-/** Premium dark + light Events palette */
-const T = {
-  bg: "#EEE9F8",
-  card: "#FFFBFE",
-  ink: "#1A1F36",
-  muted: "#6B7280",
-  faint: "#9CA3AF",
-  border: "#E4DFF0",
-  purple: "#8B5CF6",
-  purpleDeep: "#7C3AED",
-  pink: "#EC4899",
-  softPurple: "#EDE7FF",
-  dark: "#0F0B1A",
-  darkSoft: "#1A1230",
-  darkCard: "#16122A",
-  cta: ["#8B5CF6", "#EC4899"] as const,
-  hero: ["#0F0B1A", "#1A1230", "#2A1854"] as const,
-};
+// Categories required by user spec
+const CATEGORIES = [
+  { id: "Coffee", label: "Coffee", emoji: "☕", bg: "#FEF3C7", color: "#D97706" },
+  { id: "Drinks", label: "Drinks", emoji: "🍹", bg: "#FCE7F3", color: "#DB2777" },
+  { id: "Dinner", label: "Dinner", emoji: "🍽️", bg: "#FFEDD5", color: "#EA580C" },
+  { id: "Walk", label: "Walk", emoji: "🚶", bg: "#D1FAE5", color: "#059669" },
+  { id: "Movie", label: "Movie", emoji: "🎬", bg: "#F3E8FF", color: "#7C3AED" },
+  { id: "Bowling", label: "Bowling", emoji: "🎳", bg: "#E0F2FE", color: "#0284C7" },
+];
 
-interface EventItem {
+// Basic filters required by user spec
+const QUICK_FILTERS = ["All", "Today", "This Weekend", "Free", "Coffee", "Drinks"];
+
+// Cities
+const CITIES = ["Nagpur", "Mumbai", "Pune", "Delhi", "Bangalore", "Goa"];
+
+export interface VibelyEvent {
   id: string;
   title: string;
   category: string;
-  location: string;
-  timeLabel: string;
-  goingCount: number;
-  commentCount: number;
-  creatorName: string;
-  creatorAvatar: string;
-  creatorTimeAgo: string;
-  isVerified: boolean;
-  tags: string[];
+  categoryEmoji: string;
+  coverImage: string;
   description: string;
-  imageUrl: string;
-  isFree?: boolean;
+  date: string;
+  time: string;
+  dateLabel: string;
+  venue: string;
+  city: string;
+  distance: string;
+  googleMapsUrl?: string;
+  hostName: string;
+  hostAvatar: string;
+  isHostVerified?: boolean;
+  maxParticipants: number;
+  joinedCount: number;
+  joinedUserIds: string[];
+  isFree: boolean;
+  ticketPrice?: number;
+  isCancelled?: boolean;
+  createdById: string;
 }
 
-const INITIAL_EVENTS: EventItem[] = [];
-
-function mapPlanToEvent(p: Plan): EventItem {
-  return {
-    id: p.id,
-    title: p.title,
-    category: p.activity || "Hangout",
-    location: p.location || "Nearby",
-    timeLabel: p.timeLabel || p.time || "Soon",
-    goingCount: p.going || 1,
-    commentCount: 0,
-    creatorName: p.creatorName || "Host",
-    creatorAvatar:
-      p.creatorAvatar ||
-      "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100",
-    creatorTimeAgo: p.badge || "Live",
-    isVerified: true,
-    tags: [p.activity || "Event", p.badge || "Open"].filter(Boolean) as string[],
-    description: p.description || "Join this event near you.",
-    imageUrl:
-      p.imageUrl ||
-      "https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?w=300",
+const PRESET_EVENTS: VibelyEvent[] = [
+  {
+    id: "evt-1",
+    title: "Sunset Specialty Coffee & Chill ☕",
+    category: "Coffee",
+    categoryEmoji: "☕",
+    coverImage: "https://images.unsplash.com/photo-1511920170033-f8396924c348?w=800",
+    description: "Calling all coffee lovers! Let's meet at Cafe Connect for pour-overs, artisan brews, and good conversations.",
+    date: "2026-07-27",
+    time: "18:30",
+    dateLabel: "Today, 6:30 PM",
+    venue: "Cafe Connect, Dharampeth",
+    city: "Nagpur",
+    distance: "1.2 km away",
+    googleMapsUrl: "https://maps.google.com/?q=Cafe+Connect+Nagpur",
+    hostName: "Roshani Mayur",
+    hostAvatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120",
+    isHostVerified: true,
+    maxParticipants: 8,
+    joinedCount: 5,
+    joinedUserIds: ["u2", "u3", "u4", "u5", "u6"],
     isFree: true,
-  };
-}
-
-const MAIN_FILTERS = [
-  { id: "All", label: "All", icon: "compass-outline" },
-  { id: "Free Hang", label: "Free Hang", icon: "pricetag-outline" },
-  { id: "Today", label: "Today", icon: "calendar-outline" },
-  { id: "This Week", label: "This Week", icon: "calendar-outline" },
-  { id: "Nearby", label: "Nearby", icon: "navigate-outline" },
+    createdById: "u-other-1",
+  },
+  {
+    id: "evt-2",
+    title: "Rooftop Cocktails & Weekend Vibe 🍹",
+    category: "Drinks",
+    categoryEmoji: "🍹",
+    coverImage: "https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?w=800",
+    description: "Enjoy sunset views, craft drinks, and house music with great people.",
+    date: "2026-07-28",
+    time: "20:00",
+    dateLabel: "Tomorrow, 8:00 PM",
+    venue: "Empress City Lounge, Sadar",
+    city: "Nagpur",
+    distance: "2.5 km away",
+    googleMapsUrl: "https://maps.google.com/?q=Empress+City+Nagpur",
+    hostName: "Karan Sharma",
+    hostAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120",
+    isHostVerified: true,
+    maxParticipants: 12,
+    joinedCount: 9,
+    joinedUserIds: ["u-current", "u2", "u7"],
+    isFree: false,
+    ticketPrice: 250,
+    createdById: "u-other-2",
+  },
+  {
+    id: "evt-3",
+    title: "Late Night Gourmet Dinner Party 🍽️",
+    category: "Dinner",
+    categoryEmoji: "🍽️",
+    coverImage: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800",
+    description: "Wood-fired pizzas, authentic pasta, and great vibes. Everyone pays for what they order!",
+    date: "2026-07-29",
+    time: "21:15",
+    dateLabel: "Wed, 9:15 PM",
+    venue: "Olive Bistro, Civil Lines",
+    city: "Nagpur",
+    distance: "3.1 km away",
+    googleMapsUrl: "https://maps.google.com/?q=Olive+Bistro+Nagpur",
+    hostName: "Ananya Roy",
+    hostAvatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=120",
+    isHostVerified: true,
+    maxParticipants: 6,
+    joinedCount: 4,
+    joinedUserIds: ["u3", "u8"],
+    isFree: true,
+    createdById: "u-other-3",
+  },
+  {
+    id: "evt-4",
+    title: "Futala Lake Evening Stroll 🚶",
+    category: "Walk",
+    categoryEmoji: "🚶",
+    coverImage: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800",
+    description: "Relaxed evening walk around Futala promenade followed by street food snacks.",
+    date: "2026-07-27",
+    time: "19:00",
+    dateLabel: "Today, 7:00 PM",
+    venue: "Futala Promenade, West Nagpur",
+    city: "Nagpur",
+    distance: "4.0 km away",
+    googleMapsUrl: "https://maps.google.com/?q=Futala+Lake+Nagpur",
+    hostName: "Aman Gupta",
+    hostAvatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120",
+    isHostVerified: false,
+    maxParticipants: 15,
+    joinedCount: 11,
+    joinedUserIds: [],
+    isFree: true,
+    createdById: "u-other-4",
+  },
+  {
+    id: "evt-5",
+    title: "IMAX Night: New Blockbuster 🎬",
+    category: "Movie",
+    categoryEmoji: "🎬",
+    coverImage: "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=800",
+    description: "Catching the latest movie in IMAX 3D together! Group popcorn included.",
+    date: "2026-08-01",
+    time: "19:30",
+    dateLabel: "This Saturday, 7:30 PM",
+    venue: "Cinepolis, VR Mall, Medical Square",
+    city: "Nagpur",
+    distance: "1.8 km away",
+    googleMapsUrl: "https://maps.google.com/?q=VR+Mall+Nagpur",
+    hostName: "Neha Verma",
+    hostAvatar: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=120",
+    isHostVerified: true,
+    maxParticipants: 10,
+    joinedCount: 7,
+    joinedUserIds: [],
+    isFree: false,
+    ticketPrice: 350,
+    createdById: "u-other-5",
+  },
+  {
+    id: "evt-6",
+    title: "Weekend Bowling & Arcade Battle 🎳",
+    category: "Bowling",
+    categoryEmoji: "🎳",
+    coverImage: "https://images.unsplash.com/photo-1538510001314-774ce26aee20?w=800",
+    description: "Friendly bowling tournament and arcade games. Winner gets free drinks!",
+    date: "2026-08-02",
+    time: "17:00",
+    dateLabel: "This Sunday, 5:00 PM",
+    venue: "FunZone Alley, Trillium Mall",
+    city: "Nagpur",
+    distance: "3.5 km away",
+    googleMapsUrl: "https://maps.google.com/?q=Trillium+Mall+Nagpur",
+    hostName: "Vikram Singh",
+    hostAvatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=120",
+    isHostVerified: true,
+    maxParticipants: 8,
+    joinedCount: 6,
+    joinedUserIds: [],
+    isFree: false,
+    ticketPrice: 400,
+    createdById: "u-other-6",
+  },
 ];
-
-function isEventExpired(timeLabel: string): boolean {
-  try {
-    const now = new Date();
-    let eventDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    if (timeLabel.toLowerCase().includes("today")) {
-      // Already today
-    } else if (timeLabel.toLowerCase().includes("tomorrow")) {
-      eventDate.setDate(eventDate.getDate() + 1);
-    } else if (/^\d{1,2}\/\d{1,2}\/\d{4}/.test(timeLabel)) {
-      const match = timeLabel.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-      if (match) {
-        const day = parseInt(match[1], 10);
-        const month = parseInt(match[2], 10) - 1;
-        const year = parseInt(match[3], 10);
-        eventDate = new Date(year, month, day);
-      }
-    } else {
-      const match = timeLabel.match(/^(\d{1,2})\s+([A-Za-z]+)/);
-      if (match) {
-        const day = parseInt(match[1], 10);
-        const monthStr = match[2].toLowerCase();
-        const months = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
-        const monthIndex = months.findIndex(m => monthStr.startsWith(m));
-        if (monthIndex !== -1) {
-          eventDate = new Date(now.getFullYear(), monthIndex, day);
-        }
-      }
-    }
-
-    eventDate.setHours(0, 0, 0, 0);
-
-    const cutoffTime = eventDate.getTime() + 26 * 60 * 60 * 1000;
-    return Date.now() > cutoffTime;
-  } catch (error) {
-    return false;
-  }
-}
 
 export default function ExploreEventsScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const [events, setEvents] = useState<EventItem[]>(INITIAL_EVENTS);
-  const [activeFilter, setActiveFilter] = useState("All");
+  const currentUserId = user?.id || "u-current";
+
+  // Core States
+  const [eventsList, setEventsList] = useState<VibelyEvent[]>(PRESET_EVENTS);
+  const [selectedCity, setSelectedCity] = useState("Nagpur");
+  const [showCityPicker, setShowCityPicker] = useState(false);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [activeQuickFilter, setActiveQuickFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedSubTab, setSelectedSubTab] = useState<"Popular" | "Recent" | "Following">("Popular");
+
+  // Modals & Sheets
+  const [selectedEvent, setSelectedEvent] = useState<VibelyEvent | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showMyEventsModal, setShowMyEventsModal] = useState(false);
+  const [myEventsTab, setMyEventsTab] = useState<"Upcoming" | "Joined">("Joined");
 
-  const refreshEvents = useCallback(async () => {
-    try {
-      const [mine, nearby] = await Promise.all([
-        api.getMyPlans(undefined, "EVENT").catch(() => [] as Plan[]),
-        api.getNearbyPlans(undefined, "EVENT").catch(() => [] as Plan[]),
-      ]);
-      const merged = [...(mine || []), ...(nearby || [])].filter(
-        (p, i, arr) => arr.findIndex((x) => x.id === p.id) === i
-      );
-      setEvents(merged.map(mapPlanToEvent));
-    } catch {
-      setEvents([]);
-    }
-  }, []);
+  // Notification Toast State
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  useFocusEffect(
-    useCallback(() => {
-      refreshEvents();
-    }, [refreshEvents])
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3200);
+  };
+
+  // Create Event Form State
+  const [formTitle, setFormTitle] = useState("");
+  const [formCategory, setFormCategory] = useState("Coffee");
+  const [formDescription, setFormDescription] = useState("");
+  const [formDate, setFormDate] = useState("Today");
+  const [formTime, setFormTime] = useState("19:00");
+  const [formVenue, setFormVenue] = useState("");
+  const [formMaxParticipants, setFormMaxParticipants] = useState("8");
+  const [formIsFree, setFormIsFree] = useState(true);
+  const [formTicketPrice, setFormTicketPrice] = useState("150");
+  const [formCoverImage, setFormCoverImage] = useState(
+    "https://images.unsplash.com/photo-1511920170033-f8396924c348?w=800"
   );
 
+  const handleJoinEvent = (eventId: string) => {
+    setEventsList((prev) =>
+      prev.map((e) => {
+        if (e.id === eventId) {
+          const alreadyJoined = e.joinedUserIds.includes(currentUserId);
+          if (alreadyJoined) {
+            return {
+              ...e,
+              joinedCount: Math.max(0, e.joinedCount - 1),
+              joinedUserIds: e.joinedUserIds.filter((id) => id !== currentUserId),
+            };
+          } else {
+            return {
+              ...e,
+              joinedCount: e.joinedCount + 1,
+              joinedUserIds: [...e.joinedUserIds, currentUserId],
+            };
+          }
+        }
+        return e;
+      })
+    );
 
-  // Form States for creating new event
-  const [currentStep, setCurrentStep] = useState(1);
-  const [coverPhoto, setCoverPhoto] = useState<string | null>(null);
-  const [newTitle, setNewTitle] = useState("");
-  const [startDate, setStartDate] = useState("Select date");
-  const [newTime, setNewTime] = useState("Select time");
-  const [newLocation, setNewLocation] = useState("");
-  const [genderSelection, setGenderSelection] = useState("All");
-  const [newDesc, setNewDesc] = useState("");
-
-  // Step 2 Form States
-  const [eventType, setEventType] = useState<"Paid" | "Free">("Paid");
-  const [costPerTicket, setCostPerTicket] = useState("123");
-  const [currency, setCurrency] = useState("INR");
-
-  const mockCovers = [
-    "https://images.unsplash.com/photo-1596176530529-78163a4f7af2?w=800&q=80", // Nagpur Dome
-    "https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?w=600", // Rooftop
-    "https://images.unsplash.com/photo-1511920170033-f8396924c348?w=600", // Cafe Connect
-  ];
-
-  const handleCycleCover = () => {
-    if (!coverPhoto) {
-      setCoverPhoto(mockCovers[0]);
-    } else {
-      const idx = mockCovers.indexOf(coverPhoto);
-      if (idx === -1 || idx === mockCovers.length - 1) {
-        setCoverPhoto(mockCovers[0]);
-      } else {
-        setCoverPhoto(mockCovers[idx + 1]);
-      }
-    }
-  };
-
-  const handleCycleDate = () => {
-    const dates = ["13/07/2026", "14/07/2026", "15/07/2026", "16/07/2026"];
-    const idx = dates.indexOf(startDate);
-    if (idx === -1 || idx === dates.length - 1) {
-      setStartDate(dates[0]);
-    } else {
-      setStartDate(dates[idx + 1]);
-    }
-  };
-
-  const handleCycleTime = () => {
-    const times = ["15:20", "18:00", "20:00", "22:30"];
-    const idx = times.indexOf(newTime);
-    if (idx === -1 || idx === times.length - 1) {
-      setNewTime(times[0]);
-    } else {
-      setNewTime(times[idx + 1]);
-    }
-  };
-
-  const handleCycleGender = () => {
-    const genders = ["All", "Male Only", "Female Only"];
-    const idx = genders.indexOf(genderSelection);
-    if (idx === -1 || idx === genders.length - 1) {
-      setGenderSelection(genders[0]);
-    } else {
-      setGenderSelection(genders[idx + 1]);
-    }
-  };
-
-  const handleCycleCurrency = () => {
-    const currencies = ["INR", "USD", "EUR"];
-    const idx = currencies.indexOf(currency);
-    if (idx === -1 || idx === currencies.length - 1) {
-      setCurrency(currencies[0]);
-    } else {
-      setCurrency(currencies[idx + 1]);
-    }
-  };
-
-  const isStep1Valid = newTitle.trim().length > 0 &&
-                       startDate !== "Select date" &&
-                       newTime !== "Select time" &&
-                       newLocation.trim().length > 0 &&
-                       newDesc.trim().length > 0;
-
-  const handleCreateEvent = async () => {
-    if (!newTitle.trim() || !newLocation.trim() || !newDesc.trim()) {
-      Alert.alert("Missing details", "Please fill in all details!");
-      return;
-    }
-    if (!user) {
-      Alert.alert("Login required", "Please log in to create an event.");
-      return;
-    }
-
-    try {
-      const [dd, mm, yyyy] = startDate.includes("/")
-        ? startDate.split("/")
-        : ["", "", ""];
-      const scheduled = new Date();
-      if (dd && mm && yyyy) {
-        scheduled.setFullYear(Number(yyyy), Number(mm) - 1, Number(dd));
-      } else {
-        scheduled.setDate(scheduled.getDate() + 1);
-      }
-      const [hh, min] = newTime.includes(":") ? newTime.split(":") : ["18", "0"];
-      scheduled.setHours(Number(hh) || 18, Number(min) || 0, 0, 0);
-
-      await api.createPlan({
-        title: newTitle.trim(),
-        description: newDesc.trim(),
-        location: newLocation.trim(),
-        scheduledAt: scheduled.toISOString(),
-        maxParticipants: 20,
-        activity: "Event",
-        imageUrl:
-          coverPhoto ||
-          "https://images.unsplash.com/photo-1596176530529-78163a4f7af2?w=800&q=80",
-        kind: "EVENT",
+    if (selectedEvent && selectedEvent.id === eventId) {
+      const alreadyJoined = selectedEvent.joinedUserIds.includes(currentUserId);
+      setSelectedEvent({
+        ...selectedEvent,
+        joinedCount: alreadyJoined
+          ? selectedEvent.joinedCount - 1
+          : selectedEvent.joinedCount + 1,
+        joinedUserIds: alreadyJoined
+          ? selectedEvent.joinedUserIds.filter((id) => id !== currentUserId)
+          : [...selectedEvent.joinedUserIds, currentUserId],
       });
 
-      await refreshEvents();
-      setShowCreateModal(false);
-      setCurrentStep(1);
-      setCoverPhoto(null);
-      setNewTitle("");
-      setStartDate("Select date");
-      setNewTime("Select time");
-      setNewLocation("");
-      setGenderSelection("All");
-      setNewDesc("");
-      setEventType("Paid");
-      setCostPerTicket("123");
-      setCurrency("INR");
-      Alert.alert("Event live", "Your event is published for people nearby.");
-    } catch (e) {
-      Alert.alert("Error", e instanceof Error ? e.message : "Could not create event");
-    }
-  };
-
-  const handleBack = () => {
-    if (currentStep === 2) {
-      setCurrentStep(1);
-    } else {
-      setShowCreateModal(false);
-    }
-  };
-
-  const handleEventPress = (item: EventItem) => {
-    router.push({
-      pathname: "/event-details",
-      params: {
-        id: item.id,
-        title: item.title,
-        category: item.category,
-        location: item.location,
-        timeLabel: item.timeLabel,
-        creatorName: item.creatorName,
-        creatorAvatar: item.creatorAvatar,
-        creatorTimeAgo: item.creatorTimeAgo,
-        tags: item.tags.join(","),
-        description: item.description,
-        imageUrl: item.imageUrl,
-        goingCount: String(item.goingCount),
-        commentCount: String(item.commentCount),
-        isVerified: item.isVerified ? "true" : "false",
-        isFree: item.isFree ? "true" : "false",
+      if (!alreadyJoined) {
+        showToast("🎉 Event Joined Successfully!");
+      } else {
+        showToast("Event invite response updated");
       }
-    });
+    } else {
+      showToast("🎉 Event Joined Successfully!");
+    }
   };
 
-  // Filter events based on search query and activeFilter chip selection
-  const filteredEvents = events.filter((e) => {
-    // Hide event automatically after its day passes (expires at 2:00 AM the next day)
-    if (isEventExpired(e.timeLabel)) {
+  const handleCreateEventSubmit = () => {
+    if (!formTitle.trim() || !formVenue.trim() || !formDescription.trim()) {
+      Alert.alert("Missing Details", "Please fill in Title, Venue, and Description.");
+      return;
+    }
+
+    const catObj = CATEGORIES.find((c) => c.id === formCategory) || CATEGORIES[0];
+    const newEvt: VibelyEvent = {
+      id: `evt-${Date.now()}`,
+      title: formTitle.trim(),
+      category: formCategory,
+      categoryEmoji: catObj.emoji,
+      coverImage: formCoverImage,
+      description: formDescription.trim(),
+      date: "2026-07-27",
+      time: formTime,
+      dateLabel: `${formDate}, ${formTime}`,
+      venue: formVenue.trim(),
+      city: selectedCity,
+      distance: "0.5 km away",
+      googleMapsUrl: `https://maps.google.com/?q=${encodeURIComponent(formVenue.trim() + " " + selectedCity)}`,
+      hostName: user?.name || "You",
+      hostAvatar:
+        user?.avatarUrl ||
+        "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120",
+      isHostVerified: true,
+      maxParticipants: parseInt(formMaxParticipants, 10) || 10,
+      joinedCount: 1,
+      joinedUserIds: [currentUserId],
+      isFree: formIsFree,
+      ticketPrice: formIsFree ? 0 : parseInt(formTicketPrice, 10) || 0,
+      createdById: currentUserId,
+    };
+
+    setEventsList([newEvt, ...eventsList]);
+    setShowCreateModal(false);
+    showToast("✨ Event Created & Live!");
+
+    // Reset Form
+    setFormTitle("");
+    setFormVenue("");
+    setFormDescription("");
+  };
+
+  // Filtered Events computation
+  const filteredEvents = eventsList.filter((e) => {
+    // City filter
+    if (e.city.toLowerCase() !== selectedCity.toLowerCase()) return false;
+
+    // Search query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const matchTitle = e.title.toLowerCase().includes(q);
+      const matchVenue = e.venue.toLowerCase().includes(q);
+      const matchCat = e.category.toLowerCase().includes(q);
+      if (!matchTitle && !matchVenue && !matchCat) return false;
+    }
+
+    // Selected Category
+    if (activeCategory && e.category.toLowerCase() !== activeCategory.toLowerCase()) {
       return false;
     }
 
-    // 1. Search filter query
-    const matchesSearch =
-      e.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      e.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      e.creatorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      e.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-
-    if (!matchesSearch) return false;
-
-    // 2. Active Tab chip filter selection
-    if (activeFilter === "All") return true;
-    if (activeFilter === "Free Hang") return e.isFree === true;
-    if (activeFilter === "Today") return e.timeLabel.toLowerCase().includes("today");
-    if (activeFilter === "This Week") {
-      const time = e.timeLabel.toLowerCase();
-      return time.includes("today") || time.includes("tomorrow");
+    // Quick filter
+    if (activeQuickFilter === "Today") {
+      if (!e.dateLabel.toLowerCase().includes("today")) return false;
+    } else if (activeQuickFilter === "This Weekend") {
+      if (
+        !e.dateLabel.toLowerCase().includes("saturday") &&
+        !e.dateLabel.toLowerCase().includes("sunday") &&
+        !e.dateLabel.toLowerCase().includes("weekend")
+      )
+        return false;
+    } else if (activeQuickFilter === "Free") {
+      if (!e.isFree) return false;
+    } else if (activeQuickFilter === "Coffee") {
+      if (e.category !== "Coffee") return false;
+    } else if (activeQuickFilter === "Drinks") {
+      if (e.category !== "Drinks") return false;
     }
-    if (activeFilter === "Nearby") return e.location.toLowerCase().includes("nagpur");
 
     return true;
   });
 
+  // User's events for My Events Modal
+  const hostedEvents = eventsList.filter((e) => e.createdById === currentUserId);
+  const joinedEvents = eventsList.filter((e) => e.joinedUserIds.includes(currentUserId));
+
   return (
-    <View style={styles.root}>
-      <StatusBar style="light" />
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      <StatusBar style="dark" />
+      <AppHeader variant="light" tagline="Explore Events · Real Meets" />
 
-      <View style={[styles.orb, styles.orb1]} />
-      <View style={[styles.orb, styles.orb2]} />
+      {/* Notification Toast Banner */}
+      {toastMessage && (
+        <Animated.View entering={FadeInUp.duration(300)} style={styles.toastWrap}>
+          <LinearGradient
+            colors={["#7C3AED", "#EC4899"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.toastInner}
+          >
+            <Ionicons name="sparkles" size={18} color="#FFFFFF" />
+            <Text style={styles.toastText}>{toastMessage}</Text>
+          </LinearGradient>
+        </Animated.View>
+      )}
 
-      <View style={styles.headerWrap}>
-      <ImageBackground
-        source={{ uri: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=900&q=80" }}
-        style={styles.headerBackdrop}
-        imageStyle={styles.headerBackdropImage}
-      >
-        <LinearGradient
-          colors={["rgba(15,11,26,0.5)", "rgba(15,11,26,0.88)", T.dark]}
-          style={StyleSheet.absoluteFillObject}
-        />
-
-        <SafeAreaView style={styles.safeHeader} edges={["top"]}>
-          <View style={styles.topBar}>
-            <TouchableOpacity style={styles.backArrowBtn} onPress={() => router.back()}>
-              <Ionicons name="arrow-back" size={20} color="#fff" />
-            </TouchableOpacity>
-
-            <View style={styles.brandPill}>
-              <Ionicons name="sparkles" size={11} color="#E9D5FF" />
-              <Text style={styles.brandPillText}>EVENTS</Text>
-            </View>
-
-            <View style={styles.topRightActions}>
-              <TouchableOpacity style={styles.bellBtn} onPress={() => router.push("/events-map")}>
-                <Ionicons name="map" size={18} color="#fff" />
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.bellBtn}>
-                <Ionicons name="notifications" size={18} color="#fff" />
-                <View style={styles.bellBadge}>
-                  <Text style={styles.bellBadgeText}>3</Text>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.settingsBtn} onPress={() => setShowCreateModal(true)}>
-                <Ionicons name="add" size={18} color="#fff" />
-              </TouchableOpacity>
-            </View>
+      {/* Top Header */}
+      <View style={styles.headerRow}>
+        <View style={styles.headerLeft}>
+          <Pressable style={styles.backBtn} onPress={() => router.back()}>
+            <Ionicons name="chevron-back" size={20} color="#18181B" />
+          </Pressable>
+          <View>
+            <Text style={styles.headerTitle}>Vibely Events</Text>
+            {/* City Picker Dropdown Button */}
+            <Pressable style={styles.cityPill} onPress={() => setShowCityPicker(true)}>
+              <Ionicons name="location-sharp" size={12} color="#7C3AED" />
+              <Text style={styles.cityName}>{selectedCity}</Text>
+              <Ionicons name="chevron-down" size={12} color="#64748B" />
+            </Pressable>
           </View>
-
-          <View style={styles.greetingBlock}>
-            <Text style={styles.greetingText}>Hey Mayur</Text>
-            <Text style={styles.greetingSub}>Tonight&apos;s vibes are loading…</Text>
-          </View>
-
-          <View style={styles.titleBlock}>
-            <Text style={styles.gradientHeadingText}>Events in My City</Text>
-            <View style={styles.titleMetaRow}>
-              <Text style={styles.subtextCaption}>Discover · Connect · Hangout</Text>
-              <View style={styles.liveCountPill}>
-                <View style={styles.liveDot} />
-                <Text style={styles.liveCountText}>{filteredEvents.length} live</Text>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.searchRow}>
-            <View style={styles.locationSearchPill}>
-              <Ionicons name="location" size={12} color="#C4B5FD" />
-              <Text style={styles.locationText}>Nagpur</Text>
-              <Ionicons name="chevron-down" size={10} color="rgba(255,255,255,0.45)" />
-            </View>
-
-            <View style={styles.searchBox}>
-              <Ionicons name="search" size={14} color="rgba(255,255,255,0.4)" />
-              <TextInput
-                placeholder="Search events…"
-                placeholderTextColor="rgba(255,255,255,0.35)"
-                style={styles.searchInput}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-              />
-            </View>
-            <TouchableOpacity style={styles.filterGearBtn} onPress={() => setShowCreateModal(true)}>
-              <LinearGradient colors={[...T.cta]} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
-              <Ionicons name="add" size={20} color="#fff" />
-            </TouchableOpacity>
-          </View>
-        </SafeAreaView>
-      </ImageBackground>
-      <View style={styles.heroCurve} />
-      </View>
-
-      <View style={styles.bodySheet}>
-
-          {/* Horizontal scroll tags */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagsScroll} contentContainerStyle={styles.tagsContent}>
-            {MAIN_FILTERS.map((f) => (
-              <TouchableOpacity
-                key={f.id}
-                style={[styles.tagChip, activeFilter === f.id && styles.tagChipActive]}
-                onPress={() => setActiveFilter(f.id)}
-              >
-                {activeFilter === f.id ? (
-                  <LinearGradient colors={[...T.cta]} style={styles.tagChipGrad}>
-                    <Ionicons name={f.icon as any} size={12} color="#fff" />
-                    <Text style={styles.tagChipTextActive}>{f.label}</Text>
-                  </LinearGradient>
-                ) : (
-                  <View style={styles.tagChipInner}>
-                    <Ionicons name={f.icon as any} size={12} color={f.id === "Free Hang" ? "#16A34A" : T.muted} />
-                    <Text style={[styles.tagChipText, f.id === "Free Hang" && { color: "#16A34A" }]}>{f.label}</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-
-        {/* SUB-TABS (Popular, Recent, Following) */}
-        <View style={styles.subTabsRow}>
-          {(["Popular", "Recent", "Following"] as const).map((tab) => {
-            const isActive = selectedSubTab === tab;
-            const iconMap = { Popular: "flame", Recent: "time", Following: "people" };
-            return (
-              <TouchableOpacity
-                key={tab}
-                style={[styles.subTabItem, isActive && styles.subTabItemActive]}
-                onPress={() => setSelectedSubTab(tab)}
-              >
-                <View style={styles.subTabLabelRow}>
-                  {isActive && <Ionicons name={iconMap[tab] as any} size={13} color={T.pink} style={{ marginRight: 4 }} />}
-                  <Text style={[styles.subTabText, isActive && styles.subTabTextActive]}>
-                    {tab}
-                  </Text>
-                </View>
-                {isActive && <View style={styles.subTabIndicator} />}
-              </TouchableOpacity>
-            );
-          })}
         </View>
 
-        {/* EVENTS LIST SCROLLVIEW */}
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.listContent}>
-          {/* Featured strip */}
-          <LinearGradient
-            colors={["#1A1230", "#2A1854", "#8B5CF6"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.featuredStrip}
+        <View style={styles.headerRight}>
+          {/* My Events Button */}
+          <Pressable
+            style={styles.myEventsBtn}
+            onPress={() => setShowMyEventsModal(true)}
           >
-            <View style={styles.featuredStripLeft}>
-              <Text style={styles.featuredEyebrow}>TONIGHT</Text>
-              <Text style={styles.featuredTitle}>Hot hangouts near you</Text>
-            </View>
-            <Pressable onPress={() => router.push("/events-map")} style={styles.featuredMapBtn}>
-              <Ionicons name="map" size={14} color={T.purpleDeep} />
-              <Text style={styles.featuredMapText}>Map</Text>
-            </Pressable>
-          </LinearGradient>
-
-          {filteredEvents.map((item, index) => (
-            <Animated.View key={item.id} entering={FadeInDown.delay(index * 80).springify().damping(15)}>
-            <TouchableOpacity
-              onPress={() => handleEventPress(item)}
-              activeOpacity={0.93}
-            >
-              <View style={styles.eventCard}>
-                {/* Full-bleed hero media */}
-                <View style={styles.cardHero}>
-                  <Image source={{ uri: item.imageUrl }} style={styles.cardHeroImg} />
-                  <LinearGradient
-                    colors={["rgba(15,11,26,0.15)", "rgba(15,11,26,0.35)", "rgba(15,11,26,0.92)"]}
-                    style={styles.cardHeroFade}
-                  />
-
-                  <View style={styles.cardHeroTop}>
-                    <View style={styles.freeHangBadge}>
-                      <Ionicons name="leaf" size={9} color="#fff" />
-                      <Text style={styles.freeHangText}>FREE</Text>
-                    </View>
-                    <View style={styles.categoryHeroBadge}>
-                      <Text style={styles.categoryHeroText}>{item.category}</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.cardHeroBottom}>
-                    <Text style={styles.cardHeroTitle} numberOfLines={2}>{item.title}</Text>
-                    <View style={styles.cardHeroMeta}>
-                      <Ionicons name="location" size={12} color="#E9D5FF" />
-                      <Text style={styles.cardHeroLoc} numberOfLines={1}>{item.location}</Text>
-                    </View>
-                  </View>
-                </View>
-
-                {/* Light details panel */}
-                <View style={styles.cardBody}>
-                  <View style={styles.creatorRow}>
-                    <Image source={{ uri: item.creatorAvatar }} style={styles.creatorAvatar} />
-                    <View style={styles.creatorMeta}>
-                      <View style={styles.creatorNameRow}>
-                        <Text style={styles.creatorName}>{item.creatorName}</Text>
-                        {item.isVerified ? (
-                          <Ionicons name="checkmark-circle" size={13} color={T.purple} style={{ marginLeft: 4 }} />
-                        ) : null}
-                      </View>
-                      <Text style={styles.creatorTimeAgo}>Host · {item.creatorTimeAgo}</Text>
-                    </View>
-                    <View style={styles.goingStack}>
-                      <Text style={styles.goingStackNum}>{item.goingCount}</Text>
-                      <Text style={styles.goingStackLabel}>going</Text>
-                    </View>
-                  </View>
-
-                  <Text style={styles.eventDesc} numberOfLines={2}>{item.description}</Text>
-
-                  <View style={styles.tagsCapsulesRow}>
-                    {item.tags.slice(0, 3).map((tag, idx) => (
-                      <View key={idx} style={styles.tagCapsule}>
-                        <Text style={styles.tagCapsuleText}>{tag}</Text>
-                      </View>
-                    ))}
-                  </View>
-
-                  <View style={styles.cardFooter}>
-                    <View style={styles.footerCapsule}>
-                      <Ionicons name="calendar-outline" size={13} color={T.purple} />
-                      <Text style={styles.footerCapsuleText}>{item.timeLabel}</Text>
-                    </View>
-                    <View style={styles.footerCapsule}>
-                      <Ionicons name="chatbubble-outline" size={12} color={T.muted} />
-                      <Text style={styles.footerCapsuleText}>{item.commentCount} chats</Text>
-                    </View>
-                    <TouchableOpacity style={styles.interestBtn}>
-                      <LinearGradient colors={[...T.cta]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.interestGrad}>
-                        <Text style={styles.interestBtnText}>I&apos;m In</Text>
-                        <Ionicons name="arrow-forward" size={12} color="#fff" />
-                      </LinearGradient>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-            </TouchableOpacity>
-            </Animated.View>
-          ))}
-
-          {/* Boost Your Event Promo Banner Footer */}
-          <LinearGradient
-            colors={[...T.hero]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.boostBanner}
-          >
-            <View style={styles.boostGrad}>
-              <View style={styles.boostLeft}>
-                <View style={styles.crownCircle}>
-                  <Ionicons name="diamond" size={16} color="#E9D5FF" />
-                </View>
-                <View style={styles.boostTextCol}>
-                  <Text style={styles.boostTitle}>Boost Your Event</Text>
-                  <Text style={styles.boostSubtitle}>Get more joins with a premium push.</Text>
-                </View>
-              </View>
-              
-              <TouchableOpacity style={styles.boostBtn}>
-                <LinearGradient colors={["#FFFFFF", "#F3E8FF"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.boostBtnGrad}>
-                  <Text style={[styles.boostBtnText, { color: T.darkSoft }]}>Boost</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-          </LinearGradient>
-
-          <Pressable style={styles.mapCta} onPress={() => router.push("/events-map")}>
-            <View style={styles.mapCtaInner}>
-              <View style={styles.mapCtaIcon}>
-                <Ionicons name="map" size={18} color={T.purple} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.mapCtaTitle}>Open Live Map</Text>
-                <Text style={styles.mapCtaSub}>See events & people around the city</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={T.purple} />
-            </View>
+            <Ionicons name="calendar-outline" size={16} color="#7C3AED" />
+            <Text style={styles.myEventsBtnText}>My Events</Text>
           </Pressable>
-        </ScrollView>
+
+          {/* Host Event Button */}
+          <Pressable onPress={() => setShowCreateModal(true)}>
+            <LinearGradient
+              colors={["#7C3AED", "#EC4899"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.hostBtnGrad}
+            >
+              <Ionicons name="add-circle" size={16} color="#FFFFFF" />
+              <Text style={styles.hostBtnText}>Host</Text>
+            </LinearGradient>
+          </Pressable>
+        </View>
       </View>
 
-      {/* Organizer Create Event Modal Form */}
-      <Modal
-        visible={showCreateModal}
-        transparent
-        animationType="slide"
-        onRequestClose={handleBack}
-      >
-        <View style={styles.modalOverlay}>
-          <Pressable style={styles.dismissOverlay} onPress={handleBack} />
-          
-          <Animated.View entering={FadeInDown.duration(300)} style={[styles.modalSheet, { backgroundColor: "#000000" }]}>
-            {/* Top Navigation Row: Back Arrow + Progress Bar + Step Indicator */}
-            <View style={styles.progressBarContainer}>
-              <TouchableOpacity onPress={handleBack} style={styles.modalBackBtn}>
-                <Ionicons name="arrow-back" size={22} color="#fff" />
-              </TouchableOpacity>
-              
-              <View style={styles.progressBarBg}>
-                <View style={[styles.progressBarFill, { width: currentStep === 1 ? "50%" : "100%" }]} />
-              </View>
-              
-              <Text style={styles.progressText}>{currentStep} of 2</Text>
-            </View>
+      {/* Search Input Bar */}
+      <View style={styles.searchBarWrap}>
+        <Ionicons name="search" size={18} color="#64748B" style={{ marginRight: 8 }} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search events, venue or city..."
+          placeholderTextColor="#94A3B8"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        {searchQuery.length > 0 && (
+          <Pressable onPress={() => setSearchQuery("")}>
+            <Ionicons name="close-circle" size={18} color="#94A3B8" />
+          </Pressable>
+        )}
+      </View>
 
-            {/* Step Title Heading */}
-            <View style={styles.modalTitleBlock}>
-              <Text style={styles.modalStepTitle}>
-                {currentStep === 1 ? "Event Details" : "Payment and Ticket Details"}
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
+        {/* Categories Bar (Coffee, Drinks, Dinner, Walk, Movie, Bowling) */}
+        <View style={styles.sectionWrap}>
+          <Text style={styles.sectionHeading}>Categories</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoriesScroll}
+          >
+            <TouchableOpacity
+              style={[
+                styles.catPill,
+                !activeCategory && styles.catPillActive,
+              ]}
+              onPress={() => setActiveCategory(null)}
+            >
+              <Text style={[styles.catEmoji]}>🌟</Text>
+              <Text
+                style={[
+                  styles.catLabel,
+                  !activeCategory && styles.catLabelActive,
+                ]}
+              >
+                All
               </Text>
-            </View>
+            </TouchableOpacity>
 
-            <ScrollView style={styles.modalFormScroll} showsVerticalScrollIndicator={false}>
-              {currentStep === 1 ? (
-                /* STEP 1: EVENT DETAILS */
-                <>
-                  {/* Cover Photo Picker Box */}
-                  <Pressable onPress={handleCycleCover}>
-                    {coverPhoto ? (
-                      <ImageBackground source={{ uri: coverPhoto }} style={styles.coverPhotoBox} imageStyle={{ borderRadius: 16 }}>
-                        <LinearGradient colors={["rgba(8,8,12,0.25)", "rgba(8,8,12,0.85)"]} style={StyleSheet.absoluteFillObject} />
-                        
-                        <View style={styles.coverLandmarkLabelWrap}>
-                          <Text style={styles.coverLandmarkText}>Hey Mayur! 👋</Text>
-                          <Text style={styles.coverLandmarkHeading}>Events in My City</Text>
-                          <Text style={styles.coverLandmarkSub}>Discover • Connect • Vibe</Text>
-                        </View>
+            {CATEGORIES.map((cat) => {
+              const selected = activeCategory === cat.id;
+              return (
+                <TouchableOpacity
+                  key={cat.id}
+                  style={[
+                    styles.catPill,
+                    { backgroundColor: cat.bg },
+                    selected && styles.catPillSelected,
+                  ]}
+                  onPress={() =>
+                    setActiveCategory(selected ? null : cat.id)
+                  }
+                >
+                  <Text style={styles.catEmoji}>{cat.emoji}</Text>
+                  <Text
+                    style={[
+                      styles.catLabel,
+                      { color: cat.color },
+                      selected && styles.catLabelSelected,
+                    ]}
+                  >
+                    {cat.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
 
-                        <View style={styles.editCoverBadge}>
-                          <Ionicons name="camera" size={12} color="#fff" />
-                          <Text style={{ color: "#fff", fontSize: 9, fontFamily: VibeFonts.bold }}>Edit</Text>
-                        </View>
-                      </ImageBackground>
-                    ) : (
-                      <View style={styles.coverPhotoBox}>
-                        <Ionicons name="add" size={24} color="#2DD4BF" style={{ marginBottom: 6 }} />
-                        <Text style={styles.coverPhotoText}>Add cover photo</Text>
-                      </View>
-                    )}
-                  </Pressable>
+        {/* Basic Quick Filters Bar (All, Today, This Weekend, Free, Coffee, Drinks) */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.quickFilterScroll}
+        >
+          {QUICK_FILTERS.map((filter) => {
+            const active = activeQuickFilter === filter;
+            return (
+              <Pressable
+                key={filter}
+                style={[styles.filterChip, active && styles.filterChipActive]}
+                onPress={() => setActiveQuickFilter(filter)}
+              >
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    active && styles.filterChipTextActive,
+                  ]}
+                >
+                  {filter}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
 
-                  {/* Event Name Input */}
-                  <View style={{ marginBottom: Spacing.md }}>
-                    <Text style={styles.inputGroupLabel}>Event Name</Text>
-                    <TextInput
-                      style={styles.modalInputTextOnly}
-                      value={newTitle}
-                      onChangeText={setNewTitle}
-                      placeholder="Create event name"
-                      placeholderTextColor="rgba(255,255,255,0.3)"
-                    />
-                  </View>
+        {/* Events Feed Section */}
+        <View style={styles.feedHeaderRow}>
+          <Text style={styles.feedTitle}>
+            Events in {selectedCity} ({filteredEvents.length})
+          </Text>
+        </View>
 
-                  {/* Start Date & Time Picker Row */}
-                  <View style={styles.formRow}>
-                    <View style={styles.formCol}>
-                      <Text style={styles.inputGroupLabel}>Start Date</Text>
-                      <Pressable onPress={handleCycleDate} style={styles.inputContainer}>
-                        <View style={styles.iconCircle}>
-                          <Ionicons name="calendar-outline" size={18} color="#fff" />
-                        </View>
-                        <Text style={startDate === "Select date" ? styles.inputTextPlaceholder : styles.inputText}>
-                          {startDate}
-                        </Text>
-                      </Pressable>
-                    </View>
+        {filteredEvents.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyEmoji}>🎪</Text>
+            <Text style={styles.emptyTitle}>No Events Found</Text>
+            <Text style={styles.emptySub}>
+              Be the first to host an event in {selectedCity}!
+            </Text>
+            <TouchableOpacity
+              style={styles.emptyCta}
+              onPress={() => setShowCreateModal(true)}
+            >
+              <Text style={styles.emptyCtaText}>+ Host Event Now</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.eventsGrid}>
+            {filteredEvents.map((evt, index) => {
+              const isJoined = evt.joinedUserIds.includes(currentUserId);
+              const spotsLeft = Math.max(0, evt.maxParticipants - evt.joinedCount);
 
-                    <View style={styles.formCol}>
-                      <Text style={styles.inputGroupLabel}>Time</Text>
-                      <Pressable onPress={handleCycleTime} style={styles.inputContainer}>
-                        <View style={styles.iconCircle}>
-                          <Ionicons name="time-outline" size={18} color="#fff" />
-                        </View>
-                        <Text style={newTime === "Select time" ? styles.inputTextPlaceholder : styles.inputText}>
-                          {newTime}
-                        </Text>
-                      </Pressable>
-                    </View>
-                  </View>
-
-                  {/* Address Input */}
-                  <View style={{ marginBottom: Spacing.md }}>
-                    <Text style={styles.inputGroupLabel}>Address</Text>
-                    <View style={styles.inputContainer}>
-                      <View style={styles.iconCircle}>
-                        <Ionicons name="location-outline" size={18} color="#fff" />
-                      </View>
-                      <TextInput
-                        style={styles.inputField}
-                        value={newLocation}
-                        onChangeText={setNewLocation}
-                        placeholder="Search address"
-                        placeholderTextColor="rgba(255,255,255,0.3)"
+              return (
+                <Animated.View
+                  key={evt.id}
+                  entering={FadeInDown.delay(index * 60).duration(350)}
+                  style={styles.eventCard}
+                >
+                  <Pressable onPress={() => setSelectedEvent(evt)}>
+                    {/* Cover Image & Badges */}
+                    <View style={styles.cardImageWrap}>
+                      <Image source={{ uri: evt.coverImage }} style={styles.cardImage} />
+                      <LinearGradient
+                        colors={["transparent", "rgba(0,0,0,0.65)"]}
+                        style={styles.imageGradient}
                       />
-                    </View>
-                  </View>
 
-                  {/* Gender Selection */}
-                  <View style={{ marginBottom: Spacing.md }}>
-                    <Text style={styles.inputGroupLabel}>Gender Selection</Text>
-                    <Pressable onPress={handleCycleGender} style={styles.inputContainer}>
-                      <View style={styles.iconCircle}>
-                        <Ionicons name="person-outline" size={16} color="#fff" />
+                      {/* Category Badge */}
+                      <View style={styles.cardCatBadge}>
+                        <Text style={styles.cardCatText}>
+                          {evt.categoryEmoji} {evt.category}
+                        </Text>
                       </View>
-                      <Text style={styles.inputText}>{genderSelection}</Text>
-                      <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.4)" style={{ marginLeft: "auto" }} />
-                    </Pressable>
-                  </View>
 
-                  {/* Description Info Field */}
-                  <View style={{ marginBottom: Spacing.md }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                      <Text style={styles.inputGroupLabel}>Description</Text>
-                      <Ionicons name="information-circle-outline" size={12} color="rgba(255,255,255,0.4)" />
-                    </View>
-                    <TextInput
-                      style={styles.modalInputDescription}
-                      value={newDesc}
-                      onChangeText={setNewDesc}
-                      placeholder="Add event description"
-                      placeholderTextColor="rgba(255,255,255,0.3)"
-                      multiline
-                    />
-                  </View>
-
-                  {/* Add More Photos Row */}
-                  <Pressable style={styles.addMoreBtn} onPress={handleCycleCover}>
-                    <Ionicons name="add" size={18} color="#2DD4BF" />
-                    <Text style={styles.addMoreText}>Add More Photos / Videos</Text>
-                  </Pressable>
-
-                  {/* Step 1 Next Action button */}
-                  {isStep1Valid ? (
-                    <TouchableOpacity onPress={() => setCurrentStep(2)} style={styles.submitBtn}>
-                      <LinearGradient colors={["#0D9488", "#14B8A6"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.submitGrad}>
-                        <Text style={styles.submitBtnText}>Next</Text>
-                      </LinearGradient>
-                    </TouchableOpacity>
-                  ) : (
-                    <View style={styles.nextBtnDisabled}>
-                      <Text style={styles.nextBtnTextDisabled}>Next</Text>
-                    </View>
-                  )}
-                </>
-              ) : (
-                /* STEP 2: PAYMENT AND TICKET DETAILS */
-                <>
-                  <Text style={styles.inputGroupLabel}>Event Type</Text>
-                  <View style={styles.eventTypeRow}>
-                    <TouchableOpacity 
-                      onPress={() => setEventType("Paid")}
-                      style={[styles.eventTypeCard, eventType === "Paid" ? styles.eventTypeCardActive : styles.eventTypeCardInactive]}
-                    >
-                      <View style={styles.eventTypeCardHeader}>
-                        <Text style={styles.eventTypeLabel}>Paid Event</Text>
-                        <Ionicons 
-                          name={eventType === "Paid" ? "checkmark-circle" : "ellipse-outline"} 
-                          size={18} 
-                          color={eventType === "Paid" ? "#2DD4BF" : "rgba(255,255,255,0.3)"} 
-                        />
-                      </View>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity 
-                      onPress={() => setEventType("Free")}
-                      style={[styles.eventTypeCard, eventType === "Free" ? styles.eventTypeCardActive : styles.eventTypeCardInactive]}
-                    >
-                      <View style={styles.eventTypeCardHeader}>
-                        <Text style={styles.eventTypeLabel}>Free Event</Text>
-                        <Ionicons 
-                          name={eventType === "Free" ? "checkmark-circle" : "ellipse-outline"} 
-                          size={18} 
-                          color={eventType === "Free" ? "#2DD4BF" : "rgba(255,255,255,0.3)"} 
-                        />
-                      </View>
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* Cost Per Ticket Input (only if Paid) */}
-                  {eventType === "Paid" && (
-                    <View style={{ marginBottom: Spacing.md }}>
-                      <Text style={styles.inputGroupLabel}>Cost Per Ticket</Text>
-                      <View style={styles.inputContainer}>
-                        <View style={styles.iconCircle}>
-                          <Ionicons name="wallet-outline" size={18} color="#fff" />
-                        </View>
-                        <TextInput
-                          style={styles.inputField}
-                          value={costPerTicket}
-                          onChangeText={setCostPerTicket}
-                          placeholder="Enter cost per ticket"
-                          placeholderTextColor="rgba(255,255,255,0.3)"
-                          keyboardType="numeric"
-                        />
+                      {/* Free / Paid Tag */}
+                      <View
+                        style={[
+                          styles.priceBadge,
+                          evt.isFree ? styles.priceBadgeFree : styles.priceBadgePaid,
+                        ]}
+                      >
+                        <Text style={styles.priceBadgeText}>
+                          {evt.isFree ? "FREE" : `₹${evt.ticketPrice}`}
+                        </Text>
                       </View>
                     </View>
-                  )}
 
-                  {/* Currency Selector Row */}
-                  <View style={{ marginBottom: Spacing.xl }}>
-                    <Text style={styles.inputGroupLabel}>Select Currency</Text>
-                    <Pressable onPress={handleCycleCurrency} style={styles.inputContainer}>
-                      <View style={styles.iconCircle}>
-                        <Ionicons name="logo-usd" size={16} color="#fff" />
-                      </View>
-                      <Text style={styles.inputText}>
-                        {currency === "INR" ? "🇮🇳 INR" : currency === "USD" ? "🇺🇸 USD" : "🇪🇺 EUR"}
+                    {/* Card Content Body */}
+                    <View style={styles.cardBody}>
+                      <Text style={styles.cardTitle} numberOfLines={2}>
+                        {evt.title}
                       </Text>
-                      <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.4)" style={{ marginLeft: "auto" }} />
-                    </Pressable>
-                  </View>
 
-                  {/* Submit Action Button */}
-                  <TouchableOpacity onPress={handleCreateEvent} style={styles.submitBtn}>
-                    <LinearGradient colors={["#0D9488", "#14B8A6"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.submitGrad}>
-                      <Text style={styles.submitBtnText}>Post</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                </>
-              )}
-            </ScrollView>
+                      {/* Date & Time */}
+                      <View style={styles.infoRow}>
+                        <Ionicons name="time" size={13} color="#7C3AED" />
+                        <Text style={styles.infoText}>{evt.dateLabel}</Text>
+                      </View>
+
+                      {/* Location & Distance */}
+                      <View style={styles.infoRow}>
+                        <Ionicons name="location" size={13} color="#EC4899" />
+                        <Text style={styles.infoText} numberOfLines={1}>
+                          {evt.venue} · {evt.distance}
+                        </Text>
+                      </View>
+
+                      {/* Footer Row: Spots Left & Join Action */}
+                      <View style={styles.cardFooter}>
+                        <View style={styles.spotsWrap}>
+                          <Ionicons name="people" size={13} color="#64748B" />
+                          <Text style={styles.spotsText}>
+                            {spotsLeft > 0 ? `${spotsLeft} spots left` : "Full"}
+                          </Text>
+                        </View>
+
+                        <TouchableOpacity
+                          style={[
+                            styles.cardJoinBtn,
+                            isJoined && styles.cardJoinBtnJoined,
+                          ]}
+                          onPress={() => handleJoinEvent(evt.id)}
+                        >
+                          <Text
+                            style={[
+                              styles.cardJoinBtnText,
+                              isJoined && styles.cardJoinBtnTextJoined,
+                            ]}
+                          >
+                            {isJoined ? "Joined ✓" : "Join"}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </Pressable>
+                </Animated.View>
+              );
+            })}
+          </View>
+        )}
+      </ScrollView>
+
+      {/* Floating Bottom TabBar */}
+      <TabBar dark={false} />
+
+      {/* ----------------- MODAL 1: CITY SELECTOR MODAL ----------------- */}
+      <Modal visible={showCityPicker} animationType="fade" transparent>
+        <View style={styles.modalBackdrop}>
+          <Pressable style={styles.modalDismiss} onPress={() => setShowCityPicker(false)} />
+          <Animated.View entering={ZoomIn.duration(200)} style={styles.cityModalCard}>
+            <Text style={styles.modalTitle}>Select Your City 📍</Text>
+            <View style={styles.citiesGrid}>
+              {CITIES.map((city) => (
+                <Pressable
+                  key={city}
+                  style={[
+                    styles.cityBtn,
+                    selectedCity === city && styles.cityBtnActive,
+                  ]}
+                  onPress={() => {
+                    setSelectedCity(city);
+                    setShowCityPicker(false);
+                    showToast(`📍 City switched to ${city}`);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.cityBtnText,
+                      selectedCity === city && styles.cityBtnTextActive,
+                    ]}
+                  >
+                    {city}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
           </Animated.View>
         </View>
       </Modal>
 
-      {/* Main TabBar */}
-      <TabBar dark={false} />
-    </View>
+      {/* ----------------- MODAL 2: EVENT DETAILS MODAL ----------------- */}
+      <Modal visible={!!selectedEvent} animationType="slide" transparent>
+        {selectedEvent && (
+          <View style={styles.modalBackdrop}>
+            <View style={styles.detailsModalCard}>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {/* Hero Image Header */}
+                <View style={styles.detailsCoverWrap}>
+                  <Image source={{ uri: selectedEvent.coverImage }} style={styles.detailsCoverImage} />
+                  <LinearGradient
+                    colors={["rgba(0,0,0,0.5)", "transparent", "rgba(0,0,0,0.7)"]}
+                    style={StyleSheet.absoluteFill}
+                  />
+
+                  <Pressable
+                    style={styles.detailsCloseBtn}
+                    onPress={() => setSelectedEvent(null)}
+                  >
+                    <Ionicons name="close" size={20} color="#FFFFFF" />
+                  </Pressable>
+
+                  <View style={styles.detailsCoverBadgeRow}>
+                    <View style={styles.detailsCatPill}>
+                      <Text style={styles.detailsCatPillText}>
+                        {selectedEvent.categoryEmoji} {selectedEvent.category}
+                      </Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.priceBadge,
+                        selectedEvent.isFree
+                          ? styles.priceBadgeFree
+                          : styles.priceBadgePaid,
+                      ]}
+                    >
+                      <Text style={styles.priceBadgeText}>
+                        {selectedEvent.isFree
+                          ? "FREE"
+                          : `₹${selectedEvent.ticketPrice}`}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Body Content */}
+                <View style={styles.detailsBody}>
+                  <Text style={styles.detailsTitle}>{selectedEvent.title}</Text>
+
+                  {/* Host Info */}
+                  <View style={styles.hostRow}>
+                    <Image
+                      source={{ uri: selectedEvent.hostAvatar }}
+                      style={styles.hostAvatar}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                        <Text style={styles.hostName}>{selectedEvent.hostName}</Text>
+                        {selectedEvent.isHostVerified && (
+                          <Ionicons name="checkmark-circle" size={14} color="#7C3AED" />
+                        )}
+                      </View>
+                      <Text style={styles.hostSub}>Event Host</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.detailsDivider} />
+
+                  {/* Date & Time Info Card */}
+                  <View style={styles.detailsCardBox}>
+                    <Ionicons name="calendar-outline" size={20} color="#7C3AED" />
+                    <View>
+                      <Text style={styles.detailsCardBoxTitle}>Date & Time</Text>
+                      <Text style={styles.detailsCardBoxSub}>{selectedEvent.dateLabel}</Text>
+                    </View>
+                  </View>
+
+                  {/* Venue & Google Maps Link */}
+                  <View style={styles.detailsCardBox}>
+                    <Ionicons name="location-outline" size={20} color="#EC4899" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.detailsCardBoxTitle}>Venue & Location</Text>
+                      <Text style={styles.detailsCardBoxSub}>{selectedEvent.venue}</Text>
+                      {selectedEvent.googleMapsUrl && (
+                        <Pressable
+                          style={styles.mapLinkBtn}
+                          onPress={() => Linking.openURL(selectedEvent.googleMapsUrl!)}
+                        >
+                          <Ionicons name="map" size={14} color="#7C3AED" />
+                          <Text style={styles.mapLinkBtnText}>View on Google Maps ↗</Text>
+                        </Pressable>
+                      )}
+                    </View>
+                  </View>
+
+                  {/* Description */}
+                  <Text style={styles.sectionHeading}>About Event</Text>
+                  <Text style={styles.detailsDesc}>{selectedEvent.description}</Text>
+
+                  {/* Participants Row */}
+                  <Text style={styles.sectionHeading}>
+                    Participants ({selectedEvent.joinedCount} / {selectedEvent.maxParticipants})
+                  </Text>
+                  <View style={styles.participantsCard}>
+                    <Ionicons name="people" size={18} color="#7C3AED" />
+                    <Text style={styles.participantsText}>
+                      {selectedEvent.joinedCount} people attending
+                    </Text>
+                  </View>
+                </View>
+              </ScrollView>
+
+              {/* Bottom Sticky Action Bar */}
+              <View style={styles.detailsStickyFooter}>
+                <TouchableOpacity
+                  style={[
+                    styles.detailsJoinBtn,
+                    selectedEvent.joinedUserIds.includes(currentUserId) &&
+                      styles.detailsJoinBtnJoined,
+                  ]}
+                  onPress={() => handleJoinEvent(selectedEvent.id)}
+                >
+                  <Text style={styles.detailsJoinBtnText}>
+                    {selectedEvent.joinedUserIds.includes(currentUserId)
+                      ? "Joined Event ✓"
+                      : "Join Event Now"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
+      </Modal>
+
+      {/* ----------------- MODAL 3: CREATE EVENT (HOST) MODAL ----------------- */}
+      <Modal visible={showCreateModal} animationType="slide">
+        <SafeAreaView style={{ flex: 1, backgroundColor: "#F8F9FD" }}>
+          <View style={styles.createModalHeader}>
+            <Pressable onPress={() => setShowCreateModal(false)}>
+              <Ionicons name="close" size={24} color="#18181B" />
+            </Pressable>
+            <Text style={styles.createModalTitle}>Host an Event 🎪</Text>
+            <Pressable onPress={handleCreateEventSubmit}>
+              <Text style={styles.createModalSaveText}>Publish</Text>
+            </Pressable>
+          </View>
+
+          <ScrollView contentContainerStyle={styles.createFormScroll}>
+            {/* Title Input */}
+            <Text style={styles.formLabel}>Event Title *</Text>
+            <TextInput
+              style={styles.formInput}
+              placeholder="e.g. Sunset Specialty Coffee & Chill ☕"
+              value={formTitle}
+              onChangeText={setFormTitle}
+            />
+
+            {/* Category Selector */}
+            <Text style={styles.formLabel}>Category *</Text>
+            <View style={styles.formCategoryGrid}>
+              {CATEGORIES.map((cat) => (
+                <Pressable
+                  key={cat.id}
+                  style={[
+                    styles.formCatChip,
+                    formCategory === cat.id && styles.formCatChipActive,
+                  ]}
+                  onPress={() => setFormCategory(cat.id)}
+                >
+                  <Text>{cat.emoji}</Text>
+                  <Text
+                    style={[
+                      styles.formCatChipText,
+                      formCategory === cat.id && styles.formCatChipTextActive,
+                    ]}
+                  >
+                    {cat.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            {/* Venue Input */}
+            <Text style={styles.formLabel}>Venue / Location *</Text>
+            <TextInput
+              style={styles.formInput}
+              placeholder="e.g. Cafe Connect, Dharampeth"
+              value={formVenue}
+              onChangeText={setFormVenue}
+            />
+
+            {/* Date & Time Row */}
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.formLabel}>Date</Text>
+                <TextInput
+                  style={styles.formInput}
+                  placeholder="Today / Tomorrow"
+                  value={formDate}
+                  onChangeText={setFormDate}
+                />
+              </View>
+
+              <View style={{ flex: 1 }}>
+                <Text style={styles.formLabel}>Time</Text>
+                <TextInput
+                  style={styles.formInput}
+                  placeholder="19:00"
+                  value={formTime}
+                  onChangeText={setFormTime}
+                />
+              </View>
+            </View>
+
+            {/* Max Participants Input */}
+            <Text style={styles.formLabel}>Maximum Participants</Text>
+            <TextInput
+              style={styles.formInput}
+              placeholder="e.g. 8"
+              keyboardType="number-pad"
+              value={formMaxParticipants}
+              onChangeText={setFormMaxParticipants}
+            />
+
+            {/* Free / Paid Toggle */}
+            <Text style={styles.formLabel}>Event Type</Text>
+            <View style={styles.freePaidToggleRow}>
+              <Pressable
+                style={[
+                  styles.toggleBtn,
+                  formIsFree && styles.toggleBtnActive,
+                ]}
+                onPress={() => setFormIsFree(true)}
+              >
+                <Text
+                  style={[
+                    styles.toggleBtnText,
+                    formIsFree && styles.toggleBtnTextActive,
+                  ]}
+                >
+                  Free Event
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={[
+                  styles.toggleBtn,
+                  !formIsFree && styles.toggleBtnActive,
+                ]}
+                onPress={() => setFormIsFree(false)}
+              >
+                <Text
+                  style={[
+                    styles.toggleBtnText,
+                    !formIsFree && styles.toggleBtnTextActive,
+                  ]}
+                >
+                  Paid Ticket
+                </Text>
+              </Pressable>
+            </View>
+
+            {!formIsFree && (
+              <View>
+                <Text style={styles.formLabel}>Ticket Price (₹)</Text>
+                <TextInput
+                  style={styles.formInput}
+                  placeholder="150"
+                  keyboardType="number-pad"
+                  value={formTicketPrice}
+                  onChangeText={setFormTicketPrice}
+                />
+              </View>
+            )}
+
+            {/* Description */}
+            <Text style={styles.formLabel}>Description *</Text>
+            <TextInput
+              style={[styles.formInput, { height: 90, textAlignVertical: "top" }]}
+              multiline
+              placeholder="Tell people what this event is about..."
+              value={formDescription}
+              onChangeText={setFormDescription}
+            />
+
+            {/* Submit Button */}
+            <TouchableOpacity
+              style={styles.submitEventBtn}
+              onPress={handleCreateEventSubmit}
+            >
+              <Text style={styles.submitEventBtnText}>Publish Event Now</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* ----------------- MODAL 4: MY EVENTS MODAL (Upcoming & Joined Tabs) ----------------- */}
+      <Modal visible={showMyEventsModal} animationType="slide">
+        <SafeAreaView style={{ flex: 1, backgroundColor: "#F8F9FD" }}>
+          <View style={styles.createModalHeader}>
+            <Pressable onPress={() => setShowMyEventsModal(false)}>
+              <Ionicons name="close" size={24} color="#18181B" />
+            </Pressable>
+            <Text style={styles.createModalTitle}>My Events 📅</Text>
+            <View style={{ width: 24 }} />
+          </View>
+
+          {/* 2 Tabs: Upcoming (Created) vs Joined */}
+          <View style={styles.myEventsTabsTrack}>
+            <Pressable
+              style={[
+                styles.myEventsTabBtn,
+                myEventsTab === "Joined" && styles.myEventsTabBtnActive,
+              ]}
+              onPress={() => setMyEventsTab("Joined")}
+            >
+              <Text
+                style={[
+                  styles.myEventsTabText,
+                  myEventsTab === "Joined" && styles.myEventsTabTextActive,
+                ]}
+              >
+                Joined ({joinedEvents.length})
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.myEventsTabBtn,
+                myEventsTab === "Upcoming" && styles.myEventsTabBtnActive,
+              ]}
+              onPress={() => setMyEventsTab("Upcoming")}
+            >
+              <Text
+                style={[
+                  styles.myEventsTabText,
+                  myEventsTab === "Upcoming" && styles.myEventsTabTextActive,
+                ]}
+              >
+                My Hosted ({hostedEvents.length})
+              </Text>
+            </Pressable>
+          </View>
+
+          <ScrollView contentContainerStyle={{ padding: 16 }}>
+            {(myEventsTab === "Joined" ? joinedEvents : hostedEvents).length === 0 ? (
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyEmoji}>📅</Text>
+                <Text style={styles.emptyTitle}>
+                  No {myEventsTab} Events
+                </Text>
+                <Text style={styles.emptySub}>
+                  {myEventsTab === "Joined"
+                    ? "Browse events in your city and tap Join!"
+                    : "Create an event and host awesome people!"}
+                </Text>
+              </View>
+            ) : (
+              (myEventsTab === "Joined" ? joinedEvents : hostedEvents).map((evt) => (
+                <Pressable
+                  key={evt.id}
+                  style={styles.myEventItemCard}
+                  onPress={() => {
+                    setShowMyEventsModal(false);
+                    setSelectedEvent(evt);
+                  }}
+                >
+                  <Image source={{ uri: evt.coverImage }} style={styles.myEventItemImage} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.myEventItemTitle} numberOfLines={1}>
+                      {evt.title}
+                    </Text>
+                    <Text style={styles.myEventItemSub}>{evt.dateLabel}</Text>
+                    <Text style={styles.myEventItemSub}>{evt.venue}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
+                </Pressable>
+              ))
+            )}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: T.bg },
-  safe: { flex: 1 },
-  orb: { position: "absolute", borderRadius: 999 },
-  orb1: { width: 220, height: 220, top: 180, right: -70, backgroundColor: "rgba(139,92,246,0.12)" },
-  orb2: { width: 200, height: 200, bottom: 80, left: -80, backgroundColor: "rgba(236,72,153,0.08)" },
-
-  headerWrap: { backgroundColor: T.dark, zIndex: 2 },
-  headerBackdrop: { width: "100%", overflow: "hidden" },
-  headerBackdropImage: { opacity: 0.45, resizeMode: "cover" },
-  heroCurve: {
-    height: 22,
-    backgroundColor: T.bg,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    marginTop: -20,
-  },
-  bodySheet: { flex: 1, backgroundColor: T.bg, marginTop: -4 },
-  safeHeader: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.lg },
-  topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: Spacing.xs },
-  brandPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(233,213,255,0.25)",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-  },
-  brandPillText: { color: "#E9D5FF", fontSize: 10, fontFamily: VibeFonts.bold, letterSpacing: 1 },
-  backArrowBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  greetingBlock: { marginTop: Spacing.md },
-  greetingText: { color: "#fff", fontSize: 15, fontFamily: VibeFonts.bold, letterSpacing: -0.2 },
-  greetingSub: { color: "rgba(255,255,255,0.5)", fontSize: 12, fontFamily: VibeFonts.medium, marginTop: 2 },
-  topRightActions: { flexDirection: "row", alignItems: "center", gap: Spacing.sm },
-  settingsBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  titleBlock: { marginTop: Spacing.sm, gap: 6 },
-  gradientHeadingText: { fontSize: 28, fontFamily: VibeFonts.extraBold, color: "#fff", letterSpacing: -0.8 },
-  titleMetaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  subtextCaption: { fontSize: 12, fontFamily: VibeFonts.semiBold, color: "rgba(233,213,255,0.7)", letterSpacing: -0.1 },
-  liveCountPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    backgroundColor: "rgba(34,197,94,0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(74,222,128,0.35)",
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#4ADE80" },
-  liveCountText: { color: "#BBF7D0", fontSize: 10, fontFamily: VibeFonts.bold },
-  bellBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
-  },
-  bellBadge: {
-    position: "absolute",
-    top: -2,
-    right: -2,
-    backgroundColor: T.pink,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  bellBadgeText: { color: "#fff", fontSize: 8, fontFamily: VibeFonts.bold },
-
-  searchContainer: { paddingHorizontal: Spacing.lg, marginTop: Spacing.xs },
-  searchRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: Spacing.md },
-  locationSearchPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderRadius: Radius.full,
-  },
-  locationText: { color: "#fff", fontSize: 11, fontFamily: VibeFonts.bold, letterSpacing: -0.2 },
-  searchBox: {
+  container: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderRadius: Radius.full,
-  },
-  searchInput: { flex: 1, color: "#fff", fontSize: 12, fontFamily: VibeFonts.medium, padding: 0 },
-  filterGearBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 14,
-    overflow: "hidden",
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: "#F8F9FD",
   },
 
-  tagsScroll: { marginTop: Spacing.sm, maxHeight: 52 },
-  tagsContent: { gap: Spacing.xs, paddingHorizontal: Spacing.lg, paddingVertical: 4, alignItems: "center" },
-  tagChip: { borderRadius: Radius.full, overflow: "hidden" },
-  tagChipGrad: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  tagChipInner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: T.card,
-    borderWidth: 1,
-    borderColor: T.border,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: Radius.full,
-  },
-  tagChipText: { color: T.muted, fontSize: 11, fontFamily: VibeFonts.bold, letterSpacing: -0.2 },
-  tagChipTextActive: { color: "#fff", fontSize: 11, fontFamily: VibeFonts.bold, letterSpacing: -0.2 },
-  tagChipActive: { borderWidth: 0 },
-
-  subTabsRow: {
-    flexDirection: "row",
-    marginTop: Spacing.sm,
-    marginHorizontal: Spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: T.border,
-  },
-  subTabItem: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: 12,
-    position: "relative",
-  },
-  subTabItemActive: {},
-  subTabLabelRow: { flexDirection: "row", alignItems: "center" },
-  subTabText: { color: T.faint, fontSize: 12, fontFamily: VibeFonts.bold, letterSpacing: -0.2 },
-  subTabTextActive: { color: T.ink },
-  subTabIndicator: {
+  toastWrap: {
     position: "absolute",
-    bottom: 0,
-    height: 2.5,
-    width: 56,
-    backgroundColor: T.pink,
-    borderRadius: 2,
+    top: 50,
+    left: 20,
+    right: 20,
+    zIndex: 9999,
   },
-
-  listContent: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, paddingBottom: 110 },
-
-  featuredStrip: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: "rgba(196,181,253,0.35)",
-  },
-  featuredStripLeft: { flex: 1, paddingRight: 10 },
-  featuredEyebrow: {
-    fontSize: 9,
-    fontFamily: VibeFonts.bold,
-    color: "#E9D5FF",
-    letterSpacing: 1.2,
-    marginBottom: 2,
-  },
-  featuredTitle: { fontSize: 15, fontFamily: VibeFonts.extraBold, color: "#fff", letterSpacing: -0.3 },
-  featuredMapBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    backgroundColor: "#fff",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-  },
-  featuredMapText: { fontSize: 12, fontFamily: VibeFonts.bold, color: T.purpleDeep },
-
-  eventCard: {
-    marginBottom: Spacing.lg,
-    backgroundColor: T.card,
-    borderRadius: 26,
-    borderWidth: 1,
-    borderColor: T.border,
-    overflow: "hidden",
-    shadowColor: "#1A1230",
-    shadowOpacity: 0.12,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 5,
-  },
-  cardHero: { height: 168, position: "relative" },
-  cardHeroImg: { width: "100%", height: "100%", resizeMode: "cover" },
-  cardHeroFade: { ...StyleSheet.absoluteFillObject },
-  cardHeroTop: {
-    position: "absolute",
-    top: 12,
-    left: 12,
-    right: 12,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  freeHangBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "rgba(22,163,74,0.95)",
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  freeHangText: { color: "#fff", fontSize: 9, fontFamily: VibeFonts.bold, letterSpacing: 0.5 },
-  categoryHeroBadge: {
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.28)",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  categoryHeroText: { color: "#fff", fontSize: 10, fontFamily: VibeFonts.bold },
-  cardHeroBottom: {
-    position: "absolute",
-    left: 14,
-    right: 14,
-    bottom: 14,
-  },
-  cardHeroTitle: {
-    fontSize: 18,
-    fontFamily: VibeFonts.extraBold,
-    color: "#fff",
-    letterSpacing: -0.4,
-    marginBottom: 6,
-  },
-  cardHeroMeta: { flexDirection: "row", alignItems: "center", gap: 4 },
-  cardHeroLoc: { color: "rgba(255,255,255,0.8)", fontSize: 11, fontFamily: VibeFonts.medium, flex: 1 },
-
-  cardBody: { padding: 14, gap: 8 },
-  creatorRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  creatorAvatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 2,
-    borderColor: "#DDD6FE",
-  },
-  creatorMeta: { flex: 1 },
-  creatorNameRow: { flexDirection: "row", alignItems: "center" },
-  creatorName: { color: T.ink, fontSize: 13, fontFamily: VibeFonts.bold },
-  creatorTimeAgo: { color: T.faint, fontSize: 10, fontFamily: VibeFonts.medium, marginTop: 1 },
-  goingStack: {
-    alignItems: "center",
-    backgroundColor: T.softPurple,
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: "#DDD6FE",
-  },
-  goingStackNum: { fontSize: 13, fontFamily: VibeFonts.extraBold, color: T.purpleDeep },
-  goingStackLabel: { fontSize: 8, fontFamily: VibeFonts.bold, color: T.muted, textTransform: "uppercase" },
-  eventDesc: { color: T.muted, fontSize: 12, fontFamily: VibeFonts.medium, lineHeight: 17 },
-  tagsCapsulesRow: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
-  tagCapsule: {
-    backgroundColor: T.softPurple,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: Radius.full,
-    borderWidth: 1,
-    borderColor: "#DDD6FE",
-  },
-  tagCapsuleText: { color: T.purpleDeep, fontSize: 10, fontFamily: VibeFonts.bold },
-
-  cardFooter: {
+  toastInner: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    marginTop: 4,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: T.border,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 18,
+    shadowColor: "#7C3AED",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 6,
   },
-  footerCapsule: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "#F7F4FC",
-    borderWidth: 1,
-    borderColor: T.border,
-    paddingHorizontal: 9,
-    paddingVertical: 7,
-    borderRadius: 10,
+  toastText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontFamily: VibeFonts.bold,
   },
-  footerFree: { backgroundColor: "#ECFDF5", borderColor: "#BBF7D0" },
-  footerCapsuleText: { color: T.muted, fontSize: 10, fontFamily: VibeFonts.bold },
-  interestBtn: { marginLeft: "auto", borderRadius: Radius.full, overflow: "hidden" },
-  interestGrad: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-  },
-  interestBtnText: { color: "#fff", fontSize: 11, fontFamily: VibeFonts.bold },
 
-  // Legacy unused keys kept harmless for other refs
-  cardMainRow: { flexDirection: "row", gap: Spacing.md },
-  cardLeftThumb: { width: 108, height: 138, borderRadius: 18, overflow: "hidden" },
-  thumbImg: { width: "100%", height: "100%", resizeMode: "cover" },
-  thumbFade: { ...StyleSheet.absoluteFillObject },
-  countersRow: { position: "absolute", bottom: 8, left: 6, right: 6, flexDirection: "row" },
-  counterItem: { flexDirection: "row", alignItems: "center", gap: 3 },
-  counterText: { color: "#fff", fontSize: 8, fontFamily: VibeFonts.bold },
-  cardRightDetails: { flex: 1, gap: 4 },
-  creatorActions: { flexDirection: "row", gap: 4 },
-  cardActionIcon: { padding: 2 },
-  categoryMini: {
-    backgroundColor: T.softPurple,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  categoryMiniText: { fontSize: 9, fontFamily: VibeFonts.bold, color: T.purpleDeep },
-  eventTitle: { fontSize: 14, fontFamily: VibeFonts.extraBold, color: T.ink },
-  locationRow: { flexDirection: "row", alignItems: "center", gap: 3 },
-  locationVal: { color: T.muted, fontSize: 10, fontFamily: VibeFonts.medium, flex: 1 },
-
-  boostBanner: {
-    overflow: "hidden",
-    marginTop: Spacing.sm,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: "rgba(196,181,253,0.35)",
-  },
-  boostGrad: {
+  headerRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: Spacing.md,
-    width: "100%",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
-  boostLeft: { flexDirection: "row", alignItems: "center", gap: Spacing.md, flex: 1 },
-  crownCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(233,213,255,0.3)",
-  },
-  boostTextCol: { flex: 1, gap: 1 },
-  boostTitle: { color: "#fff", fontSize: 13, fontFamily: VibeFonts.bold, letterSpacing: -0.2 },
-  boostSubtitle: { color: "#D8B4FE", fontSize: 10, fontFamily: VibeFonts.medium },
-  boostBtn: { borderRadius: Radius.full, overflow: "hidden" },
-  boostBtnGrad: { paddingHorizontal: 14, paddingVertical: 8 },
-  boostBtnText: { fontSize: 10, fontFamily: VibeFonts.bold },
-
-  mapCta: { marginTop: Spacing.md, marginBottom: Spacing.sm },
-  mapCtaInner: {
+  headerLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    backgroundColor: T.card,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: T.border,
-    padding: 14,
+    gap: 8,
   },
-  mapCtaIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-    backgroundColor: T.softPurple,
+  backBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
   },
-  mapCtaTitle: { fontSize: 14, fontFamily: VibeFonts.bold, color: T.ink },
-  mapCtaSub: { fontSize: 11, fontFamily: VibeFonts.medium, color: T.muted, marginTop: 1 },
+  headerTitle: {
+    fontSize: 18,
+    fontFamily: VibeFonts.extraBold,
+    color: "#18181B",
+  },
+  cityPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    marginTop: 1,
+  },
+  cityName: {
+    fontSize: 11,
+    fontFamily: VibeFonts.bold,
+    color: "#7C3AED",
+  },
 
-  // Modal Sheet Form
-  modalOverlay: { flex: 1, backgroundColor: "rgba(15,11,26,0.55)", justifyContent: "flex-end" },
-  dismissOverlay: { ...StyleSheet.absoluteFillObject },
-  modalSheet: {
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  myEventsBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#F3E8FF",
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 14,
+  },
+  myEventsBtnText: {
+    fontSize: 11,
+    fontFamily: VibeFonts.bold,
+    color: "#7C3AED",
+  },
+  hostBtnGrad: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 14,
+  },
+  hostBtnText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontFamily: VibeFonts.bold,
+  },
+
+  searchBarWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    marginHorizontal: 16,
+    marginVertical: 8,
+    paddingHorizontal: 12,
+    height: 42,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: VibeFonts.medium,
+    color: "#18181B",
+  },
+
+  sectionWrap: {
+    marginTop: 8,
+    marginBottom: 6,
+  },
+  sectionHeading: {
+    fontSize: 14,
+    fontFamily: VibeFonts.bold,
+    color: "#18181B",
+    marginHorizontal: 16,
+    marginBottom: 8,
+  },
+
+  categoriesScroll: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  catPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  catPillActive: {
+    backgroundColor: "#7C3AED",
+    borderColor: "#7C3AED",
+  },
+  catPillSelected: {
+    borderWidth: 2,
+    borderColor: "#7C3AED",
+  },
+  catEmoji: {
+    fontSize: 14,
+  },
+  catLabel: {
+    fontSize: 12,
+    fontFamily: VibeFonts.bold,
+    color: "#18181B",
+  },
+  catLabelActive: {
+    color: "#FFFFFF",
+  },
+  catLabelSelected: {
+    fontFamily: VibeFonts.extraBold,
+  },
+
+  quickFilterScroll: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    gap: 8,
+  },
+  filterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  filterChipActive: {
+    backgroundColor: "#18181B",
+    borderColor: "#18181B",
+  },
+  filterChipText: {
+    fontSize: 11,
+    fontFamily: VibeFonts.bold,
+    color: "#64748B",
+  },
+  filterChipTextActive: {
+    color: "#FFFFFF",
+  },
+
+  feedHeaderRow: {
+    paddingHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 8,
+  },
+  feedTitle: {
+    fontSize: 13,
+    fontFamily: VibeFonts.bold,
+    color: "#64748B",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+
+  eventsGrid: {
+    paddingHorizontal: 16,
+    gap: 14,
+  },
+  eventCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 22,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  cardImageWrap: {
+    height: 140,
+    position: "relative",
+  },
+  cardImage: {
+    width: "100%",
+    height: "100%",
+  },
+  imageGradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  cardCatBadge: {
+    position: "absolute",
+    top: 10,
+    left: 10,
+    backgroundColor: "rgba(255,255,255,0.9)",
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  cardCatText: {
+    fontSize: 10,
+    fontFamily: VibeFonts.bold,
+    color: "#18181B",
+  },
+  priceBadge: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  priceBadgeFree: {
+    backgroundColor: "#10B981",
+  },
+  priceBadgePaid: {
+    backgroundColor: "#F59E0B",
+  },
+  priceBadgeText: {
+    fontSize: 10,
+    fontFamily: VibeFonts.extraBold,
+    color: "#FFFFFF",
+  },
+
+  cardBody: {
+    padding: 12,
+    gap: 6,
+  },
+  cardTitle: {
+    fontSize: 15,
+    fontFamily: VibeFonts.bold,
+    color: "#18181B",
+    lineHeight: 20,
+  },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  infoText: {
+    fontSize: 11,
+    fontFamily: VibeFonts.medium,
+    color: "#64748B",
+    flex: 1,
+  },
+  cardFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 4,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "#F1F5F9",
+  },
+  spotsWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  spotsText: {
+    fontSize: 11,
+    fontFamily: VibeFonts.bold,
+    color: "#64748B",
+  },
+  cardJoinBtn: {
+    backgroundColor: "#7C3AED",
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    borderRadius: 12,
+  },
+  cardJoinBtnJoined: {
+    backgroundColor: "#DCFCE7",
+  },
+  cardJoinBtnText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontFamily: VibeFonts.bold,
+  },
+  cardJoinBtnTextJoined: {
+    color: "#15803D",
+  },
+
+  emptyCard: {
+    marginHorizontal: 16,
+    padding: 24,
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  emptyEmoji: { fontSize: 36, marginBottom: 6 },
+  emptyTitle: { fontSize: 16, fontFamily: VibeFonts.bold, color: "#18181B" },
+  emptySub: {
+    fontSize: 12,
+    fontFamily: VibeFonts.medium,
+    color: "#64748B",
+    marginTop: 4,
+    textAlign: "center",
+  },
+  emptyCta: {
+    marginTop: 12,
+    backgroundColor: "#7C3AED",
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 14,
+  },
+  emptyCtaText: { color: "#FFF", fontFamily: VibeFonts.bold, fontSize: 12 },
+
+  // Modals
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(15, 23, 42, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalDismiss: {
+    flex: 1,
+  },
+  cityModalCard: {
     backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    maxHeight: "88%",
-    width: "100%",
-    borderWidth: 1,
-    borderColor: "rgba(138, 86, 255, 0.12)",
-    paddingTop: Spacing.md,
-    paddingHorizontal: Spacing.xl,
-    paddingBottom: Spacing.xl,
+    padding: 20,
+    gap: 14,
   },
-  modalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingBottom: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(31, 26, 58, 0.08)",
-  },
-  modalTitle: { fontSize: 16, fontFamily: VibeFonts.bold, color: "#1F1A3A", letterSpacing: -0.3 },
-  modalFormScroll: { marginVertical: Spacing.md },
-  inputLabel: {
-    fontSize: 10,
+  modalTitle: {
+    fontSize: 16,
     fontFamily: VibeFonts.bold,
-    color: "rgba(31, 26, 58, 0.6)",
-    textTransform: "uppercase",
-    letterSpacing: 1,
-    marginBottom: 6,
-    marginTop: Spacing.sm,
+    color: "#18181B",
+    textAlign: "center",
   },
-  modalInput: {
-    backgroundColor: "rgba(31, 26, 58, 0.05)",
-    borderWidth: 1,
-    borderColor: "rgba(31, 26, 58, 0.08)",
-    borderRadius: Radius.md,
-    padding: 10,
-    color: "#1F1A3A",
-    fontFamily: VibeFonts.medium,
-    fontSize: 13,
-    marginBottom: Spacing.sm,
-  },
-  categorySelectRow: { flexDirection: "row", gap: 6, marginVertical: Spacing.xs },
-  categorySelectBtn: {
-    backgroundColor: "rgba(31, 26, 58, 0.05)",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: Radius.full,
-    borderWidth: 1,
-    borderColor: "rgba(31, 26, 58, 0.08)",
-  },
-  categorySelectBtnActive: {
-    backgroundColor: "#8A56FF",
-    borderColor: "rgba(138, 86, 255, 0.15)",
-  },
-  categorySelectText: { color: "rgba(31, 26, 58, 0.6)", fontSize: 11, fontFamily: VibeFonts.bold },
-  categorySelectTextActive: { color: "#fff" },
-  submitBtn: { marginTop: Spacing.md, borderRadius: Radius.full, overflow: "hidden" },
-  submitGrad: { paddingVertical: 14, alignItems: "center" },
-  submitBtnText: { color: "#fff", fontFamily: VibeFonts.bold, fontSize: 14 },
- 
-  // MULTI-STEP CREATION FORM STYLES
-  progressBarContainer: {
+  citiesGrid: {
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginVertical: Spacing.md,
-  },
-  modalBackBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "rgba(31, 26, 58, 0.05)",
-    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 10,
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(31, 26, 58, 0.08)",
   },
-  progressBarBg: {
-    flex: 1,
-    height: 4,
-    backgroundColor: "rgba(31, 26, 58, 0.08)",
-    borderRadius: 2,
-    marginHorizontal: 16,
-  },
-  progressBarFill: {
-    height: 4,
-    backgroundColor: "#2DD4BF",
-    borderRadius: 2,
-  },
-  progressText: {
-    color: "rgba(31, 26, 58, 0.6)",
-    fontSize: 12,
-    fontFamily: VibeFonts.bold,
-  },
-  modalTitleBlock: {
-    marginVertical: Spacing.sm,
-  },
-  modalStepTitle: {
-    fontSize: 24,
-    fontFamily: VibeFonts.extraBold,
-    color: "#1F1A3A",
-    letterSpacing: -0.5,
-  },
-  coverPhotoBox: {
-    width: "100%",
-    height: 160,
+  cityBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderRadius: 16,
-    borderStyle: "dashed",
+    backgroundColor: "#F8F9FD",
     borderWidth: 1,
-    borderColor: "#8A56FF",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(138, 86, 255, 0.04)",
-    overflow: "hidden",
-    marginBottom: Spacing.md,
+    borderColor: "#E2E8F0",
   },
-  coverPhotoText: {
-    color: "rgba(31, 26, 58, 0.6)",
+  cityBtnActive: {
+    backgroundColor: "#7C3AED",
+    borderColor: "#7C3AED",
+  },
+  cityBtnText: {
     fontSize: 13,
     fontFamily: VibeFonts.bold,
+    color: "#18181B",
   },
-  coverLandmarkLabelWrap: {
+  cityBtnTextActive: {
+    color: "#FFFFFF",
+  },
+
+  // Event Details Modal
+  detailsModalCard: {
+    height: "90%",
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    overflow: "hidden",
+  },
+  detailsCoverWrap: {
+    height: 200,
+    position: "relative",
+  },
+  detailsCoverImage: {
+    width: "100%",
+    height: "100%",
+  },
+  detailsCloseBtn: {
     position: "absolute",
-    left: 20,
-    bottom: 20,
-    gap: 2,
+    top: 14,
+    right: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  coverLandmarkText: {
-    color: "#fff",
-    fontSize: 14,
-    fontFamily: VibeFonts.bold,
-  },
-  coverLandmarkHeading: {
-    color: "#fff",
-    fontSize: 22,
-    fontFamily: VibeFonts.extraBold,
-    letterSpacing: -0.3,
-  },
-  coverLandmarkSub: {
-    color: "rgba(255,255,255,0.5)",
-    fontSize: 10,
-    fontFamily: VibeFonts.bold,
-  },
-  editCoverBadge: {
+  detailsCoverBadgeRow: {
     position: "absolute",
     bottom: 12,
-    right: 12,
-    backgroundColor: "rgba(0,0,0,0.6)",
+    left: 16,
+    right: 16,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  detailsCatPill: {
+    backgroundColor: "rgba(255,255,255,0.9)",
     paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: Radius.full,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  detailsCatPillText: {
+    fontSize: 11,
+    fontFamily: VibeFonts.bold,
+    color: "#18181B",
+  },
+
+  detailsBody: {
+    padding: 16,
+    gap: 12,
+  },
+  detailsTitle: {
+    fontSize: 20,
+    fontFamily: VibeFonts.extraBold,
+    color: "#18181B",
+    lineHeight: 26,
+  },
+  hostRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
+    gap: 10,
   },
-  modalInputTextOnly: {
-    backgroundColor: "rgba(31, 26, 58, 0.05)",
-    borderWidth: 1,
-    borderColor: "rgba(31, 26, 58, 0.08)",
-    borderRadius: Radius.md,
-    padding: 12,
-    color: "#1F1A3A",
-    fontFamily: VibeFonts.medium,
+  hostAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  hostName: {
     fontSize: 14,
+    fontFamily: VibeFonts.bold,
+    color: "#18181B",
   },
-  formRow: {
-    flexDirection: "row",
-    gap: Spacing.md,
-    marginBottom: Spacing.md,
+  hostSub: {
+    fontSize: 11,
+    fontFamily: VibeFonts.medium,
+    color: "#64748B",
   },
-  formCol: {
-    flex: 1,
+  detailsDivider: {
+    height: 1,
+    backgroundColor: "#F1F5F9",
   },
-  inputContainer: {
+  detailsCardBox: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    borderBottomWidth: 0.5,
-    borderBottomColor: "rgba(31, 26, 58, 0.08)",
-    paddingVertical: Spacing.sm,
+    padding: 12,
+    backgroundColor: "#F8F9FD",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
   },
-  iconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "rgba(138, 86, 255, 0.08)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  inputField: {
-    flex: 1,
-    color: "#1F1A3A",
-    fontFamily: VibeFonts.medium,
-    fontSize: 14,
-    padding: 0,
-  },
-  inputText: {
-    flex: 1,
-    color: "#1F1A3A",
-    fontFamily: VibeFonts.medium,
-    fontSize: 14,
-  },
-  inputTextPlaceholder: {
-    flex: 1,
-    color: "rgba(31, 26, 58, 0.4)",
-    fontFamily: VibeFonts.medium,
-    fontSize: 14,
-  },
-  inputGroupLabel: {
+  detailsCardBoxTitle: {
     fontSize: 11,
     fontFamily: VibeFonts.bold,
-    color: "rgba(31, 26, 58, 0.6)",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 4,
+    color: "#64748B",
   },
-  modalInputDescription: {
-    backgroundColor: "rgba(31, 26, 58, 0.05)",
-    borderWidth: 1,
-    borderColor: "rgba(31, 26, 58, 0.08)",
-    borderRadius: Radius.md,
-    padding: 12,
-    color: "#1F1A3A",
-    fontFamily: VibeFonts.medium,
-    fontSize: 14,
-    height: 70,
-    textAlignVertical: "top",
-  },
-  addMoreBtn: {
-    borderWidth: 1,
-    borderColor: "rgba(138, 86, 255, 0.25)",
-    borderRadius: Radius.full,
-    paddingVertical: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    marginVertical: Spacing.md,
-    flexDirection: "row",
-    gap: 6,
-    backgroundColor: "rgba(138, 86, 255, 0.04)",
-  },
-  addMoreText: {
-    color: "#8A56FF",
+  detailsCardBoxSub: {
     fontSize: 13,
     fontFamily: VibeFonts.bold,
+    color: "#18181B",
+    marginTop: 2,
   },
-  nextBtnDisabled: {
-    backgroundColor: "rgba(31, 26, 58, 0.08)",
-    paddingVertical: 14,
-    alignItems: "center",
-    borderRadius: Radius.full,
-    marginTop: Spacing.md,
-  },
-  nextBtnTextDisabled: {
-    color: "rgba(31, 26, 58, 0.4)",
-    fontFamily: VibeFonts.bold,
-    fontSize: 14,
-  },
-  eventTypeRow: {
+  mapLinkBtn: {
     flexDirection: "row",
-    gap: Spacing.md,
-    marginVertical: Spacing.md,
-  },
-  eventTypeCard: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
-    backgroundColor: "rgba(31, 26, 58, 0.05)",
     alignItems: "center",
-    justifyContent: "center",
+    gap: 4,
+    marginTop: 6,
   },
-  eventTypeCardActive: {
-    borderColor: "#8A56FF",
-    backgroundColor: "rgba(138, 86, 255, 0.08)",
+  mapLinkBtnText: {
+    fontSize: 11,
+    fontFamily: VibeFonts.bold,
+    color: "#7C3AED",
   },
-  eventTypeCardInactive: {
-    borderColor: "rgba(31, 26, 58, 0.08)",
+  detailsDesc: {
+    fontSize: 13,
+    fontFamily: VibeFonts.medium,
+    color: "#334155",
+    lineHeight: 20,
   },
-  eventTypeCardHeader: {
+  participantsCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    padding: 12,
+    backgroundColor: "#F3E8FF",
+    borderRadius: 16,
+  },
+  participantsText: {
+    fontSize: 12,
+    fontFamily: VibeFonts.bold,
+    color: "#7C3AED",
+  },
+
+  detailsStickyFooter: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#F1F5F9",
+    backgroundColor: "#FFFFFF",
+  },
+  detailsJoinBtn: {
+    backgroundColor: "#7C3AED",
+    paddingVertical: 14,
+    borderRadius: 18,
+    alignItems: "center",
+  },
+  detailsJoinBtnJoined: {
+    backgroundColor: "#10B981",
+  },
+  detailsJoinBtnText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontFamily: VibeFonts.extraBold,
+  },
+
+  // Create Event Form Modal
+  createModalHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    width: "100%",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+    backgroundColor: "#FFFFFF",
   },
-  eventTypeLabel: {
-    color: "#1F1A3A",
+  createModalTitle: {
+    fontSize: 16,
+    fontFamily: VibeFonts.bold,
+    color: "#18181B",
+  },
+  createModalSaveText: {
     fontSize: 14,
     fontFamily: VibeFonts.bold,
+    color: "#7C3AED",
+  },
+  createFormScroll: {
+    padding: 16,
+    gap: 12,
+  },
+  formLabel: {
+    fontSize: 12,
+    fontFamily: VibeFonts.bold,
+    color: "#475569",
+    marginBottom: -4,
+  },
+  formInput: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 13,
+    fontFamily: VibeFonts.medium,
+    color: "#18181B",
+  },
+  formCategoryGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  formCatChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  formCatChipActive: {
+    backgroundColor: "#7C3AED",
+    borderColor: "#7C3AED",
+  },
+  formCatChipText: {
+    fontSize: 12,
+    fontFamily: VibeFonts.bold,
+    color: "#18181B",
+  },
+  formCatChipTextActive: {
+    color: "#FFFFFF",
+  },
+  freePaidToggleRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  toggleBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: "center",
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  toggleBtnActive: {
+    backgroundColor: "#18181B",
+    borderColor: "#18181B",
+  },
+  toggleBtnText: {
+    fontSize: 12,
+    fontFamily: VibeFonts.bold,
+    color: "#64748B",
+  },
+  toggleBtnTextActive: {
+    color: "#FFFFFF",
+  },
+  submitEventBtn: {
+    marginTop: 10,
+    backgroundColor: "#7C3AED",
+    paddingVertical: 14,
+    borderRadius: 16,
+    alignItems: "center",
+  },
+  submitEventBtnText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontFamily: VibeFonts.bold,
+  },
+
+  // My Events Modal
+  myEventsTabsTrack: {
+    flexDirection: "row",
+    marginHorizontal: 16,
+    marginTop: 12,
+    backgroundColor: "#E2E8F0",
+    borderRadius: 16,
+    padding: 3,
+  },
+  myEventsTabBtn: {
+    flex: 1,
+    paddingVertical: 9,
+    alignItems: "center",
+    borderRadius: 13,
+  },
+  myEventsTabBtnActive: {
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  myEventsTabText: {
+    fontSize: 12,
+    fontFamily: VibeFonts.bold,
+    color: "#64748B",
+  },
+  myEventsTabTextActive: {
+    color: "#7C3AED",
+  },
+
+  myEventItemCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 12,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  myEventItemImage: {
+    width: 54,
+    height: 54,
+    borderRadius: 14,
+  },
+  myEventItemTitle: {
+    fontSize: 14,
+    fontFamily: VibeFonts.bold,
+    color: "#18181B",
+  },
+  myEventItemSub: {
+    fontSize: 11,
+    fontFamily: VibeFonts.medium,
+    color: "#64748B",
+    marginTop: 2,
   },
 });

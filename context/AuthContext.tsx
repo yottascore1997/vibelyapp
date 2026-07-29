@@ -3,11 +3,14 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_URL } from "../constants/theme";
 import { setAuthToken } from "../services/api";
 
-interface User {
+export interface User {
   id: string;
   email: string;
   name: string;
   onboardingDone: boolean;
+  avatarUrl?: string | null;
+  bio?: string;
+  [key: string]: any;
 }
 
 interface AuthContextType {
@@ -26,8 +29,11 @@ async function apiCall(endpoint: string, body: object) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 30000);
 
+  const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  const fullUrl = `${API_URL}${cleanEndpoint}`;
+
   try {
-    const res = await fetch(`${API_URL}${endpoint}`, {
+    const res = await fetch(fullUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify(body),
@@ -36,10 +42,21 @@ async function apiCall(endpoint: string, body: object) {
 
     clearTimeout(timeout);
 
-    const json = await res.json();
+    const text = await res.text();
+    let json: any;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      if (res.status === 404) {
+        throw new Error(`API endpoint not found (404).\nURL: ${API_URL}${endpoint}`);
+      }
+      throw new Error(
+        `Server HTML response (Status ${res.status}).\n\nPossible Reasons:\n1. Backend Next.js server not running (cd web -> npm run dev)\n2. MySQL database error or not running\n3. Wrong IP address in mobile/.env: ${API_URL}`
+      );
+    }
 
-    if (!json.success) {
-      throw new Error(json.error || "Request failed");
+    if (!res.ok || !json.success) {
+      throw new Error(json.error || `Request failed (${res.status})`);
     }
 
     return json.data;
@@ -62,6 +79,14 @@ async function apiCall(endpoint: string, body: object) {
   }
 }
 
+function normalizeUser(raw: any): User | null {
+  if (!raw) return null;
+  return {
+    ...raw,
+    onboardingDone: Boolean(raw.onboardingDone ?? raw.profile?.onboardingDone ?? false),
+  };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -70,27 +95,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     AsyncStorage.multiGet(["token", "user"]).then(async ([t, u]) => {
       if (t[1]) {
-        setToken(t[1]);
-        setAuthToken(t[1]);
-        // Revalidate session — clear stale tokens
         try {
           const res = await fetch(`${API_URL}/auth/profile`, {
             headers: { Authorization: `Bearer ${t[1]}`, Accept: "application/json" },
           });
-          const json = await res.json();
-          if (!res.ok || json?.success === false) {
+          let json: any = null;
+          try {
+            json = await res.json();
+          } catch {}
+
+          if (!res.ok || json?.success === false || !json?.data) {
+            // Stale token/deleted user: clear token immediately
             setToken(null);
             setUser(null);
             setAuthToken(null);
-            await AsyncStorage.multiRemove(["token", "user"]);
+            await AsyncStorage.multiRemove(["token", "user", "@vibematch_swiped", "@vibematch_matches", "@vibematch_chats"]);
             setLoading(false);
             return;
           }
+
+          // Valid token
+          const normUser = normalizeUser(json.data);
+          setToken(t[1]);
+          setAuthToken(t[1]);
+          setUser(normUser);
+          await AsyncStorage.setItem("user", JSON.stringify(normUser));
         } catch {
-          // offline — keep cached session
+          // Network offline - fallback to cached user
+          setToken(t[1]);
+          setAuthToken(t[1]);
+          if (u[1]) {
+            try {
+              setUser(normalizeUser(JSON.parse(u[1])));
+            } catch {}
+          }
         }
+      } else if (u[1]) {
+        try {
+          setUser(normalizeUser(JSON.parse(u[1])));
+        } catch {}
       }
-      if (u[1]) setUser(JSON.parse(u[1]));
       setLoading(false);
     });
 
@@ -101,12 +145,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const persist = async (newToken: string, newUser: User) => {
+    const normUser = normalizeUser(newUser) || newUser;
     setToken(newToken);
     setAuthToken(newToken);
-    setUser(newUser);
+    setUser(normUser);
     await AsyncStorage.multiSet([
       ["token", newToken],
-      ["user", JSON.stringify(newUser)],
+      ["user", JSON.stringify(normUser)],
     ]);
   };
 
@@ -135,7 +180,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const completeOnboarding = async () => {
     if (!user) return;
-    const updated = { ...user, onboardingDone: true };
+    const updated = normalizeUser({ ...user, onboardingDone: true });
     setUser(updated);
     await AsyncStorage.setItem("user", JSON.stringify(updated));
   };

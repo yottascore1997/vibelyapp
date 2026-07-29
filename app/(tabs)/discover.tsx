@@ -20,26 +20,32 @@ import { useMatches } from "../../context/MatchesContext";
 import { MatchProfile } from "../../constants/matches";
 import { VibeFonts } from "../../constants/vibeTheme";
 
-/** Same light palette as Hangout / Profile */
+/** Light clean minimal aesthetic matching Hangout screen */
 const T = {
-  bg: "#EEE9F8",
-  card: "#FFFBFE",
-  ink: "#1A1F36",
-  muted: "#6B7280",
-  faint: "#9CA3AF",
-  border: "#E4DFF0",
-  purple: "#8B5CF6",
-  purpleDeep: "#7C3AED",
+  bg: "#F8F9FD",
+  card: "#FFFFFF",
+  cardElevated: "#FFFFFF",
+  ink: "#18181B",
+  muted: "#64748B",
+  faint: "#94A3B8",
+  border: "#E2E8F0",
+  purple: "#7C3AED",
+  purpleDeep: "#6D28D9",
+  purpleBright: "#8B5CF6",
+  softPurple: "#F3E8FF",
   pink: "#EC4899",
-  softPurple: "#EDE7FF",
-  green: "#22C55E",
-  cta: ["#8B5CF6", "#EC4899"] as const,
+  green: "#10B981",
+  yellow: "#F59E0B",
+  red: "#EF4444",
+  blue: "#2563EB",
+  cta: ["#7C3AED", "#8B5CF6"] as const,
+  promo: ["#7C3AED", "#8B5CF6", "#EC4899"] as const,
 };
 
 const MODES = [
-  { id: "friends" as const, label: "Friends", icon: "people" as const, color: T.green },
-  { id: "dating" as const, label: "Dating", icon: "heart" as const, color: T.pink },
-  { id: "everyone" as const, label: "Everyone", icon: "people-circle" as const, color: T.purple },
+  { id: "friends" as const, label: "Friends 🤝", icon: "people" as const, color: T.green },
+  { id: "dating" as const, label: "Dating 💘", icon: "heart" as const, color: T.pink },
+  { id: "everyone" as const, label: "Everyone ✨", icon: "sparkles" as const, color: T.purple },
 ];
 
 export default function DiscoverScreen() {
@@ -65,58 +71,42 @@ export default function DiscoverScreen() {
   };
 
   return (
-    <View style={styles.root}>
+    <View style={{ flex: 1, backgroundColor: T.bg }}>
       <StatusBar barStyle="dark-content" backgroundColor={T.bg} />
 
-      <LinearGradient
-        colors={["rgba(167,139,250,0.22)", "transparent"]}
-        style={styles.glowTop}
-        start={{ x: 0.2, y: 0 }}
-        end={{ x: 0.8, y: 1 }}
+      <AppHeader
+        variant="light"
+        badgeCount={likesCount}
+        tagline="Swipe · Match · Hangout"
       />
-      <LinearGradient
-        colors={["rgba(244,114,182,0.14)", "transparent"]}
-        style={styles.glowBottom}
-        start={{ x: 1, y: 1 }}
-        end={{ x: 0, y: 0 }}
-      />
-      <View style={styles.coolOrb} />
 
-      <AppHeader variant="light" badgeCount={likesCount} tagline="Swipe. Match. Meet." />
-
-      <View style={[styles.body, { paddingBottom: Math.max(insets.bottom, 8) }]}>
-        {/* Mode tabs */}
-        <Animated.View entering={FadeInDown.duration(350)} style={styles.tabsRow}>
+      <View style={[styles.body, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+        {/* 3-Tab Segmented Mode Switcher matching Hangout screen */}
+        <Animated.View entering={FadeInDown.duration(350)} style={styles.modeSwitcherTrack}>
           {MODES.map((m) => {
             const active = mode === m.id;
             return (
               <Pressable
                 key={m.id}
                 onPress={() => selectMode(m.id)}
-                style={styles.tabSlot}
+                style={[
+                  styles.modeSwitcherBtn,
+                  active && styles.modeSwitcherBtnActive,
+                ]}
               >
-                {active ? (
-                  <LinearGradient
-                    colors={
-                      m.id === "friends"
-                        ? ["#22C55E", "#16A34A"]
-                        : m.id === "dating"
-                          ? [...T.cta]
-                          : ["#8B5CF6", "#6366F1"]
-                    }
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.tabActive}
-                  >
-                    <Ionicons name={m.icon} size={14} color="#fff" />
-                    <Text style={styles.tabActiveText}>{m.label}</Text>
-                  </LinearGradient>
-                ) : (
-                  <View style={styles.tabIdle}>
-                    <Ionicons name={m.icon} size={14} color={m.color} />
-                    <Text style={[styles.tabIdleText, { color: m.color }]}>{m.label}</Text>
-                  </View>
-                )}
+                <Ionicons
+                  name={m.icon}
+                  size={15}
+                  color={active ? m.color : T.muted}
+                />
+                <Text
+                  style={[
+                    styles.modeSwitcherText,
+                    active && { color: m.color, fontFamily: VibeFonts.extraBold },
+                  ]}
+                >
+                  {m.label}
+                </Text>
               </Pressable>
             );
           })}
@@ -125,7 +115,7 @@ export default function DiscoverScreen() {
           </Pressable>
         </Animated.View>
 
-        {/* Deck */}
+        {/* Deck area */}
         <View style={styles.cardArea}>
           {loading ? (
             <View style={styles.center}>
@@ -157,15 +147,11 @@ export default function DiscoverScreen() {
             />
           ) : (
             <View style={styles.emptyCard}>
-              <LinearGradient
-                colors={["#F8F4FF", "#FFFFFF", "#FFF5FA"]}
-                style={StyleSheet.absoluteFillObject}
-              />
               <Text style={styles.emptyEmoji}>🌙</Text>
               <Text style={styles.emptyTitle}>No more profiles nearby</Text>
               <Text style={styles.emptySub}>
                 {matches.length > 0
-                  ? `${matches.length} match${matches.length > 1 ? "es" : ""} — open Chats`
+                  ? `${matches.length} match${matches.length > 1 ? "es" : ""} — open Chats to start talking`
                   : "Try another mode or check back later"}
               </Text>
               {matches.length > 0 ? (
@@ -192,7 +178,7 @@ export default function DiscoverScreen() {
           onPress={() => router.push("/my-matches")}
         >
           <LinearGradient
-            colors={[...T.cta]}
+            colors={[...T.promo]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.likesBannerInner}
@@ -220,7 +206,7 @@ export default function DiscoverScreen() {
             <View style={styles.bannerCenter}>
               <Text style={styles.bannerTitle}>
                 {likesCount > 0
-                  ? `${likesCount} people liked you`
+                  ? `${likesCount} people liked you!`
                   : "See who liked you"}
               </Text>
               <Text style={styles.bannerSubtitle}>Open matches & start chatting</Text>
@@ -249,179 +235,152 @@ export default function DiscoverScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: T.bg },
-  glowTop: {
-    position: "absolute",
-    top: -40,
-    left: -40,
-    width: 280,
-    height: 280,
-    borderRadius: 140,
-  },
-  glowBottom: {
-    position: "absolute",
-    bottom: 80,
-    right: -50,
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-  },
-  coolOrb: {
-    position: "absolute",
-    top: "40%",
-    left: -70,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: "rgba(125, 211, 252, 0.1)",
-  },
   body: { flex: 1, paddingHorizontal: 16 },
-  tabsRow: {
+  modeSwitcherTrack: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 4,
     marginBottom: 12,
-  },
-  tabSlot: { flex: 1 },
-  tabActive: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 5,
-    paddingVertical: 10,
-    borderRadius: 22,
-    shadowColor: "#8B5CF6",
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-  },
-  tabActiveText: { color: "#fff", fontSize: 12, fontFamily: VibeFonts.bold },
-  tabIdle: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 5,
-    paddingVertical: 10,
-    borderRadius: 22,
-    backgroundColor: T.card,
     borderWidth: 1,
-    borderColor: T.border,
-  },
-  tabIdleText: { fontSize: 12, fontFamily: VibeFonts.bold },
-  refreshBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    backgroundColor: T.card,
-    borderWidth: 1,
-    borderColor: T.border,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#1A1F36",
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
+    borderColor: "#E2E8F0",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+    gap: 4,
+  },
+  modeSwitcherBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 9,
+    borderRadius: 12,
+  },
+  modeSwitcherBtnActive: {
+    backgroundColor: "#F3E8FF",
+  },
+  modeSwitcherText: {
+    fontSize: 12,
+    fontFamily: VibeFonts.bold,
+    color: "#64748B",
+  },
+  refreshBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "#F3E8FF",
+    alignItems: "center",
+    justifyContent: "center",
   },
   cardArea: { flex: 1, minHeight: 0 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
-  loadingText: { fontSize: 13, fontFamily: VibeFonts.medium, color: T.muted },
+  loadingText: { fontSize: 13, fontFamily: VibeFonts.medium, color: "#64748B" },
   emptyCard: {
     flex: 1,
-    marginTop: 24,
+    marginTop: 16,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: T.border,
+    borderColor: "#E2E8F0",
     alignItems: "center",
     justifyContent: "center",
     padding: 28,
     overflow: "hidden",
-    backgroundColor: T.card,
-    shadowColor: "#8B5CF6",
-    shadowOpacity: 0.08,
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#7C3AED",
+    shadowOpacity: 0.06,
     shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
   emptyEmoji: { fontSize: 48, marginBottom: 8 },
   emptyTitle: {
-    fontSize: 18,
-    fontFamily: VibeFonts.bold,
-    color: T.ink,
+    fontSize: 19,
+    fontFamily: VibeFonts.extraBold,
+    color: "#18181B",
   },
   emptySub: {
     fontSize: 13,
     fontFamily: VibeFonts.medium,
-    color: T.muted,
+    color: "#64748B",
     textAlign: "center",
     marginTop: 8,
     lineHeight: 19,
   },
   emptyBtn: {
-    marginTop: 18,
-    paddingHorizontal: 22,
+    marginTop: 20,
+    paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 16,
+    borderRadius: 14,
+    shadowColor: "#7C3AED",
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
-  emptyBtnText: { color: "#fff", fontFamily: VibeFonts.bold, fontSize: 14 },
+  emptyBtnText: { color: "#FFF", fontFamily: VibeFonts.bold, fontSize: 14 },
   emptyBtnOutline: {
-    marginTop: 18,
+    marginTop: 20,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    paddingHorizontal: 18,
+    paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: "#DDD6FE",
-    backgroundColor: T.softPurple,
+    backgroundColor: "#F3E8FF",
   },
   emptyBtnOutlineText: {
-    color: T.purpleDeep,
+    color: "#7C3AED",
     fontFamily: VibeFonts.bold,
     fontSize: 14,
   },
   likesBanner: {
-    marginTop: 10,
+    marginTop: 12,
     marginBottom: 4,
     borderRadius: 18,
     overflow: "hidden",
-    shadowColor: "#8B5CF6",
-    shadowOpacity: 0.28,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
+    shadowColor: "#7C3AED",
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
     elevation: 4,
   },
   likesBannerInner: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 12,
     borderRadius: 18,
   },
   avatarStack: { flexDirection: "row", alignItems: "center" },
   stackAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: "#fff",
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 2,
+    borderColor: "#FFF",
   },
   bannerCenter: { flex: 1, marginLeft: 10 },
-  bannerTitle: { fontSize: 13, fontFamily: VibeFonts.bold, color: "#fff" },
+  bannerTitle: { fontSize: 13, fontFamily: VibeFonts.bold, color: "#FFF" },
   bannerSubtitle: {
     fontSize: 11,
     fontFamily: VibeFonts.medium,
-    color: "rgba(255,255,255,0.88)",
+    color: "rgba(255,255,255,0.9)",
     marginTop: 2,
   },
   bannerChevron: {
     width: 32,
     height: 32,
     borderRadius: 12,
-    backgroundColor: "#fff",
+    backgroundColor: "#FFF",
     alignItems: "center",
     justifyContent: "center",
   },
 });
+

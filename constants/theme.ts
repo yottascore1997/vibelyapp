@@ -45,4 +45,10 @@ export const Radius = {
   full: 999,
 };
 
-export const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000/api";
+export const API_URL = (() => {
+  let url = (process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000/api").trim().replace(/\/+$/, "");
+  if (!url.endsWith("/api")) {
+    url = `${url}/api`;
+  }
+  return url;
+})();

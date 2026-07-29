@@ -1,3 +1,4 @@
+import React, { useState } from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { BlurView } from "expo-blur";
 import { Ionicons } from "@expo/vector-icons";
@@ -6,91 +7,153 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from "react-native-reanimated";
 import { useRouter, usePathname } from "expo-router";
 import { VibeFonts } from "../constants/vibeTheme";
-import { Spacing } from "../constants/theme";
+import SpotBeaconModal from "./vibe/SpotBeaconModal";
 
 const tabs = [
-  { name: "index", label: "Home", icon: "home" as const },
-  { name: "discover", label: "Discover", icon: "heart" as const },
-  { name: "hangout", label: "Hangout", icon: "people" as const },
-  { name: "travel", label: "Travel", icon: "airplane" as const },
-  { name: "profile", label: "Profile", icon: "person" as const },
+  {
+    name: "index",
+    label: "Home",
+    icon: "home-outline" as const,
+    activeIcon: "home" as const,
+    gradient: ["#7C3AED", "#6D28D9"] as const,
+    accent: "#7C3AED",
+    hasBadge: false,
+  },
+  {
+    name: "discover",
+    label: "Discover",
+    icon: "heart-outline" as const,
+    activeIcon: "heart" as const,
+    gradient: ["#EC4899", "#E11D48"] as const,
+    accent: "#EC4899",
+    hasBadge: false,
+  },
+  {
+    name: "spot",
+    label: "Spot ⚡",
+    isCenterSpot: true,
+    icon: "flash" as const,
+    activeIcon: "flash" as const,
+    gradient: ["#7C3AED", "#EC4899"] as const,
+    accent: "#7C3AED",
+    hasBadge: false,
+  },
+  {
+    name: "hangout",
+    label: "Hangout",
+    icon: "people-outline" as const,
+    activeIcon: "people" as const,
+    gradient: ["#8B5CF6", "#7C3AED"] as const,
+    accent: "#7C3AED",
+    hasBadge: true,
+  },
+  {
+    name: "chats",
+    label: "Chats",
+    icon: "chatbubble-ellipses-outline" as const,
+    activeIcon: "chatbubble-ellipses" as const,
+    gradient: ["#10B981", "#059669"] as const,
+    accent: "#10B981",
+    hasBadge: true,
+  },
 ];
 
 function TabItem({
   tab,
   active,
   onPress,
-  light,
 }: {
   tab: (typeof tabs)[0];
   active: boolean;
   onPress: () => void;
-  light: boolean;
 }) {
   const scale = useSharedValue(1);
   const anim = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
-  const idleColor = light ? "#9CA3AF" : "rgba(255,255,255,0.38)";
-  const activeColor = light ? "#8B5CF6" : "#E9D5FF";
-  const labelColor = light ? "#9CA3AF" : "rgba(255,255,255,0.38)";
-  const labelActiveColor = light ? "#8B5CF6" : "#E9D5FF";
+  if (tab.isCenterSpot) {
+    return (
+      <Pressable
+        style={styles.centerSpotTab}
+        onPress={onPress}
+        onPressIn={() => {
+          scale.value = withSpring(0.9, { damping: 14, stiffness: 350 });
+        }}
+        onPressOut={() => {
+          scale.value = withSpring(1, { damping: 14, stiffness: 350 });
+        }}
+      >
+        <Animated.View style={[styles.centerSpotInner, anim]}>
+          <LinearGradient
+            colors={[...tab.gradient]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.centerSpotBtnGrad}
+          >
+            <Ionicons name="flash" size={20} color="#FFFFFF" />
+          </LinearGradient>
+          <Text style={styles.centerSpotLabel}>{tab.label}</Text>
+        </Animated.View>
+      </Pressable>
+    );
+  }
 
   return (
     <Pressable
       style={styles.tab}
       onPress={onPress}
       onPressIn={() => {
-        scale.value = withSpring(0.94, { damping: 16, stiffness: 280 });
+        scale.value = withSpring(0.88, { damping: 14, stiffness: 350 });
       }}
       onPressOut={() => {
-        scale.value = withSpring(1, { damping: 16, stiffness: 280 });
+        scale.value = withSpring(1, { damping: 14, stiffness: 350 });
       }}
     >
       <Animated.View style={[styles.tabInner, anim]}>
-        {active ? (
-          light ? (
-            <View style={styles.activePillLight}>
-              <Ionicons name={tab.icon} size={22} color="#FFFFFF" />
-            </View>
-          ) : (
+        <View style={styles.iconContainer}>
+          {active ? (
             <LinearGradient
-              colors={["rgba(138,86,255,0.28)", "rgba(255,75,129,0.12)"]}
+              colors={tab.gradient as any}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
               style={styles.activePill}
             >
-              <Ionicons name={tab.icon} size={22} color={activeColor} />
+              <Ionicons name={tab.activeIcon} size={18} color="#FFFFFF" />
             </LinearGradient>
-          )
-        ) : (
-          <View style={styles.iconIdle}>
-            <Ionicons
-              name={`${tab.icon}-outline` as keyof typeof Ionicons.glyphMap}
-              size={22}
-              color={idleColor}
-            />
-          </View>
-        )}
+          ) : (
+            <View style={styles.iconIdle}>
+              <Ionicons name={tab.icon} size={20} color="#64748B" />
+            </View>
+          )}
+
+          {tab.hasBadge && !active ? <View style={styles.badgeDot} /> : null}
+        </View>
+
         <Text
           style={[
             styles.label,
-            { color: labelColor },
-            active && { color: labelActiveColor, fontFamily: VibeFonts.bold },
+            { color: active ? tab.accent : "#64748B" },
+            active && styles.labelActive,
           ]}
+          numberOfLines={1}
         >
           {tab.label}
         </Text>
-        {!light &&
-          (active ? <View style={styles.activeBar} /> : <View style={styles.activeBarSpacer} />)}
-        {light && <View style={styles.activeBarSpacer} />}
+
+        {active ? (
+          <View style={[styles.activeDotBar, { backgroundColor: tab.accent }]} />
+        ) : (
+          <View style={styles.activeDotSpacer} />
+        )}
       </Animated.View>
     </Pressable>
   );
 }
 
-export default function TabBar({ dark = true }: { dark?: boolean }) {
+export default function TabBar({ dark = false }: { dark?: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
-  const light = !dark;
+  const [spotModalVisible, setSpotModalVisible] = useState(false);
 
   const isActive = (name: string) => {
     if (name === "index") return pathname === "/" || pathname === "/(tabs)" || pathname === "/(tabs)/";
@@ -101,115 +164,174 @@ export default function TabBar({ dark = true }: { dark?: boolean }) {
         pathname.includes("create-plan")
       );
     }
-    if (name === "discover") {
-      return pathname.includes("discover");
+    if (name === "chats") {
+      return pathname.includes("chats") || pathname.includes("chat/");
     }
     return pathname.includes(name);
   };
 
-  const bottomPad = Math.max(insets.bottom, 12);
+  const bottomMargin = Math.max(insets.bottom, 8);
 
   return (
-    <View
-      style={[
-        styles.shell,
-        light && styles.shellLight,
-        { paddingBottom: bottomPad },
-      ]}
-    >
-      {!light && (
-        <LinearGradient
-          colors={["rgba(138,86,255,0.45)", "rgba(255,75,129,0.2)", "transparent"]}
-          style={styles.topLine}
-        />
-      )}
-      <BlurView
-        intensity={light ? 50 : 40}
-        tint={light ? "light" : "dark"}
-        style={StyleSheet.absoluteFill}
-      />
-      <View style={[styles.bgTint, light && styles.bgTintLight]} />
-
-      <View style={[styles.row, light && styles.rowLight]}>
-        {tabs.map((tab) => (
-          <TabItem
-            key={tab.name}
-            tab={tab}
-            active={isActive(tab.name)}
-            light={light}
-            onPress={() => {
-              // Already on this tab — skip to avoid remount jank
-              if (isActive(tab.name)) return;
-
-              // navigate (not push) reuses existing screens → smoother tab switches
-              if (tab.name === "travel") {
-                router.navigate("/travel");
-              } else if (tab.name === "hangout") {
-                router.navigate("/hangout");
-              } else if (tab.name === "index") {
-                router.navigate("/(tabs)");
-              } else {
-                router.navigate(`/(tabs)/${tab.name}`);
-              }
-            }}
-          />
-        ))}
+    <>
+      <View style={[styles.outerContainer, { paddingBottom: bottomMargin }]}>
+        <View style={styles.floatingShell}>
+          <BlurView intensity={70} tint="light" style={StyleSheet.absoluteFill} />
+          <View style={styles.bgOverlay} />
+          <View style={styles.row}>
+            {tabs.map((tab) => (
+              <TabItem
+                key={tab.name}
+                tab={tab}
+                active={isActive(tab.name)}
+                onPress={() => {
+                  if (tab.isCenterSpot) {
+                    router.push("/spot-broadcast");
+                    return;
+                  }
+                  if (isActive(tab.name)) return;
+                  if (tab.name === "hangout") {
+                    router.navigate("/hangout");
+                  } else if (tab.name === "index") {
+                    router.navigate("/(tabs)");
+                  } else {
+                    router.navigate(`/(tabs)/${tab.name}`);
+                  }
+                }}
+              />
+            ))}
+          </View>
+        </View>
       </View>
-    </View>
+
+      {/* Spot Beacon Modal */}
+      <SpotBeaconModal
+        visible={spotModalVisible}
+        onClose={() => setSpotModalVisible(false)}
+      />
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  shell: {
-    borderTopWidth: 1,
-    borderTopColor: "rgba(138,86,255,0.2)",
-    overflow: "visible",
-    backgroundColor: "rgba(6,6,12,0.92)",
-    zIndex: 50,
-  },
-  shellLight: {
-    borderTopColor: "rgba(167,139,250,0.28)",
-    backgroundColor: "rgba(248,246,255,0.98)",
-  },
-  topLine: { position: "absolute", top: 0, left: 0, right: 0, height: 1 },
-  bgTint: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(5,5,8,0.55)" },
-  bgTintLight: { backgroundColor: "rgba(246,244,251,0.92)" },
-  row: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    paddingTop: Spacing.sm,
-    paddingHorizontal: Spacing.xs,
-  },
-  rowLight: {
-    paddingTop: 10,
+  outerContainer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
     alignItems: "center",
+    backgroundColor: "transparent",
+    paddingHorizontal: 12,
   },
-  tab: { flex: 1, alignItems: "center" },
-  tabInner: { alignItems: "center", minHeight: 56, justifyContent: "center" },
+  floatingShell: {
+    width: "100%",
+    height: 68,
+    borderRadius: 28,
+    overflow: "visible",
+    backgroundColor: "rgba(255,255,255,0.96)",
+    borderWidth: 1.5,
+    borderColor: "rgba(226,232,240,0.9)",
+    shadowColor: "#7C3AED",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.16,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  bgOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 28,
+    overflow: "hidden",
+    backgroundColor: "rgba(255,255,255,0.85)",
+  },
+  row: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 6,
+  },
+  tab: { flex: 1, alignItems: "center", justifyContent: "center" },
+  tabInner: { alignItems: "center", justifyContent: "center" },
+  iconContainer: { position: "relative", alignItems: "center" },
   activePill: {
     width: 44,
-    height: 44,
+    height: 32,
     borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(192,132,252,0.25)",
+    shadowColor: "#7C3AED",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  activePillLight: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+  iconIdle: {
+    width: 44,
+    height: 32,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#8B5CF6",
-    shadowColor: "#8B5CF6",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.28,
-    shadowRadius: 6,
-    elevation: 3,
   },
-  iconIdle: { width: 42, height: 42, alignItems: "center", justifyContent: "center" },
-  label: { fontSize: 10, fontFamily: VibeFonts.medium, marginTop: 3 },
-  activeBar: { width: 14, height: 3, borderRadius: 2, backgroundColor: "#C084FC", marginTop: 4 },
-  activeBarSpacer: { height: 4 },
+  badgeDot: {
+    position: "absolute",
+    top: 2,
+    right: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#EF4444",
+    borderWidth: 1.5,
+    borderColor: "#FFFFFF",
+  },
+  label: {
+    fontSize: 9.5,
+    fontFamily: VibeFonts.medium,
+    marginTop: 2,
+  },
+  labelActive: {
+    fontFamily: VibeFonts.extraBold,
+    fontSize: 10,
+  },
+  activeDotBar: {
+    width: 14,
+    height: 3,
+    borderRadius: 2,
+    marginTop: 2,
+  },
+  activeDotSpacer: {
+    height: 3,
+    marginTop: 2,
+  },
+
+  // Center Spot Tab Action Button
+  centerSpotTab: {
+    flex: 1.1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  centerSpotInner: {
+    alignItems: "center",
+    justifyContent: "center",
+    top: -10,
+  },
+  centerSpotBtnGrad: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#7C3AED",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.45,
+    shadowRadius: 10,
+    elevation: 8,
+    borderWidth: 2.5,
+    borderColor: "#FFFFFF",
+  },
+  centerSpotLabel: {
+    fontSize: 9.5,
+    fontFamily: VibeFonts.extraBold,
+    color: "#7C3AED",
+    marginTop: 2,
+  },
 });

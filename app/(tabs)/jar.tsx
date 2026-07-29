@@ -74,23 +74,25 @@ export default function JarScreen() {
 
   return (
     <View style={styles.root}>
-      <LinearGradient
-        colors={["rgba(168,85,247,0.2)", "transparent"]}
-        style={styles.glowTop}
-      />
-      <AppHeader variant="dark" tagline="Moments you saved" />
+      <AppHeader variant="light" tagline="Moments & squad memories" />
 
       <View style={styles.titleBlock}>
-        <Text style={styles.pageTitle}>My Jar</Text>
+        <View style={styles.eyebrowPill}>
+          <Ionicons name="archive" size={11} color="#7C3AED" />
+          <Text style={styles.eyebrowText}>SAVED MEMORIES</Text>
+        </View>
+        <Text style={styles.pageTitle}>
+          My Jar <Text style={{ color: "#7C3AED" }}>Vault 🏺</Text>
+        </Text>
         <Text style={styles.pageSub}>
-          {items.length > 0 ? `${items.length} moments saved` : "Your vault of sweet memories"}
+          {items.length > 0 ? `${items.length} moments saved in squad vault` : "Your vault of sweet memories & plans"}
         </Text>
       </View>
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color="#C084FC" />
-          <Text style={styles.loadingText}>Unlocking memories...</Text>
+          <ActivityIndicator size="large" color="#7C3AED" />
+          <Text style={styles.loadingText}>Unlocking squad memories...</Text>
         </View>
       ) : (
         <ScrollView
@@ -100,31 +102,27 @@ export default function JarScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={() => fetchJarItems(true)}
-              tintColor="#C084FC"
-              colors={["#C084FC"]}
+              tintColor="#7C3AED"
+              colors={["#7C3AED"]}
             />
           }
         >
           {items.length === 0 ? (
-            <GlassCard style={styles.emptyCard}>
-              <LinearGradient
-                colors={["rgba(138,86,255,0.15)", "rgba(255,75,129,0.08)"]}
-                style={StyleSheet.absoluteFillObject}
-              />
+            <View style={styles.emptyCard}>
               <View style={styles.jarIconWrapper}>
-                <Ionicons name="archive" size={48} color="#C084FC" />
+                <Ionicons name="archive" size={42} color="#7C3AED" />
               </View>
-              <Text style={styles.emptyTitle}>Your memory jar is empty</Text>
+              <Text style={styles.emptyTitle}>Your memory jar is empty 🏺</Text>
               <Text style={styles.emptyDescription}>
-                Plans, streaks, and vibes you save will show up here.
+                Plans, streaks, and vibes you save with squad will show up here as 3D floating memory cards!
               </Text>
-            </GlassCard>
+            </View>
           ) : (
             <View style={styles.listContainer}>
               {items.map((item) => {
                 const iconConfig = getIconConfig(item.type);
                 return (
-                  <GlassCard key={item.id} style={styles.memoryCard}>
+                  <View key={item.id} style={styles.memoryCard}>
                     <View style={styles.cardHeader}>
                       <View style={[styles.typeBadge, { backgroundColor: iconConfig.bg }]}>
                         <Ionicons name={iconConfig.name} size={12} color={iconConfig.color} />
@@ -151,7 +149,7 @@ export default function JarScreen() {
                         )}
                       </View>
                     </View>
-                  </GlassCard>
+                  </View>
                 );
               })}
             </View>
@@ -163,66 +161,91 @@ export default function JarScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#050508" },
-  glowTop: { position: "absolute", top: 0, left: 0, right: 0, height: 220 },
-  titleBlock: { paddingHorizontal: 16, paddingBottom: 8 },
-  pageTitle: {
-    fontSize: 24,
+  root: { flex: 1, backgroundColor: "#F8F9FD" },
+  titleBlock: { paddingHorizontal: 16, paddingBottom: 10, paddingTop: 6 },
+  eyebrowPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#F3E8FF",
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 999,
+    alignSelf: "flex-start",
+    marginBottom: 4,
+  },
+  eyebrowText: {
+    fontSize: 9,
     fontFamily: VibeFonts.extraBold,
-    color: "#fff",
-    letterSpacing: -0.4,
+    color: "#7C3AED",
+    letterSpacing: 1,
+  },
+  pageTitle: {
+    fontSize: 22,
+    fontFamily: VibeFonts.extraBold,
+    color: "#18181B",
   },
   pageSub: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: VibeFonts.medium,
-    color: "rgba(255,255,255,0.45)",
-    marginTop: 4,
+    color: "#64748B",
+    marginTop: 2,
   },
   center: { flex: 1, justifyContent: "center", alignItems: "center", paddingTop: 100 },
-  loadingText: { color: "rgba(255, 255, 255, 0.6)", fontFamily: VibeFonts.medium, marginTop: 15, fontSize: 14 },
-  scrollContent: { paddingBottom: 120, paddingTop: Spacing.sm, paddingHorizontal: 16 },
-  listContainer: { gap: 16 },
+  loadingText: { color: "#64748B", fontFamily: VibeFonts.medium, marginTop: 15, fontSize: 14 },
+  scrollContent: { paddingBottom: 120, paddingTop: 10, paddingHorizontal: 16 },
+  listContainer: { gap: 14 },
   emptyCard: {
     padding: 30,
     borderRadius: 24,
     alignItems: "center",
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-    marginTop: 40,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1.5,
+    borderColor: "#F1F5F9",
+    marginTop: 30,
+    shadowColor: "#7C3AED",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
   },
   jarIconWrapper: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: "rgba(138,86,255,0.12)",
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#F3E8FF",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "rgba(138,86,255,0.25)",
+    marginBottom: 16,
+    borderWidth: 1.5,
+    borderColor: "#DDD6FE",
   },
   emptyTitle: {
     fontSize: 18,
-    fontFamily: VibeFonts.bold,
-    color: "#fff",
-    marginBottom: 10,
+    fontFamily: VibeFonts.extraBold,
+    color: "#18181B",
+    marginBottom: 8,
     textAlign: "center",
   },
   emptyDescription: {
     fontSize: 13,
     fontFamily: VibeFonts.medium,
-    color: "rgba(255,255,255,0.5)",
+    color: "#64748B",
     textAlign: "center",
     lineHeight: 20,
   },
   memoryCard: {
     padding: 16,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
-    backgroundColor: "rgba(255, 255, 255, 0.02)",
+    borderRadius: 22,
+    borderWidth: 1.5,
+    borderColor: "#F1F5F9",
+    backgroundColor: "#FFFFFF",
     overflow: "hidden",
+    shadowColor: "#7C3AED",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
   },
   cardHeader: {
     flexDirection: "row",
@@ -234,19 +257,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    paddingHorizontal: 8,
+    paddingHorizontal: 9,
     paddingVertical: 4,
-    borderRadius: Radius.full,
+    borderRadius: 12,
   },
   typeBadgeText: {
     fontSize: 10,
-    fontFamily: VibeFonts.bold,
+    fontFamily: VibeFonts.extraBold,
     textTransform: "uppercase",
   },
   dateText: {
     fontSize: 11,
-    fontFamily: VibeFonts.medium,
-    color: "rgba(255, 255, 255, 0.4)",
+    fontFamily: VibeFonts.bold,
+    color: "#64748B",
     marginLeft: "auto",
   },
   cardBody: {
@@ -254,10 +277,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   memoryImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 12,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    width: 64,
+    height: 64,
+    borderRadius: 16,
   },
   textContainer: {
     flex: 1,
@@ -265,27 +287,27 @@ const styles = StyleSheet.create({
   },
   memoryTitle: {
     fontSize: 15,
-    fontFamily: VibeFonts.bold,
-    color: "#fff",
-    marginBottom: 4,
+    fontFamily: VibeFonts.extraBold,
+    color: "#18181B",
+    marginBottom: 2,
   },
   memoryDescription: {
     fontSize: 12,
-    fontFamily: VibeFonts.regular,
-    color: "rgba(255, 255, 255, 0.7)",
-    lineHeight: 16,
-    marginBottom: 8,
+    fontFamily: VibeFonts.medium,
+    color: "#475569",
+    lineHeight: 18,
   },
   metaContainer: {
-    alignSelf: "flex-start",
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    marginTop: 6,
+    backgroundColor: "#F8F9FD",
     paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignSelf: "flex-start",
   },
   metaText: {
-    fontSize: 10,
-    fontFamily: VibeFonts.medium,
-    color: "rgba(255, 255, 255, 0.5)",
+    fontSize: 11,
+    fontFamily: VibeFonts.bold,
+    color: "#7C3AED",
   },
 });

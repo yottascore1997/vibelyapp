@@ -245,7 +245,7 @@ export default function SwipeCard({
             </LinearGradient>
           </Pressable>
 
-           {/* PROFILE DETAILS MODAL SHEET */}
+          {/* PROFILE DETAILS MODAL SHEET (Hangout Light Clean Theme) */}
           <Modal
             visible={showDetails}
             transparent
@@ -256,99 +256,135 @@ export default function SwipeCard({
               <Pressable style={styles.dismissOverlay} onPress={() => setShowDetails(false)} />
               
               <Animated.View entering={FadeInDown.duration(300)} style={styles.modalSheet}>
-                {/* Profile Image View */}
+                {/* Profile Image Header */}
                 <View style={styles.modalImageContainer}>
                   <Image source={{ uri: avatarUrl }} style={styles.modalImage} />
                   <LinearGradient
-                    colors={["rgba(8,8,14,0.3)", "transparent", "rgba(8,8,14,0.95)"]}
+                    colors={["rgba(24,24,27,0.4)", "transparent", "#F8F9FD"]}
                     style={styles.modalImageGradient}
                   />
 
                   {/* Close Modal Button */}
-                  <Pressable style={styles.closeModalBtn} onPress={() => setShowDetails(false)}>
-                    <Ionicons name="close" size={24} color="#fff" />
-                  </Pressable>
+                  <TouchableOpacity style={styles.closeModalBtn} onPress={() => setShowDetails(false)} activeOpacity={0.8}>
+                    <Ionicons name="close" size={20} color="#18181B" />
+                  </TouchableOpacity>
 
-                  {/* Absolute Profile title */}
+                  {/* Absolute Profile Title Banner */}
                   <View style={styles.modalTitleDetails}>
                     <View style={styles.modalNameRow}>
                       <Text style={styles.modalName}>{name}</Text>
                       {age && <Text style={styles.modalAge}>, {age}</Text>}
                       {isVerified && (
-                        <Ionicons name="checkmark-circle" size={18} color="#C084FC" style={{ marginLeft: 6 }} />
+                        <Ionicons name="checkmark-circle" size={20} color="#7C3AED" style={{ marginLeft: 6 }} />
                       )}
                     </View>
 
                     <View style={styles.modalCityRow}>
-                      <Ionicons name="location-outline" size={12} color="rgba(255,255,255,0.7)" />
-                      <Text style={styles.modalCity}>{city || "Nagpur"}</Text>
+                      <Ionicons name="location" size={14} color="#7C3AED" />
+                      <Text style={styles.modalCity}>{city || "Nagpur"} • {distance} km away</Text>
                     </View>
                   </View>
                 </View>
 
                 {/* Details Scroll Section */}
-                <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
-                  {/* Overview details */}
+                <ScrollView style={styles.modalScroll} contentContainerStyle={{ paddingBottom: 90 }} showsVerticalScrollIndicator={false}>
+                  {/* Overview Card */}
                   {(jobTitle || education || distance) && (
                     <View style={styles.detailSection}>
-                      <Text style={styles.sectionLabel}>Overview</Text>
-                      <GlassCard style={styles.bioCard}>
+                      <Text style={styles.sectionLabel}>OVERVIEW</Text>
+                      <View style={styles.lightCard}>
                         {jobTitle && (
                           <View style={[styles.modalDetailRow, { marginTop: 0 }]}>
-                            <Ionicons name="briefcase-outline" size={16} color="#C084FC" />
+                            <View style={styles.iconCircle}>
+                              <Ionicons name="briefcase" size={15} color="#7C3AED" />
+                            </View>
                             <Text style={styles.overviewText}>
                               {jobTitle}{company ? ` at ${company}` : ""}
                             </Text>
                           </View>
                         )}
                         <View style={styles.modalDetailRow}>
-                          <Ionicons name="location-outline" size={16} color="#FF4B81" />
+                          <View style={styles.iconCircle}>
+                            <Ionicons name="location" size={15} color="#EC4899" />
+                          </View>
                           <Text style={styles.overviewText}>
                             {city ? `${city} • ` : ""}{distance} km away
                           </Text>
                         </View>
                         {education && (
                           <View style={styles.modalDetailRow}>
-                            <Ionicons name="school-outline" size={16} color="#C084FC" />
+                            <View style={styles.iconCircle}>
+                              <Ionicons name="school" size={15} color="#7C3AED" />
+                            </View>
                             <Text style={styles.overviewText}>{education}</Text>
                           </View>
                         )}
-                      </GlassCard>
+                      </View>
                     </View>
                   )}
 
-                  {/* Bio */}
+                  {/* Bio Card */}
                   {bio && (
                     <View style={styles.detailSection}>
-                      <Text style={styles.sectionLabel}>About Me</Text>
-                      <GlassCard style={styles.bioCard}>
+                      <Text style={styles.sectionLabel}>ABOUT ME</Text>
+                      <View style={styles.lightCard}>
                         <Text style={styles.modalBioText}>{bio}</Text>
-                      </GlassCard>
+                      </View>
                     </View>
                   )}
 
-                  {/* Interests */}
+                  {/* Interests Grid */}
                   {interests && interests.length > 0 && (
                     <View style={styles.detailSection}>
-                      <Text style={styles.sectionLabel}>Interests</Text>
+                      <Text style={styles.sectionLabel}>MY VIBE & INTERESTS</Text>
                       <View style={styles.interestsGrid}>
                         {interests.map((interest: any, i: number) => (
-                          <View
-                            key={i}
-                            style={[
-                              styles.interestBadge,
-                              { backgroundColor: `${interest.color || "#8A56FF"}20`, borderColor: `${interest.color || "#8A56FF"}40` }
-                            ]}
-                          >
-                            <Text style={[styles.interestText, { color: interest.color || "#C084FC" }]}>
-                              {interest.name}
-                            </Text>
+                          <View key={i} style={styles.interestPill}>
+                            <Text style={styles.interestPillText}>{interest.name}</Text>
                           </View>
                         ))}
                       </View>
                     </View>
                   )}
                 </ScrollView>
+
+                {/* Floating Quick Action Footer inside Modal */}
+                <View style={styles.modalFooterActions}>
+                  <TouchableOpacity
+                    style={[styles.modalActionBtn, styles.modalPassBtn]}
+                    onPress={() => {
+                      setShowDetails(false);
+                      onPass?.();
+                    }}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="close" size={26} color="#64748B" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.modalActionBtn, styles.modalStarBtn]}
+                    onPress={() => {
+                      setShowDetails(false);
+                      onSuperLike?.();
+                    }}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="star" size={22} color="#7C3AED" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.modalActionBtn, styles.modalLikeBtn]}
+                    onPress={() => {
+                      setShowDetails(false);
+                      onLike?.();
+                    }}
+                    activeOpacity={0.85}
+                  >
+                    <LinearGradient colors={["#7C3AED", "#8B5CF6", "#EC4899"]} style={styles.modalLikeGrad}>
+                      <Ionicons name="heart" size={26} color="#FFFFFF" />
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
               </Animated.View>
             </View>
           </Modal>
@@ -550,29 +586,29 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   likeBtn: {
-    // Solid white circle!
+    width: 64,
+    height: 64,
+    borderRadius: 32,
   },
 
-  // MODAL DETAILS STYLES
+  // MODAL DETAILS STYLES (Hangout Light Clean Theme)
   pressableCard: {
     flex: 1,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.85)",
+    backgroundColor: "rgba(24, 24, 27, 0.6)",
     justifyContent: "flex-end",
   },
   dismissOverlay: {
     ...StyleSheet.absoluteFillObject,
   },
   modalSheet: {
-    backgroundColor: "#08080C",
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    maxHeight: "90%",
+    backgroundColor: "#F8F9FD",
+    borderTopLeftRadius: 36,
+    borderTopRightRadius: 36,
+    maxHeight: "92%",
     width: "100%",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
     overflow: "hidden",
   },
   modalImageContainer: {
@@ -591,95 +627,186 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 20,
     right: 20,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
     zIndex: 10,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    shadowColor: "#7C3AED",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
   },
   modalTitleDetails: {
     position: "absolute",
-    bottom: 24,
-    left: 24,
-    right: 24,
-    gap: 6,
+    bottom: 20,
+    left: 20,
+    right: 20,
+    gap: 4,
   },
   modalNameRow: {
     flexDirection: "row",
     alignItems: "center",
   },
   modalName: {
-    fontSize: 24,
+    fontSize: 26,
     fontFamily: VibeFonts.extraBold,
-    color: "#fff",
+    color: "#18181B",
+    letterSpacing: -0.5,
   },
   modalAge: {
-    fontSize: 24,
+    fontSize: 26,
     fontFamily: VibeFonts.extraBold,
-    color: "#fff",
+    color: "#18181B",
   },
   modalCityRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 6,
   },
   modalCity: {
     fontSize: 13,
-    fontFamily: VibeFonts.medium,
-    color: "rgba(255,255,255,0.75)",
+    fontFamily: VibeFonts.semiBold,
+    color: "#64748B",
   },
   modalScroll: {
-    paddingHorizontal: 24,
-    paddingVertical: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     flexGrow: 1,
   },
   detailSection: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   sectionLabel: {
-    fontSize: 11,
-    fontFamily: VibeFonts.bold,
-    color: VibeColors.textGold,
-    textTransform: "uppercase",
-    letterSpacing: 1.5,
+    fontSize: 10,
+    fontFamily: VibeFonts.extraBold,
+    color: "#7C3AED",
+    letterSpacing: 1.2,
     marginBottom: 8,
   },
-  bioCard: {
-    padding: 12,
-    borderRadius: Radius.md,
+  lightCard: {
+    padding: 16,
+    borderRadius: Radius.lg,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+    shadowColor: "#7C3AED",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  iconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#F3E8FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  overviewText: {
+    fontSize: 13,
+    fontFamily: VibeFonts.semiBold,
+    color: "#18181B",
+    marginLeft: 10,
+    flex: 1,
+  },
+  modalDetailRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 10,
   },
   modalBioText: {
-    fontSize: 13,
+    fontSize: 13.5,
     fontFamily: VibeFonts.medium,
-    color: VibeColors.text,
-    lineHeight: 20,
+    color: "#3F3F46",
+    lineHeight: 21,
   },
   interestsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
   },
-  interestBadge: {
+  interestPill: {
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: Radius.full,
+    backgroundColor: "#F3E8FF",
     borderWidth: 1,
+    borderColor: "rgba(124, 58, 237, 0.2)",
   },
-  interestText: {
-    fontSize: 11,
+  interestPillText: {
+    fontSize: 12,
     fontFamily: VibeFonts.bold,
+    color: "#7C3AED",
   },
-  overviewText: {
-    fontSize: 13,
-    fontFamily: VibeFonts.medium,
-    color: VibeColors.text,
-    marginLeft: 8,
-  },
-  modalDetailRow: {
+
+  // Modal Footer Action Buttons
+  modalFooterActions: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 8,
+    justifyContent: "center",
+    gap: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    backgroundColor: "rgba(248, 249, 253, 0.96)",
+    borderTopWidth: 1,
+    borderTopColor: "#E2E8F0",
+  },
+  modalActionBtn: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalPassBtn: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  modalStarBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: "#F3E8FF",
+    borderWidth: 1,
+    borderColor: "rgba(124, 58, 237, 0.3)",
+    shadowColor: "#7C3AED",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  modalLikeBtn: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    overflow: "hidden",
+    shadowColor: "#7C3AED",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  modalLikeGrad: {
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

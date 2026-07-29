@@ -18,11 +18,13 @@ import TabBar from "../components/TabBar";
 import { VibeColors, VibeFonts } from "../constants/vibeTheme";
 import { Radius, Spacing } from "../constants/theme";
 import { api } from "../services/api";
+import VibeSplitModal from "../components/vibe/VibeSplitModal";
 
 const { width } = Dimensions.get("window");
 
 export default function EventDetailsScreen() {
   const router = useRouter();
+  const [showSplitModal, setShowSplitModal] = useState(false);
   const params = useLocalSearchParams<{
     id: string;
     title: string;
@@ -193,6 +195,36 @@ export default function EventDetailsScreen() {
             </Text>
           </View>
 
+          {/* VibeSplit Event Expenses Banner */}
+          <TouchableOpacity
+            onPress={() => setShowSplitModal(true)}
+            style={{ marginHorizontal: 16, marginVertical: 12, borderRadius: 20, overflow: "hidden" }}
+          >
+            <LinearGradient
+              colors={["#8B5CF6", "#EC4899"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 14 }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                <Text style={{ fontSize: 24 }}>💳</Text>
+                <View>
+                  <Text style={{ fontSize: 14, fontFamily: VibeFonts.bold, color: "#FFFFFF" }}>
+                    VibeSplit — Split Bills 💳💸
+                  </Text>
+                  <Text style={{ fontSize: 11, fontFamily: VibeFonts.medium, color: "rgba(255,255,255,0.85)" }}>
+                    Track shared food, drinks & tickets
+                  </Text>
+                </View>
+              </View>
+              <View style={{ backgroundColor: "rgba(255,255,255,0.22)", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 }}>
+                <Text style={{ fontSize: 11, fontFamily: VibeFonts.bold, color: "#FFFFFF" }}>
+                  Open Jar ›
+                </Text>
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+
           {/* Event Tags */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Event Tags</Text>
@@ -243,6 +275,12 @@ export default function EventDetailsScreen() {
       </ScrollView>
 
       {/* Footer tab bar */}
+      <VibeSplitModal
+        visible={showSplitModal}
+        onClose={() => setShowSplitModal(false)}
+        eventId={params.id}
+        titleName={params.title || "Event"}
+      />
       <TabBar />
     </View>
   );

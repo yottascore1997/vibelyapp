@@ -95,7 +95,7 @@ export default function PremiumScreen({
       <View style={[
         styles.sheet,
         lightMode && { backgroundColor: "transparent", borderColor: "transparent", borderWidth: 0 },
-        hideHeader && { marginTop: 0, borderTopLeftRadius: 0, borderTopRightRadius: 0, borderWidth: 0 }
+        hideHeader && { marginTop: 0, borderTopLeftRadius: 0, borderTopRightRadius: 0, borderWidth: 0, backgroundColor: "transparent" }
       ]}>
         {!hideHeader && (
           <View style={[styles.sheetHandle, lightMode && { backgroundColor: "rgba(26,21,32,0.08)" }]} />
