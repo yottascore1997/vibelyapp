@@ -4,10 +4,12 @@ import { useAuth } from "../context/AuthContext";
 import { api } from "../services/api";
 import { getCurrentUserLocation } from "../services/location";
 
-const MIN_SYNC_MS = 5 * 60 * 1000; // refresh at most every 5 min
+const MIN_SYNC_MS = 5 * 60 * 1000;
+const START_DELAY_MS = 2500;
 
 /**
  * Keeps the logged-in user's GPS on the server so Discover distance is real.
+ * Soft-fails — never blocks login / home.
  */
 export function useLocationSync() {
   const { token, user } = useAuth();
@@ -17,6 +19,25 @@ export function useLocationSync() {
   useEffect(() => {
     if (!token || !user?.onboardingDone) return;
 
+    const pushLocation = async (attempt = 1): Promise<boolean> => {
+      const result = await getCurrentUserLocation({ highAccuracy: false });
+      if (!result.ok) return false;
+      try {
+        await api.updateLocation({
+          latitude: result.location.latitude,
+          longitude: result.location.longitude,
+          city: result.location.city,
+        });
+        return true;
+      } catch {
+        if (attempt < 2) {
+          await new Promise((r) => setTimeout(r, 1500));
+          return pushLocation(attempt + 1);
+        }
+        return false;
+      }
+    };
+
     const sync = async () => {
       if (inFlight.current) return;
       const now = Date.now();
@@ -24,27 +45,24 @@ export function useLocationSync() {
 
       inFlight.current = true;
       try {
-        const result = await getCurrentUserLocation({ highAccuracy: false });
-        if (!result.ok) return;
-        await api.updateLocation({
-          latitude: result.location.latitude,
-          longitude: result.location.longitude,
-          city: result.location.city,
-        });
-        lastSync.current = Date.now();
-      } catch (e) {
-        console.warn("Location sync failed:", e);
+        const ok = await pushLocation();
+        if (ok) lastSync.current = Date.now();
+      } catch {
+        // ignore — location is best-effort
       } finally {
         inFlight.current = false;
       }
     };
 
-    sync();
+    const boot = setTimeout(sync, START_DELAY_MS);
 
     const onAppState = (state: AppStateStatus) => {
       if (state === "active") sync();
     };
     const sub = AppState.addEventListener("change", onAppState);
-    return () => sub.remove();
+    return () => {
+      clearTimeout(boot);
+      sub.remove();
+    };
   }, [token, user?.onboardingDone, user?.id]);
 }

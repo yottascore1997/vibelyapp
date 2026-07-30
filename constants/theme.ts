@@ -46,11 +46,20 @@ export const Radius = {
 };
 
 export const API_URL = (() => {
-  // Production Railway — Play Store + Expo Go default
-  const PROD_API = "https://vibely-production-d2c1.up.railway.app/api";
+  // Custom domain (must use www — apex hangora.app/api returns 404)
+  const PROD_API = "https://www.hangora.app/api";
   const fromEnv = (process.env.EXPO_PUBLIC_API_URL || "").trim();
-  // Never silently fall back to localhost (causes fake "same WiFi" errors)
   let url = (fromEnv || PROD_API).replace(/\/+$/, "");
+  // Guard: never use apex without www for API
+  if (url === "https://hangora.app/api" || url === "http://hangora.app/api") {
+    url = PROD_API;
+  }
   if (!url.endsWith("/api")) url = `${url}/api`;
   return url;
 })();
+
+/** Tried in order when primary host fails (phone SSL / DNS flake). */
+export const API_FALLBACKS = [
+  "https://vibely-production-d2c1.up.railway.app/api",
+  "https://www.hangora.app/api",
+].filter((u) => u !== API_URL);

@@ -1,8 +1,8 @@
-const PROD_API = "https://vibely-production-d2c1.up.railway.app/api";
+const PROD_API = "https://www.hangora.app/api";
 
 /**
- * Always default to production Railway.
- * Override with EXPO_PUBLIC_API_URL in .env only for local backend.
+ * Default = custom domain (Play Store / production).
+ * Override with EXPO_PUBLIC_API_URL in .env for local backend.
  */
 export default ({ config }) => {
   const fromEnv = (process.env.EXPO_PUBLIC_API_URL || "").trim();

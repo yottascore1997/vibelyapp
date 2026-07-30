@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { API_URL } from "../constants/theme";
+import { API_URL, API_FALLBACKS } from "../constants/theme";
 import { setAuthToken } from "../services/api";
 
 export interface User {
@@ -25,15 +25,25 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-async function apiCall(endpoint: string, body: object) {
-  const controller = new AbortController();
-  // Railway cold start can exceed 30s — keep auth usable on Play Store
-  const timeoutMs = 60000;
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+function isNetworkError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  if (err.name === "AbortError") return true;
+  if (err.name === "TypeError") return true;
+  const m = err.message.toLowerCase();
+  return (
+    m.includes("network request failed") ||
+    m.includes("failed to fetch") ||
+    m.includes("network error") ||
+    m.includes("timed out") ||
+    m.includes("timeout")
+  );
+}
 
+async function postJson(baseUrl: string, endpoint: string, body: object, timeoutMs: number) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
-  const fullUrl = `${API_URL}${cleanEndpoint}`;
-  const isProdApi = /^https:\/\//i.test(API_URL);
+  const fullUrl = `${baseUrl.replace(/\/+$/, "")}${cleanEndpoint}`;
 
   try {
     const res = await fetch(fullUrl, {
@@ -43,49 +53,66 @@ async function apiCall(endpoint: string, body: object) {
       signal: controller.signal,
     });
 
-    clearTimeout(timeout);
-
     const text = await res.text();
     let json: any;
     try {
       json = JSON.parse(text);
     } catch {
-      if (res.status === 404) {
-        throw new Error(`API endpoint not found (404).\nURL: ${fullUrl}`);
-      }
       throw new Error(
-        isProdApi
-          ? `Server error (${res.status}). Production API down or misconfigured.\nURL: ${API_URL}`
-          : `Server HTML response (Status ${res.status}).\n\nPossible Reasons:\n1. Backend Next.js server not running (cd web -> npm run dev)\n2. MySQL database error or not running\n3. Wrong IP address in mobile/.env: ${API_URL}`
+        `Server HTML/invalid JSON (${res.status}).\nURL: ${fullUrl}`
       );
     }
 
     if (!res.ok || !json.success) {
-      throw new Error(json.error || `Request failed (${res.status})`);
+      // Business errors (wrong password etc.) — do not retry other hosts
+      const biz = new Error(json.error || `Request failed (${res.status})`);
+      (biz as any).isBiz = true;
+      throw biz;
     }
 
     return json.data;
-  } catch (err) {
+  } finally {
     clearTimeout(timeout);
-
-    if (err instanceof Error && err.name === "AbortError") {
-      throw new Error(
-        isProdApi
-          ? `Server timeout (${timeoutMs / 1000}s).\nProduction API slow / sleeping.\nURL: ${API_URL}\nRailway service wake up hone do, phir retry.`
-          : `Request timeout (${timeoutMs / 1000}s).\n\n1. Backend restart: cd web → npm run dev\n2. Phone same WiFi\n3. Windows Firewall port 3000 allow karo\n4. API: ${API_URL}`
-      );
-    }
-
-    if (err instanceof TypeError) {
-      throw new Error(
-        isProdApi
-          ? `Network fail — production server tak nahi pahuncha.\nURL: ${API_URL}\nInternet on hai? Railway deploy live hai?`
-          : `Network fail — server tak nahi pahuncha.\n\nBackend: npm run dev\nAPI URL: ${API_URL}\nPhone aur PC same WiFi hon.`
-      );
-    }
-
-    throw err;
   }
+}
+
+/** Try primary API then Railway fallback — fixes flaky custom-domain SSL on some phones. */
+async function apiCall(endpoint: string, body: object) {
+  const timeoutMs = 45000;
+  const bases = [API_URL, ...API_FALLBACKS].filter(
+    (u, i, arr) => !!u && arr.indexOf(u) === i
+  );
+
+  let lastNetworkErr: Error | null = null;
+
+  for (const base of bases) {
+    try {
+      console.log("[Auth] POST", base + endpoint);
+      return await postJson(base, endpoint, body, timeoutMs);
+    } catch (err) {
+      if (err instanceof Error && (err as any).isBiz) {
+        throw err;
+      }
+      if (err instanceof Error && err.name === "AbortError") {
+        lastNetworkErr = new Error(
+          `Server timeout (${timeoutMs / 1000}s).\nTried: ${base}`
+        );
+        continue;
+      }
+      if (isNetworkError(err)) {
+        lastNetworkErr = err instanceof Error ? err : new Error(String(err));
+        console.warn("[Auth] network fail on", base, lastNetworkErr.message);
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  throw new Error(
+    `Network fail — server tak nahi pahuncha.\n` +
+      `Tried:\n${bases.map((b) => `• ${b}`).join("\n")}\n` +
+      `Internet on rakho, phir dubara try karo.`
+  );
 }
 
 function normalizeUser(raw: any): User | null {
@@ -114,23 +141,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           } catch {}
 
           if (!res.ok || json?.success === false || !json?.data) {
-            // Stale token/deleted user: clear token immediately
             setToken(null);
             setUser(null);
             setAuthToken(null);
-            await AsyncStorage.multiRemove(["token", "user", "@vibematch_swiped", "@vibematch_matches", "@vibematch_chats"]);
+            await AsyncStorage.multiRemove([
+              "token",
+              "user",
+              "@vibematch_swiped",
+              "@vibematch_matches",
+              "@vibematch_chats",
+            ]);
             setLoading(false);
             return;
           }
 
-          // Valid token
           const normUser = normalizeUser(json.data);
           setToken(t[1]);
           setAuthToken(t[1]);
           setUser(normUser);
           await AsyncStorage.setItem("user", JSON.stringify(normUser));
         } catch {
-          // Network offline - fallback to cached user
           setToken(t[1]);
           setAuthToken(t[1]);
           if (u[1]) {
@@ -150,7 +180,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     fetch(`${API_URL}/health`)
       .then((r) => r.json())
       .then(() => console.log("API connected:", API_URL))
-      .catch(() => console.warn("API not reachable:", API_URL));
+      .catch(() => {
+        console.warn("Primary API not reachable:", API_URL);
+        const fb = API_FALLBACKS[0];
+        if (fb) {
+          fetch(`${fb}/health`)
+            .then((r) => r.json())
+            .then(() => console.log("API fallback connected:", fb))
+            .catch(() => console.warn("API fallback also down:", fb));
+        }
+      });
   }, []);
 
   const persist = async (newToken: string, newUser: User) => {
@@ -165,12 +204,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const login = async (email: string, password: string) => {
-    const data = await apiCall("/auth/login", { email, password });
+    const data = await apiCall("/auth/login", {
+      email: email.trim().toLowerCase(),
+      password,
+    });
     await persist(data.token, data.user);
   };
 
   const register = async (email: string, password: string) => {
-    const data = await apiCall("/auth/register", { email, password });
+    const data = await apiCall("/auth/register", {
+      email: email.trim().toLowerCase(),
+      password,
+    });
     await persist(data.token, data.user);
   };
 
@@ -183,19 +228,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       "user",
       "@vibematch_swiped",
       "@vibematch_matches",
-      "@vibematch_chats"
+      "@vibematch_chats",
     ]);
   };
 
   const completeOnboarding = async () => {
     if (!user) return;
     const updated = normalizeUser({ ...user, onboardingDone: true });
+    if (!updated) return;
     setUser(updated);
     await AsyncStorage.setItem("user", JSON.stringify(updated));
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout, completeOnboarding }}>
+    <AuthContext.Provider
+      value={{ user, token, loading, login, register, logout, completeOnboarding }}
+    >
       {children}
     </AuthContext.Provider>
   );

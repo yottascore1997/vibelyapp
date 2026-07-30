@@ -1,8 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { API_URL } from "../constants/theme";
+import { API_URL, API_FALLBACKS } from "../constants/theme";
 import { Plan } from "../constants/plans";
 
 let memoryToken: string | null = null;
+let activeBaseUrl = API_URL;
 
 /** Call from AuthContext whenever token changes */
 export function setAuthToken(token: string | null) {
@@ -29,49 +30,79 @@ export class ApiError extends Error {
   }
 }
 
+function apiBases(): string[] {
+  return [activeBaseUrl, API_URL, ...API_FALLBACKS].filter(
+    (u, i, arr) => !!u && arr.indexOf(u) === i
+  );
+}
+
 async function fetchApi<T>(
   endpoint: string,
   options?: RequestInit & { skipAuth?: boolean }
 ): Promise<T | null> {
-  try {
-    const headers: Record<string, string> = { Accept: "application/json" };
+  const headers: Record<string, string> = { Accept: "application/json" };
 
-    if (!(options?.body instanceof FormData)) {
-      headers["Content-Type"] = "application/json";
-    }
-
-    if (!options?.skipAuth) {
-      const token = await resolveToken();
-      if (token) headers.Authorization = `Bearer ${token}`;
-    }
-
-    const res = await fetch(`${API_URL}${endpoint}`, {
-      ...options,
-      headers: { ...headers, ...(options?.headers as Record<string, string>) },
-    });
-
-    let json: any = null;
-    try {
-      json = await res.json();
-    } catch {
-      throw new ApiError(`Invalid response (${res.status})`, res.status);
-    }
-
-    if (!res.ok || (json && json.success === false && json.error)) {
-      if (res.status === 401 || (res.status === 404 && json?.error === "User not found")) {
-        setAuthToken(null);
-        AsyncStorage.multiRemove(["token", "user"]);
-      }
-      throw new ApiError(json?.error || `Request failed (${res.status})`, res.status);
-    }
-
-    return (json?.data ?? json) as T;
-  } catch (err) {
-    console.error("fetchApi error on endpoint:", endpoint, err);
-    // Propagate API/HTTP errors so UI can show real messages; only soft-fail unknown errors
-    if (err instanceof ApiError) throw err;
-    throw new ApiError(err instanceof Error ? err.message : "Network error", 0);
+  if (!(options?.body instanceof FormData)) {
+    headers["Content-Type"] = "application/json";
   }
+
+  if (!options?.skipAuth) {
+    const token = await resolveToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+  }
+
+  const bases = apiBases();
+  let lastErr: unknown = null;
+
+  for (const base of bases) {
+    try {
+      const res = await fetch(`${base}${endpoint}`, {
+        ...options,
+        headers: { ...headers, ...(options?.headers as Record<string, string>) },
+      });
+
+      let json: any = null;
+      try {
+        json = await res.json();
+      } catch {
+        throw new ApiError(`Invalid response (${res.status})`, res.status);
+      }
+
+      if (!res.ok || (json && json.success === false && json.error)) {
+        if (res.status === 401 || (res.status === 404 && json?.error === "User not found")) {
+          // Don't wipe session on location/auth soft endpoints without token race
+          if (!endpoint.includes("/auth/location")) {
+            setAuthToken(null);
+            AsyncStorage.multiRemove(["token", "user"]);
+          }
+        }
+        throw new ApiError(json?.error || `Request failed (${res.status})`, res.status);
+      }
+
+      activeBaseUrl = base;
+      return (json?.data ?? json) as T;
+    } catch (err) {
+      lastErr = err;
+      const isNet =
+        !(err instanceof ApiError) &&
+        err instanceof Error &&
+        (err.name === "TypeError" ||
+          err.message.toLowerCase().includes("network request failed"));
+      if (isNet) {
+        console.warn("fetchApi network fail on", base, endpoint);
+        continue;
+      }
+      break;
+    }
+  }
+
+  if (endpoint.includes("/auth/location") && !(lastErr instanceof ApiError && lastErr.status >= 400)) {
+    console.warn("fetchApi soft-fail:", endpoint, lastErr instanceof Error ? lastErr.message : lastErr);
+  } else {
+    console.error("fetchApi error on endpoint:", endpoint, lastErr);
+  }
+  if (lastErr instanceof ApiError) throw lastErr;
+  throw new ApiError(lastErr instanceof Error ? lastErr.message : "Network error", 0);
 }
 
 export const api = {
