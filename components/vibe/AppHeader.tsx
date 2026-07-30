@@ -17,7 +17,7 @@ interface Props {
   badgeCount?: number;
 }
 
-/** Shared brand header — same Vibely header used across main screens */
+/** Shared brand header — same Hangora header used across main screens */
 export default function AppHeader({
   variant = "light",
   tagline = "Curated moments. Real people.",
@@ -42,8 +42,8 @@ export default function AppHeader({
           </Pressable>
           <View>
             <View style={styles.brandRow}>
-              <Text style={[styles.logoText, dark && styles.logoTextDark]}>Vibe</Text>
-              <Text style={styles.logoAccent}>ly</Text>
+              <Text style={[styles.logoText, dark && styles.logoTextDark]}>Hang</Text>
+              <Text style={styles.logoAccent}>ora</Text>
             </View>
             <Text style={[styles.taglineText, dark && styles.taglineTextDark]}>{tagline}</Text>
           </View>

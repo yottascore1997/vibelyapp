@@ -9,13 +9,15 @@ import {
   ScrollView,
   ActivityIndicator,
   StatusBar,
+  Dimensions,
+  Share,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter, useFocusEffect } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import AppHeader from "../../components/vibe/AppHeader";
-import PulseDot from "../../components/home/PulseDot";
 import { useAuth } from "../../context/AuthContext";
 import { useMatches } from "../../context/MatchesContext";
 import { usePlans } from "../../context/PlansContext";
@@ -24,26 +26,24 @@ import { usePremium } from "../../context/PremiumContext";
 import { API_URL } from "../../constants/theme";
 import { VibeFonts } from "../../constants/vibeTheme";
 
-/** Light clean minimal aesthetic matching Hangout screen */
+const { width: SCREEN_W } = Dimensions.get("window");
+const HERO_H = Math.min(SCREEN_W * 0.72, 300);
+
 const T = {
   bg: "#F8F9FD",
   card: "#FFFFFF",
-  cardElevated: "#FFFFFF",
   ink: "#18181B",
   muted: "#64748B",
-  faint: "#94A3B8",
-  border: "#E2E8F0",
+  soft: "#94A3B8",
+  border: "#EDE7FF",
   purple: "#7C3AED",
-  purpleDeep: "#6D28D9",
   purpleBright: "#8B5CF6",
   softPurple: "#F3E8FF",
-  pink: "#EC4899",
-  green: "#10B981",
+  green: "#22C55E",
+  softGreen: "#ECFDF5",
   yellow: "#F59E0B",
   red: "#EF4444",
-  blue: "#2563EB",
-  cta: ["#7C3AED", "#8B5CF6"] as const,
-  promo: ["#7C3AED", "#8B5CF6", "#EC4899"] as const,
+  purpleGrad: ["#7C3AED", "#8B5CF6"] as [string, string],
 };
 
 const MENU = [
@@ -52,41 +52,47 @@ const MENU = [
     label: "Edit Profile",
     sub: "Photos, bio, city & more",
     color: T.purple,
+    soft: T.softPurple,
     route: "/edit-profile",
   },
   {
     icon: "heart-outline" as const,
     label: "My Matches",
     sub: "People you connected with",
-    color: T.pink,
-    route: "/(tabs)/chats",
+    color: T.purple,
+    soft: T.softPurple,
+    route: "/my-matches",
   },
   {
     icon: "calendar-outline" as const,
     label: "My Hangouts",
     sub: "Plans you created or joined",
     color: T.green,
+    soft: T.softGreen,
     route: "/hangout",
   },
   {
     icon: "mail-outline" as const,
     label: "Invites",
     sub: "Sent & received invites",
-    color: T.blue,
+    color: T.purple,
+    soft: T.softPurple,
     route: "/invites",
   },
   {
-    icon: "settings-outline" as const,
-    label: "Edit preferences",
-    sub: "Age range, distance & looking for",
+    icon: "options-outline" as const,
+    label: "Preferences",
+    sub: "Age, distance & looking for",
     color: T.muted,
+    soft: "#F1F5F9",
     route: "/edit-profile",
   },
   {
     icon: "shield-checkmark-outline" as const,
     label: "Safety",
-    sub: "Tips for meeting in real life",
+    sub: "Tips for meeting IRL",
     color: T.green,
+    soft: T.softGreen,
     route: "/(tabs)/vibes",
   },
 ];
@@ -95,6 +101,7 @@ export default function ProfileScreen() {
   const { user, token, logout } = useAuth();
   const { openPaywall, tier, isPremium } = usePremium();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { matches, likesCount } = useMatches();
   const { myPlans } = usePlans();
   const [profile, setProfile] = useState<any>(null);
@@ -123,6 +130,8 @@ export default function ProfileScreen() {
     }, [fetchProfile])
   );
 
+  const [deleting, setDeleting] = useState(false);
+
   const handleLogout = () => {
     Alert.alert("Log Out", "Kya aap log out karna chahte ho?", [
       { text: "Cancel", style: "cancel" },
@@ -137,6 +146,34 @@ export default function ProfileScreen() {
     ]);
   };
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "Delete Account & Data",
+      "Kya aap apna profile aur saara data permanently delete karna chahte ho? Aapka saara profile data, matches, messages aur hangouts hamesha ke liye delete ho jayega. Ye action undone nahi ho sakta.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete Permanently",
+          style: "destructive",
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              await api.deleteAccount(token || undefined);
+              Alert.alert("Account Deleted", "Aapka profile aur data successfully delete ho gaya hai.");
+              await logout();
+              router.replace("/(auth)/welcome");
+            } catch (err: any) {
+              Alert.alert("Error", err?.message || "Account delete karne me dikkat aayi. Please dobara try karein.");
+            } finally {
+              setDeleting(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+
   const getAvatarUri = () => {
     if (profile?.avatarUrl) {
       if (profile.avatarUrl.startsWith("/")) {
@@ -144,12 +181,13 @@ export default function ProfileScreen() {
       }
       return profile.avatarUrl;
     }
-    return "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop";
+    return "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=800&h=800&fit=crop";
   };
 
   const displayName = profile?.firstName || user?.name || "You";
   const age = profile?.age ? `, ${profile.age}` : "";
-  const city = profile?.city ? `${profile.city}` : "Add your city";
+  const city = profile?.city || "Add your city";
+  const jobLine = [profile?.jobTitle, profile?.company].filter(Boolean).join(" · ");
 
   const handleToggleEnergy = async () => {
     const next = myEnergy === "LESSGO" ? "MAYBE" : myEnergy === "MAYBE" ? "OFF_GRID" : "LESSGO";
@@ -164,188 +202,206 @@ export default function ProfileScreen() {
     }
   };
 
-  const energyDisplay = myEnergy === "LESSGO" ? "Lessgo 🟢" : myEnergy === "OFF_GRID" ? "Off grid 🔴" : "Maybe 🟡";
-  const energyColor = myEnergy === "LESSGO" ? T.green : myEnergy === "OFF_GRID" ? T.red : T.yellow;
+  const handleShare = async () => {
+    try {
+      await Share.share({
+        message: `Hey, I'm on Hangora — find me nearby ✨`,
+      });
+    } catch {
+      // ignore
+    }
+  };
 
-  const stats = [
-    { label: "Matches", value: String(matches.length), color: T.pink, icon: "heart" as const, onPress: undefined },
-    { label: "Likes", value: String(likesCount), color: T.purple, icon: "flame" as const, onPress: undefined },
-    { label: "Plans", value: String(myPlans.length), color: T.green, icon: "calendar" as const, onPress: undefined },
-    {
-      label: "Energy",
-      value: energyDisplay,
-      color: energyColor,
-      icon: "flash" as const,
-      onPress: handleToggleEnergy,
-    },
-  ];
+  const energyMeta =
+    myEnergy === "LESSGO"
+      ? { label: "Lessgo", color: T.green, soft: T.softGreen, icon: "flash" as const }
+      : myEnergy === "OFF_GRID"
+        ? { label: "Off grid", color: T.red, soft: "#FEF2F2", icon: "moon" as const }
+        : { label: "Maybe", color: T.yellow, soft: "#FFFBEB", icon: "ellipse" as const };
+
+  const avatarUri = getAvatarUri();
 
   return (
     <View style={styles.root}>
       <StatusBar barStyle="dark-content" backgroundColor={T.bg} />
-      <AppHeader variant="light" tagline="Your Profile · Personal Vibe" badgeCount={likesCount} />
+      <AppHeader variant="light" tagline="Your vibe · Your world" badgeCount={likesCount} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[styles.scroll, { paddingBottom: 120 + insets.bottom }]}
       >
         {loading ? (
           <View style={styles.loader}>
             <ActivityIndicator color={T.purple} size="large" />
+            <Text style={styles.loaderText}>Loading your profile…</Text>
           </View>
         ) : (
           <>
-            {/* Hero Card */}
-            <Animated.View entering={FadeInDown.duration(420)} style={styles.heroWrap}>
-              <View style={styles.heroCard}>
-                <View style={styles.heroTopRow}>
-                  <View style={styles.avatarWrap}>
-                    <LinearGradient colors={[...T.cta]} style={styles.avatarRing}>
-                      <Image source={{ uri: getAvatarUri() }} style={styles.avatar} />
-                    </LinearGradient>
-                    <View style={styles.onlineBadge}>
-                      <PulseDot size={5} color="#16A34A" />
-                      <Text style={styles.onlineText}>Online</Text>
-                    </View>
-                  </View>
+            {/* Cinematic hero */}
+            <Animated.View entering={FadeInDown.duration(400)} style={styles.hero}>
+              <Image source={{ uri: avatarUri }} style={styles.heroImage} blurRadius={18} />
+              <LinearGradient
+                colors={["rgba(15,23,42,0.55)", "rgba(76,29,149,0.35)", "#F8F9FD"]}
+                locations={[0, 0.45, 1]}
+                style={styles.heroGrad}
+              />
 
-                  <View style={styles.heroInfo}>
-                    <Text style={styles.name} numberOfLines={1}>
-                      {displayName}
-                      {age}
-                    </Text>
-                    <Text style={styles.email} numberOfLines={1}>
-                      {user?.email || "—"}
-                    </Text>
-                    <View style={styles.locRow}>
-                      <Ionicons name="location" size={13} color={T.purple} />
-                      <Text style={styles.locText}>{city}</Text>
-                      {profile?.isVerified ? (
-                        <View style={styles.verified}>
-                          <Ionicons name="checkmark-circle" size={13} color={T.blue} />
-                          <Text style={styles.verifiedText}>Verified</Text>
-                        </View>
-                      ) : null}
-                    </View>
+              <View style={styles.heroContent}>
+                <View style={styles.avatarWrap}>
+                  <LinearGradient colors={T.purpleGrad} style={styles.avatarRing}>
+                    <Image source={{ uri: avatarUri }} style={styles.avatar} />
+                  </LinearGradient>
+                  <View style={styles.onlinePill}>
+                    <View style={styles.onlineDot} />
+                    <Text style={styles.onlineText}>Online</Text>
                   </View>
                 </View>
 
-                {profile?.bio ? (
-                  <Text style={styles.bio} numberOfLines={3}>
-                    {profile.bio}
+                <Text style={styles.name}>
+                  {displayName}
+                  {age}
+                </Text>
+
+                <View style={styles.metaRow}>
+                  <View style={styles.metaChip}>
+                    <Ionicons name="location" size={12} color="#FFF" />
+                    <Text style={styles.metaChipText}>{city}</Text>
+                  </View>
+                  {profile?.isVerified ? (
+                    <View style={[styles.metaChip, styles.verifiedChip]}>
+                      <Ionicons name="checkmark" size={11} color="#FFF" />
+                      <Text style={styles.metaChipText}>Verified</Text>
+                    </View>
+                  ) : null}
+                </View>
+
+                {jobLine ? (
+                  <Text style={styles.jobLine} numberOfLines={1}>
+                    {jobLine}
                   </Text>
-                ) : (
-                  <Text style={styles.bioEmpty}>Add a bio so people know your vibe.</Text>
-                )}
+                ) : null}
+
+                <Text style={styles.bio} numberOfLines={3}>
+                  {profile?.bio || "Add a bio so people know your vibe."}
+                </Text>
 
                 <View style={styles.heroActions}>
-                  <Pressable
-                    style={styles.editBtn}
-                    onPress={() => router.push("/edit-profile")}
-                  >
-                    <LinearGradient
-                      colors={[...T.cta]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.editBtnGrad}
-                    >
-                      <Ionicons name="create-outline" size={16} color="#fff" />
-                      <Text style={styles.editBtnText}>Edit Profile</Text>
+                  <Pressable style={styles.editBtn} onPress={() => router.push("/edit-profile")}>
+                    <LinearGradient colors={T.purpleGrad} style={styles.editGrad}>
+                      <Ionicons name="create-outline" size={16} color="#FFF" />
+                      <Text style={styles.editText}>Edit Profile</Text>
                     </LinearGradient>
                   </Pressable>
+                  <Pressable style={styles.secondaryBtn} onPress={handleShare}>
+                    <Ionicons name="share-outline" size={16} color={T.purple} />
+                    <Text style={styles.secondaryText}>Share</Text>
+                  </Pressable>
                   <Pressable
-                    style={styles.shareBtn}
+                    style={styles.iconOnlyBtn}
                     onPress={() => router.push("/(tabs)/discover")}
                   >
                     <Ionicons name="compass-outline" size={18} color={T.purple} />
-                    <Text style={styles.shareBtnText}>Discover</Text>
                   </Pressable>
                 </View>
               </View>
             </Animated.View>
 
-            {/* Premium Banner Card */}
-            <Animated.View entering={FadeInDown.delay(70).duration(400)} style={styles.premiumBannerWrap}>
-              <Pressable onPress={openPaywall}>
+            {/* Stats strip */}
+            <Animated.View entering={FadeInDown.delay(70).duration(360)} style={styles.statsCard}>
+              <Pressable style={styles.statCell} onPress={() => router.push("/my-matches")}>
+                <Text style={styles.statValue}>{matches.length}</Text>
+                <Text style={styles.statLabel}>Matches</Text>
+              </Pressable>
+              <View style={styles.statDivider} />
+              <Pressable style={styles.statCell} onPress={() => router.push("/my-matches")}>
+                <Text style={[styles.statValue, { color: T.purple }]}>{likesCount}</Text>
+                <Text style={styles.statLabel}>Likes</Text>
+              </Pressable>
+              <View style={styles.statDivider} />
+              <Pressable style={styles.statCell} onPress={() => router.push("/hangout")}>
+                <Text style={[styles.statValue, { color: T.green }]}>{myPlans.length}</Text>
+                <Text style={styles.statLabel}>Plans</Text>
+              </Pressable>
+              <View style={styles.statDivider} />
+              <Pressable style={styles.statCell} onPress={handleToggleEnergy}>
+                <View style={[styles.energyPill, { backgroundColor: energyMeta.soft }]}>
+                  <Ionicons name={energyMeta.icon} size={11} color={energyMeta.color} />
+                  <Text style={[styles.energyText, { color: energyMeta.color }]}>
+                    {energyMeta.label}
+                  </Text>
+                </View>
+                <Text style={styles.statLabel}>Energy</Text>
+              </Pressable>
+            </Animated.View>
+
+            {/* Premium */}
+            <Animated.View entering={FadeInDown.delay(110).duration(360)}>
+              <Pressable onPress={openPaywall} style={styles.premiumWrap}>
                 <LinearGradient
-                  colors={tier === "VIP" ? ["#F59E0B", "#D97706", "#7C3AED"] : tier === "GOLD" ? ["#7C3AED", "#8B5CF6"] : ["#1E1B4B", "#2E1065", "#0F172A"]}
+                  colors={
+                    tier === "VIP"
+                      ? (["#F59E0B", "#D97706"] as [string, string])
+                      : tier === "GOLD"
+                        ? T.purpleGrad
+                        : (["#1E1B4B", "#4C1D95"] as [string, string])
+                  }
                   start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.premiumBannerCard}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.premiumCard}
                 >
-                  <View style={styles.premiumBannerLeft}>
-                    <View style={styles.premiumCrownBox}>
-                      <Text style={styles.premiumCrownEmoji}>👑</Text>
-                    </View>
-                    <View style={styles.premiumTextGroup}>
-                      <Text style={styles.premiumBannerTitle}>
-                        {tier === "VIP" ? "VibeVIP Active 👑" : tier === "GOLD" ? "VibeGold Active 🌟" : "VibeGold Premium"}
-                      </Text>
-                      <Text style={styles.premiumBannerSub}>
-                        {isPremium ? "All Premium Perks Unlocked!" : "See Who Liked You • Starts at ₹99/wk"}
-                      </Text>
-                    </View>
+                  <View style={styles.premiumIcon}>
+                    <Ionicons name="diamond" size={18} color="#FFF" />
                   </View>
-                  <View style={styles.premiumCtaBtn}>
-                    <Text style={styles.premiumCtaText}>{isPremium ? "MANAGE" : "UPGRADE"}</Text>
-                    <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.premiumTitle}>
+                      {tier === "VIP"
+                        ? "VibeVIP Active"
+                        : tier === "GOLD"
+                          ? "VibeGold Active"
+                          : "Unlock VibeGold"}
+                    </Text>
+                    <Text style={styles.premiumSub}>
+                      {isPremium
+                        ? "All premium perks unlocked"
+                        : "See who liked you · from ₹99/wk"}
+                    </Text>
+                  </View>
+                  <View style={styles.premiumCta}>
+                    <Text style={styles.premiumCtaText}>{isPremium ? "Manage" : "Upgrade"}</Text>
+                    <Ionicons name="chevron-forward" size={14} color="#FFF" />
                   </View>
                 </LinearGradient>
               </Pressable>
             </Animated.View>
 
-            {/* Stats Row */}
-            <Animated.View entering={FadeInDown.delay(80).duration(400)} style={styles.statsRow}>
-              {stats.map((s) => (
-                <Pressable
-                  key={s.label}
-                  style={styles.statCard}
-                  onPress={s.onPress}
-                  disabled={!s.onPress}
-                >
-                  <View style={[styles.statIcon, { backgroundColor: `${s.color}15` }]}>
-                    <Ionicons name={s.icon} size={14} color={s.color} />
-                  </View>
-                  <Text style={[styles.statValue, { color: s.color }]} numberOfLines={1}>
-                    {s.value}
-                  </Text>
-                  <Text style={styles.statLabel}>{s.label}</Text>
-                </Pressable>
-              ))}
-            </Animated.View>
-
-            {/* Quick access */}
-            <Animated.View entering={FadeInDown.delay(120).duration(400)}>
-              <View style={styles.sectionHeaderRow}>
-                <Text style={styles.sectionTitle}>Quick Access ⚡</Text>
-              </View>
+            {/* Quick actions */}
+            <Animated.View entering={FadeInDown.delay(150).duration(360)} style={styles.section}>
+              <Text style={styles.sectionTitle}>Quick actions</Text>
               <View style={styles.quickRow}>
                 <Pressable style={styles.quickCard} onPress={() => router.push("/create-plan")}>
-                  <LinearGradient colors={["#10B981", "#059669"]} style={styles.quickIcon}>
-                    <Ionicons name="add" size={20} color="#fff" />
-                  </LinearGradient>
+                  <View style={[styles.quickIcon, { backgroundColor: T.softGreen }]}>
+                    <Ionicons name="add" size={20} color={T.green} />
+                  </View>
                   <Text style={styles.quickLabel}>New Plan</Text>
                 </Pressable>
                 <Pressable style={styles.quickCard} onPress={() => router.push("/reels")}>
-                  <LinearGradient colors={[...T.cta]} style={styles.quickIcon}>
-                    <Ionicons name="people" size={18} color="#fff" />
-                  </LinearGradient>
+                  <View style={[styles.quickIcon, { backgroundColor: T.softPurple }]}>
+                    <Ionicons name="people" size={18} color={T.purple} />
+                  </View>
                   <Text style={styles.quickLabel}>Friends</Text>
                 </Pressable>
-                <Pressable style={styles.quickCard} onPress={() => router.push("/(tabs)/jar")}>
-                  <LinearGradient colors={["#F59E0B", "#D97706"]} style={styles.quickIcon}>
-                    <Ionicons name="sparkles" size={18} color="#fff" />
-                  </LinearGradient>
-                  <Text style={styles.quickLabel}>Jar</Text>
+                <Pressable style={styles.quickCard} onPress={() => router.push("/spot-broadcast")}>
+                  <View style={[styles.quickIcon, { backgroundColor: T.softPurple }]}>
+                    <Ionicons name="flash" size={18} color={T.purple} />
+                  </View>
+                  <Text style={styles.quickLabel}>Spot Hub</Text>
                 </Pressable>
               </View>
             </Animated.View>
 
-            {/* Menu */}
-            <Animated.View entering={FadeInUp.delay(160).duration(400)}>
-              <View style={styles.sectionHeaderRow}>
-                <Text style={styles.sectionTitle}>Account Settings ⚙️</Text>
-              </View>
+            {/* Account menu */}
+            <Animated.View entering={FadeInUp.delay(180).duration(360)} style={styles.section}>
+              <Text style={styles.sectionTitle}>Account</Text>
               <View style={styles.menuCard}>
                 {MENU.map((item, i) => (
                   <Pressable
@@ -356,26 +412,40 @@ export default function ProfileScreen() {
                       else Alert.alert(item.label, "Coming soon.");
                     }}
                   >
-                    <View style={[styles.menuIcon, { backgroundColor: `${item.color}15` }]}>
-                      <Ionicons name={item.icon} size={18} color={item.color} />
+                    <View style={[styles.menuIcon, { backgroundColor: item.soft }]}>
+                      <Ionicons name={item.icon} size={17} color={item.color} />
                     </View>
                     <View style={styles.menuCopy}>
                       <Text style={styles.menuLabel}>{item.label}</Text>
                       <Text style={styles.menuSub}>{item.sub}</Text>
                     </View>
-                    <Ionicons name="chevron-forward" size={16} color={T.faint} />
+                    <Ionicons name="chevron-forward" size={15} color={T.soft} />
                   </Pressable>
                 ))}
               </View>
             </Animated.View>
 
-            {/* Logout Button */}
             <Pressable onPress={handleLogout} style={styles.logoutBtn}>
-              <Ionicons name="log-out-outline" size={18} color="#EF4444" />
+              <Ionicons name="log-out-outline" size={17} color="#EF4444" />
               <Text style={styles.logoutText}>Log Out</Text>
             </Pressable>
 
-            <Text style={styles.version}>Vibely</Text>
+            <Pressable
+              onPress={handleDeleteAccount}
+              disabled={deleting}
+              style={[styles.deleteBtn, deleting && { opacity: 0.6 }]}
+            >
+              {deleting ? (
+                <ActivityIndicator size="small" color="#DC2626" />
+              ) : (
+                <>
+                  <Ionicons name="trash-outline" size={17} color="#DC2626" />
+                  <Text style={styles.deleteText}>Delete Account</Text>
+                </>
+              )}
+            </Pressable>
+
+            <Text style={styles.version}>Hangora · My Profile</Text>
           </>
         )}
       </ScrollView>
@@ -386,212 +456,301 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: T.bg },
   scroll: {
-    paddingHorizontal: 16,
     paddingBottom: 120,
-    paddingTop: 4,
   },
-  loader: { height: 220, alignItems: "center", justifyContent: "center" },
-  heroWrap: { marginBottom: 16 },
-  heroCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    shadowColor: "#7C3AED",
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+  loader: {
+    height: 260,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
   },
-  heroTopRow: { flexDirection: "row", alignItems: "center", gap: 14 },
-  avatarWrap: { position: "relative" },
+  loaderText: {
+    fontSize: 13,
+    fontFamily: VibeFonts.medium,
+    color: T.muted,
+  },
+
+  hero: {
+    width: SCREEN_W,
+    minHeight: HERO_H + 120,
+    marginBottom: 14,
+    overflow: "hidden",
+  },
+  heroImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: "100%",
+    height: HERO_H,
+  },
+  heroGrad: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  heroContent: {
+    paddingTop: 36,
+    paddingHorizontal: 18,
+    alignItems: "center",
+  },
+  avatarWrap: {
+    alignItems: "center",
+    marginBottom: 12,
+  },
   avatarRing: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    padding: 2.5,
+    width: 108,
+    height: 108,
+    borderRadius: 36,
+    padding: 3,
     alignItems: "center",
     justifyContent: "center",
   },
   avatar: {
-    width: 78,
-    height: 78,
-    borderRadius: 39,
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
+    width: 102,
+    height: 102,
+    borderRadius: 33,
+    borderWidth: 3,
+    borderColor: "#FFF",
   },
-  onlineBadge: {
-    position: "absolute",
-    bottom: -2,
-    alignSelf: "center",
+  onlinePill: {
+    marginTop: -12,
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    gap: 5,
+    backgroundColor: T.green,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(34,197,94,0.35)",
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
+    borderWidth: 2,
+    borderColor: "#FFF",
   },
-  onlineText: { fontSize: 9, fontFamily: VibeFonts.bold, color: "#16A34A" },
-  heroInfo: { flex: 1, minWidth: 0 },
+  onlineDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#FFF",
+  },
+  onlineText: {
+    color: "#FFF",
+    fontSize: 10,
+    fontFamily: VibeFonts.bold,
+  },
   name: {
-    fontSize: 22,
+    fontSize: 28,
     fontFamily: VibeFonts.extraBold,
-    color: "#18181B",
-    letterSpacing: -0.4,
+    color: T.ink,
+    letterSpacing: -0.6,
+    textAlign: "center",
   },
-  email: {
-    fontSize: 12,
-    fontFamily: VibeFonts.medium,
-    color: "#94A3B8",
-    marginTop: 3,
+  metaRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 10,
   },
-  locRow: {
+  metaChip: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
+    backgroundColor: "rgba(15,23,42,0.55)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  verifiedChip: {
+    backgroundColor: T.purple,
+  },
+  metaChipText: {
+    color: "#FFF",
+    fontSize: 11,
+    fontFamily: VibeFonts.bold,
+  },
+  jobLine: {
     marginTop: 8,
-    flexWrap: "wrap",
+    fontSize: 12.5,
+    fontFamily: VibeFonts.medium,
+    color: T.muted,
+    textAlign: "center",
   },
-  locText: { fontSize: 12, fontFamily: VibeFonts.semiBold, color: "#7C3AED" },
-  verified: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    marginLeft: 6,
-    backgroundColor: "rgba(37,99,235,0.1)",
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 8,
-  },
-  verifiedText: { fontSize: 10, fontFamily: VibeFonts.bold, color: "#2563EB" },
   bio: {
-    marginTop: 14,
-    fontSize: 13,
+    marginTop: 10,
+    fontSize: 13.5,
+    lineHeight: 20,
     fontFamily: VibeFonts.medium,
-    color: "#64748B",
-    lineHeight: 19,
-  },
-  bioEmpty: {
-    marginTop: 14,
-    fontSize: 13,
-    fontFamily: VibeFonts.medium,
-    color: "#94A3B8",
-    fontStyle: "italic",
+    color: "#475569",
+    textAlign: "center",
+    paddingHorizontal: 8,
   },
   heroActions: {
     flexDirection: "row",
-    gap: 10,
+    alignItems: "center",
+    gap: 8,
     marginTop: 16,
+    width: "100%",
   },
   editBtn: {
-    flex: 1.2,
+    flex: 1.3,
     borderRadius: 14,
     overflow: "hidden",
-    shadowColor: "#7C3AED",
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
   },
-  editBtnGrad: {
+  editGrad: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
     paddingVertical: 12,
-    borderRadius: 14,
   },
-  editBtnText: { color: "#FFFFFF", fontSize: 13, fontFamily: VibeFonts.bold },
-  shareBtn: {
+  editText: {
+    color: "#FFF",
+    fontSize: 13,
+    fontFamily: VibeFonts.extraBold,
+  },
+  secondaryBtn: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
+    gap: 5,
     paddingVertical: 12,
     borderRadius: 14,
-    backgroundColor: "#F3E8FF",
+    backgroundColor: T.softPurple,
     borderWidth: 1,
     borderColor: "#DDD6FE",
   },
-  shareBtnText: { color: "#7C3AED", fontSize: 13, fontFamily: VibeFonts.bold },
-  statsRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginBottom: 20,
+  secondaryText: {
+    color: T.purple,
+    fontSize: 13,
+    fontFamily: VibeFonts.bold,
   },
-  statCard: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+  iconOnlyBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: T.card,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
-    paddingVertical: 12,
-    paddingHorizontal: 6,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
-  },
-  statIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 10,
+    borderColor: T.border,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 6,
   },
-  statValue: { fontSize: 15, fontFamily: VibeFonts.extraBold },
+
+  statsCard: {
+    marginHorizontal: 16,
+    marginBottom: 14,
+    backgroundColor: T.card,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: T.border,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 6,
+  },
+  statCell: {
+    flex: 1,
+    alignItems: "center",
+    gap: 4,
+  },
+  statDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: T.border,
+  },
+  statValue: {
+    fontSize: 18,
+    fontFamily: VibeFonts.extraBold,
+    color: T.ink,
+    letterSpacing: -0.3,
+  },
   statLabel: {
     fontSize: 10,
     fontFamily: VibeFonts.semiBold,
-    color: "#94A3B8",
-    marginTop: 2,
+    color: T.soft,
   },
-  sectionHeaderRow: {
+  energyPill: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 10,
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  energyText: {
+    fontSize: 11,
+    fontFamily: VibeFonts.extraBold,
+  },
+
+  premiumWrap: {
+    marginHorizontal: 16,
+    marginBottom: 18,
+    borderRadius: 18,
+    overflow: "hidden",
+  },
+  premiumCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+  premiumIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  premiumTitle: {
+    fontSize: 14,
+    fontFamily: VibeFonts.extraBold,
+    color: "#FFF",
+  },
+  premiumSub: {
+    marginTop: 2,
+    fontSize: 11,
+    fontFamily: VibeFonts.medium,
+    color: "rgba(255,255,255,0.82)",
+  },
+  premiumCta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  premiumCtaText: {
+    fontSize: 11,
+    fontFamily: VibeFonts.bold,
+    color: "#FFF",
+  },
+
+  section: {
+    paddingHorizontal: 16,
+    marginBottom: 18,
   },
   sectionTitle: {
     fontSize: 16,
     fontFamily: VibeFonts.extraBold,
-    color: "#18181B",
+    color: T.ink,
+    letterSpacing: -0.3,
+    marginBottom: 10,
   },
   quickRow: {
     flexDirection: "row",
     gap: 10,
-    marginBottom: 20,
   },
   quickCard: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: T.card,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: T.border,
     paddingVertical: 14,
     alignItems: "center",
     gap: 8,
-    shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
   },
   quickIcon: {
-    width: 40,
-    height: 40,
+    width: 42,
+    height: 42,
     borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
@@ -599,35 +758,30 @@ const styles = StyleSheet.create({
   quickLabel: {
     fontSize: 12,
     fontFamily: VibeFonts.bold,
-    color: "#18181B",
+    color: T.ink,
   },
+
   menuCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
+    backgroundColor: T.card,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: T.border,
     overflow: "hidden",
-    marginBottom: 20,
-    shadowColor: "#7C3AED",
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
   },
   menuRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 13,
   },
   menuBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
+    borderBottomColor: "#F1F5F9",
   },
   menuIcon: {
-    width: 40,
-    height: 40,
+    width: 38,
+    height: 38,
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
@@ -635,94 +789,57 @@ const styles = StyleSheet.create({
   menuCopy: { flex: 1 },
   menuLabel: {
     fontSize: 14,
-    fontFamily: VibeFonts.semiBold,
-    color: "#18181B",
+    fontFamily: VibeFonts.bold,
+    color: T.ink,
   },
   menuSub: {
+    marginTop: 2,
     fontSize: 11,
     fontFamily: VibeFonts.medium,
-    color: "#94A3B8",
-    marginTop: 2,
+    color: T.soft,
   },
+
   logoutBtn: {
+    marginHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    paddingVertical: 14,
-    borderRadius: 16,
-    backgroundColor: "rgba(239,68,68,0.08)",
+    paddingVertical: 13,
+    borderRadius: 14,
+    backgroundColor: "#FEF2F2",
     borderWidth: 1,
-    borderColor: "rgba(239,68,68,0.25)",
-    marginBottom: 14,
+    borderColor: "#FECACA",
+    marginBottom: 12,
   },
-  logoutText: { fontSize: 14, fontFamily: VibeFonts.bold, color: "#EF4444" },
+  logoutText: {
+    fontSize: 14,
+    fontFamily: VibeFonts.bold,
+    color: "#EF4444",
+  },
+  deleteBtn: {
+    marginHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 13,
+    borderRadius: 14,
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
+    marginBottom: 16,
+  },
+  deleteText: {
+    fontSize: 14,
+    fontFamily: VibeFonts.bold,
+    color: "#DC2626",
+  },
   version: {
     textAlign: "center",
     fontSize: 11,
     fontFamily: VibeFonts.medium,
-    color: "#94A3B8",
+    color: T.soft,
     marginBottom: 8,
-  },
-  premiumBannerWrap: {
-    marginHorizontal: 16,
-    marginBottom: 16,
-  },
-  premiumBannerCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-    shadowColor: "#7C3AED",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 4,
-  },
-  premiumBannerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    flex: 1,
-  },
-  premiumCrownBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  premiumCrownEmoji: { fontSize: 20 },
-  premiumTextGroup: { flex: 1 },
-  premiumBannerTitle: {
-    fontSize: 15,
-    fontFamily: VibeFonts.bold,
-    color: "#FFFFFF",
-  },
-  premiumBannerSub: {
-    fontSize: 11,
-    fontFamily: VibeFonts.medium,
-    color: "rgba(255, 255, 255, 0.8)",
-    marginTop: 2,
-  },
-  premiumCtaBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
-  },
-  premiumCtaText: {
-    fontSize: 11,
-    fontFamily: VibeFonts.bold,
-    color: "#FFFFFF",
-    letterSpacing: 0.5,
   },
 });

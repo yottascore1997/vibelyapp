@@ -12,7 +12,6 @@ import {
   Share,
   ActivityIndicator,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -21,17 +20,33 @@ import Animated, {
   useAnimatedStyle,
   withRepeat,
   withTiming,
+  withSequence,
   Easing,
   FadeInDown,
+  FadeInUp,
   ZoomIn,
 } from "react-native-reanimated";
 import { VibeFonts } from "../constants/vibeTheme";
 import { api } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import TabBar from "../components/TabBar";
+import AppHeader from "../components/vibe/AppHeader";
 
 const { width: SCREEN_W } = Dimensions.get("window");
-const RADAR_SIZE = 270;
+const RADAR_SIZE = 280;
+
+const T = {
+  bg: "#F8F9FD",
+  card: "#FFFFFF",
+  ink: "#18181B",
+  muted: "#64748B",
+  purple: "#7C3AED",
+  purpleBright: "#8B5CF6",
+  green: "#22C55E",
+  softPurple: "#F3E8FF",
+  border: "#EDE7FF",
+  purpleGrad: ["#7C3AED", "#8B5CF6"] as [string, string],
+};
 
 const RICH_FALLBACK_PROFILES = [
   {
@@ -57,7 +72,7 @@ const RICH_FALLBACK_PROFILES = [
     avatarUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&fit=crop",
     isOnline: true,
     isVerified: true,
-    bio: "Tech enthusiast & foodie. Down for quick coffee/pizza!",
+    bio: "Tech enthusiast & foodie",
     radarPos: { top: 155, left: 20 },
   },
   {
@@ -83,7 +98,7 @@ const RICH_FALLBACK_PROFILES = [
     avatarUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&fit=crop",
     isOnline: true,
     isVerified: true,
-    bio: "Late night drives & espresso shots ☕",
+    bio: "Late night drives & espresso",
     radarPos: { top: 175, left: 170 },
   },
   {
@@ -96,15 +111,30 @@ const RICH_FALLBACK_PROFILES = [
     avatarUrl: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400&fit=crop",
     isOnline: true,
     isVerified: true,
-    bio: "Cinema nerd & pop culture fan 🎬",
+    bio: "Cinema nerd & pop culture fan",
     radarPos: { top: 105, left: 210 },
   },
 ];
 
+function BounceEmoji({ emoji }: { emoji: string }) {
+  const scale = useSharedValue(1);
+  useEffect(() => {
+    scale.value = withRepeat(
+      withSequence(
+        withTiming(1.15, { duration: 700, easing: Easing.inOut(Easing.quad) }),
+        withTiming(1, { duration: 700, easing: Easing.inOut(Easing.quad) })
+      ),
+      -1,
+      false
+    );
+  }, []);
+  const anim = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  return <Animated.Text style={[{ fontSize: 28 }, anim]}>{emoji}</Animated.Text>;
+}
+
 export default function SpotRadarScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const insets = useSafeAreaInsets();
   const { user } = useAuth();
 
   const venue = (params.venue as string) || "Starbucks Cafe";
@@ -118,11 +148,8 @@ export default function SpotRadarScreen() {
   const [pingedUserIds, setPingedUserIds] = useState<string[]>([]);
   const [sendingPingId, setSendingPingId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"radar" | "grid">("radar");
-
-  // Countdown timer state
   const [secondsLeft, setSecondsLeft] = useState(initialDuration * 60);
 
-  // Reanimated radar animations
   const pulse1 = useSharedValue(0.2);
   const pulse2 = useSharedValue(0.2);
   const radarSweep = useSharedValue(0);
@@ -140,7 +167,6 @@ export default function SpotRadarScreen() {
         false
       );
     }, 1100);
-
     radarSweep.value = withRepeat(
       withTiming(360, { duration: 3600, easing: Easing.linear }),
       -1,
@@ -148,7 +174,6 @@ export default function SpotRadarScreen() {
     );
   }, []);
 
-  // Ticking countdown timer
   useEffect(() => {
     const timer = setInterval(() => {
       setSecondsLeft((prev) => (prev > 0 ? prev - 1 : 0));
@@ -162,7 +187,6 @@ export default function SpotRadarScreen() {
     return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
   };
 
-  // Fetch Real Nearby People Data
   const loadNearbyData = useCallback(async () => {
     setLoading(true);
     try {
@@ -193,7 +217,7 @@ export default function SpotRadarScreen() {
               RICH_FALLBACK_PROFILES[idx % RICH_FALLBACK_PROFILES.length].avatarUrl,
             isOnline: u.isOnline ?? true,
             isVerified: u.isVerified ?? idx % 2 === 0,
-            bio: u.bio || "Looking to connect & hangout nearby!",
+            bio: u.bio || "Looking to connect nearby!",
             radarPos: RICH_FALLBACK_PROFILES[idx % RICH_FALLBACK_PROFILES.length].radarPos,
           };
         });
@@ -229,10 +253,8 @@ export default function SpotRadarScreen() {
     transform: [{ rotate: `${radarSweep.value}deg` }],
   }));
 
-  // Real Send Invite Action
   const handleSendPing = async (targetUser: any) => {
     if (pingedUserIds.includes(targetUser.id) || sendingPingId) return;
-
     setSendingPingId(targetUser.id);
     try {
       if (user) {
@@ -244,27 +266,39 @@ export default function SpotRadarScreen() {
         });
       }
       setPingedUserIds((prev) => [...prev, targetUser.id]);
-      Alert.alert(
-        "⚡ TABLE INVITE DISPATCHED!",
-        `Ping sent to ${targetUser.name}!\n\n"Hey! Join my table at ${venue} for ${emoji} ${vibe}!"`
-      );
+      Alert.alert("⚡ Invite sent!", `Ping sent to ${targetUser.name} for ${emoji} ${vibe} at ${venue}!`);
     } catch {
       setPingedUserIds((prev) => [...prev, targetUser.id]);
-      Alert.alert(
-        "⚡ TABLE INVITE DISPATCHED!",
-        `Ping sent to ${targetUser.name} for ${emoji} ${vibe} at ${venue}!`
-      );
+      Alert.alert("⚡ Invite sent!", `Ping sent to ${targetUser.name}!`);
     } finally {
       setSendingPingId(null);
     }
   };
 
-  // Real Direct Chat Action
   const handleOpenChat = (targetUserId: string) => {
     router.push(`/chat/${targetUserId}`);
   };
 
-  // Real WhatsApp & Public Share Action
+  const openUserProfile = (person: any) => {
+    if (!person?.id) return;
+    router.push({
+      pathname: "/user/[id]",
+      params: {
+        id: String(person.id),
+        name: person.name || "User",
+        age: person.age ? String(person.age) : "",
+        bio: person.bio || "",
+        city: person.city || "Nagpur",
+        distance: person.distance ? String(person.distance) : "",
+        avatarUrl: person.avatarUrl || "",
+        vibe: person.vibe || "",
+        jobTitle: person.jobTitle || "",
+        isVerified: person.isVerified ? "1" : "0",
+        isOnline: person.isOnline === false ? "0" : "1",
+      },
+    });
+  };
+
   const handleShareSpot = async () => {
     try {
       const res = await api.createPublicInvite({
@@ -272,130 +306,143 @@ export default function SpotRadarScreen() {
         activityEmoji: emoji,
         timeLabel: `At ${venue} for next ${initialDuration} mins!`,
       });
-
-      const shareMsg = `Hey! I just broadcasted a Live Spot at ${venue} (${emoji} ${vibe}). Join my table: ${
-        res?.inviteUrl || "https://vibematch.app"
-      }`;
-      await Share.share({ message: shareMsg });
+      await Share.share({
+        message: `Hey! Live Spot at ${venue} (${emoji} ${vibe}). Join: ${
+          res?.inviteUrl || "https://vibematch.app"
+        }`,
+      });
     } catch {
-      const shareMsg = `Hey! At ${venue} (${emoji} ${vibe}) right now! Join me: https://vibematch.app`;
-      await Share.share({ message: shareMsg });
+      await Share.share({
+        message: `At ${venue} (${emoji} ${vibe}) right now! Join me: https://vibematch.app`,
+      });
     }
   };
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F8F9FD" />
+      <StatusBar barStyle="dark-content" backgroundColor={T.bg} />
 
-      {/* Clean Light Pure Purple Header Bar */}
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.topHeader}>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={20} color="#18181B" />
-          </TouchableOpacity>
+      <LinearGradient
+        colors={["rgba(167,139,250,0.2)", "transparent"]}
+        style={styles.ambientTop}
+        pointerEvents="none"
+      />
+      <LinearGradient
+        colors={["rgba(124,58,237,0.08)", "transparent"]}
+        style={styles.ambientRight}
+        pointerEvents="none"
+      />
 
-          <View style={styles.headerCenter}>
-            <View style={styles.statusBadge}>
-              <View style={styles.purpleDot} />
-              <Text style={styles.statusText}>SPOT RADAR ACTIVE</Text>
-            </View>
-            <Text style={styles.venueTitle} numberOfLines={1}>
-              {emoji} {venue}
-            </Text>
-          </View>
+      <AppHeader variant="light" tagline="Live spots · Nearby radar" />
 
-          <TouchableOpacity style={styles.iconBtn} onPress={handleShareSpot}>
-            <Ionicons name="share-social-outline" size={18} color="#18181B" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Live HUD Chips Strip */}
-        <View style={styles.hudStrip}>
-          <View style={styles.hudChip}>
-            <Ionicons name="location-sharp" size={12} color="#7C3AED" />
-            <Text style={styles.hudChipText}>1 km</Text>
-          </View>
-          <View style={styles.hudChip}>
-            <Ionicons name="time-outline" size={12} color="#7C3AED" />
-            <Text style={styles.hudChipText}>{formatTimer(secondsLeft)}</Text>
-          </View>
-          <View style={styles.hudChip}>
-            <Ionicons name="people-sharp" size={12} color="#7C3AED" />
-            <Text style={styles.hudChipText}>{nearbyUsers.length} Nearby</Text>
-          </View>
-        </View>
-
-        {/* View Switcher Toggle */}
-        <View style={styles.viewToggleContainer}>
-          <TouchableOpacity
-            style={[styles.toggleBtn, viewMode === "radar" && styles.toggleBtnActive]}
-            onPress={() => setViewMode("radar")}
-          >
-            <Ionicons
-              name={"radar-sharp" as any}
-              size={14}
-              color={viewMode === "radar" ? "#FFF" : "#64748B"}
-            />
-            <Text style={[styles.toggleText, viewMode === "radar" && styles.toggleTextActive]}>
-              Radar Map
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.toggleBtn, viewMode === "grid" && styles.toggleBtnActive]}
-            onPress={() => setViewMode("grid")}
-          >
-            <Ionicons
-              name="grid-sharp"
-              size={14}
-              color={viewMode === "grid" ? "#FFF" : "#64748B"}
-            />
-            <Text style={[styles.toggleText, viewMode === "grid" && styles.toggleTextActive]}>
-              Nearby Feed ({nearbyUsers.length})
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Main Content Area */}
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
+        {/* Venue hero */}
+        <Animated.View entering={FadeInUp.duration(380)} style={styles.heroWrap}>
+          <LinearGradient colors={T.purpleGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroCard}>
+            <View style={styles.heroShine} />
+            <View style={styles.heroRow}>
+              <TouchableOpacity style={styles.backOnHero} onPress={() => router.back()} activeOpacity={0.85}>
+                <Ionicons name="chevron-back" size={18} color="#FFF" />
+              </TouchableOpacity>
+              <View style={styles.heroEmojiWrap}>
+                <BounceEmoji emoji={emoji} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.heroEyebrow}>YOUR LIVE SPOT</Text>
+                <Text style={styles.heroVenue} numberOfLines={1}>
+                  {venue}
+                </Text>
+                <Text style={styles.heroVibe}>{vibe} · scanning nearby</Text>
+              </View>
+            </View>
+
+            <View style={styles.hudStrip}>
+              <View style={styles.hudChip}>
+                <Ionicons name="navigate" size={12} color="#FFF" />
+                <Text style={styles.hudChipText}>1 km</Text>
+              </View>
+              <View style={styles.hudChip}>
+                <Ionicons name="timer" size={12} color="#FFF" />
+                <Text style={styles.hudChipText}>{formatTimer(secondsLeft)}</Text>
+              </View>
+              <View style={styles.hudChip}>
+                <Ionicons name="people" size={12} color="#FFF" />
+                <Text style={styles.hudChipText}>{nearbyUsers.length} nearby</Text>
+              </View>
+              <TouchableOpacity style={styles.heroShareChip} onPress={handleShareSpot} activeOpacity={0.85}>
+                <Ionicons name="share-social" size={12} color="#FFF" />
+                <Text style={styles.hudChipText}>Share</Text>
+              </TouchableOpacity>
+            </View>
+          </LinearGradient>
+        </Animated.View>
+
+        {/* Toggle */}
+        <View style={styles.viewToggleContainer}>
+          <TouchableOpacity style={styles.toggleBtn} onPress={() => setViewMode("radar")} activeOpacity={0.88}>
+            {viewMode === "radar" ? (
+              <LinearGradient colors={T.purpleGrad} style={styles.toggleGrad}>
+                <Ionicons name="radio" size={14} color="#FFF" />
+                <Text style={styles.toggleTextActive}>Radar Map</Text>
+              </LinearGradient>
+            ) : (
+              <View style={styles.toggleInner}>
+                <Ionicons name="radio" size={14} color={T.muted} />
+                <Text style={styles.toggleText}>Radar Map</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.toggleBtn} onPress={() => setViewMode("grid")} activeOpacity={0.88}>
+            {viewMode === "grid" ? (
+              <LinearGradient colors={T.purpleGrad} style={styles.toggleGrad}>
+                <Ionicons name="grid" size={14} color="#FFF" />
+                <Text style={styles.toggleTextActive}>Feed ({nearbyUsers.length})</Text>
+              </LinearGradient>
+            ) : (
+              <View style={styles.toggleInner}>
+                <Ionicons name="grid" size={14} color={T.muted} />
+                <Text style={styles.toggleText}>Feed ({nearbyUsers.length})</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
+
         {loading ? (
           <View style={styles.loadingWrap}>
-            <ActivityIndicator size="large" color="#7C3AED" />
-            <Text style={styles.loadingText}>Scanning nearby spots...</Text>
+            <ActivityIndicator size="large" color={T.purple} />
+            <Text style={styles.loadingText}>Scanning nearby vibes...</Text>
           </View>
         ) : viewMode === "radar" ? (
           <View style={styles.radarSection}>
-            {/* Perfectly Centered Pure Purple Sonar Map */}
             <View style={styles.radarCardWrap}>
+              <LinearGradient colors={["#EEF2FF", "#F5F3FF", "#F8F9FD"]} style={styles.radarCardBg} />
               <View style={styles.radarCircleWrap}>
                 <Animated.View style={[styles.pulseRing, ring1Style]} />
                 <Animated.View style={[styles.pulseRing, ring2Style]} />
 
                 <View style={styles.radarInnerCircle}>
+                  <View style={styles.radarRingMid} />
                   <View style={styles.radarCrosshairH} />
                   <View style={styles.radarCrosshairV} />
 
-                  {/* Laser Sweep Line */}
                   <Animated.View style={[styles.radarSweepLine, sweepStyle]}>
                     <LinearGradient
-                      colors={["rgba(124,58,237,0.35)", "transparent"]}
+                      colors={["rgba(124,58,237,0.45)", "rgba(139,92,246,0.12)", "transparent"]}
                       style={StyleSheet.absoluteFill}
                     />
                   </Animated.View>
 
-                  {/* Center Self Marker Pin */}
                   <View style={styles.centerSelfPin}>
                     <View style={styles.pinGlow} />
-                    <Text style={{ fontSize: 22 }}>📍</Text>
+                    <LinearGradient colors={T.purpleGrad} style={styles.pinCore}>
+                      <Text style={{ fontSize: 16 }}>{emoji}</Text>
+                    </LinearGradient>
                   </View>
 
-                  {/* Floating Avatars on Sonar */}
                   {nearbyUsers.slice(0, 5).map((userItem) => {
                     const offset = userItem.radarPos || { top: 60, left: 140 };
                     const isSelected = selectedUser?.id === userItem.id;
                     const isPinged = pingedUserIds.includes(userItem.id);
-
                     return (
                       <TouchableOpacity
                         key={userItem.id}
@@ -403,15 +450,20 @@ export default function SpotRadarScreen() {
                           styles.radarAvatarMarker,
                           offset,
                           isSelected && styles.radarAvatarSelected,
+                          isPinged && styles.radarAvatarPinged,
                         ]}
-                        onPress={() => setSelectedUser(userItem)}
-                        activeOpacity={0.8}
+                        onPress={() => {
+                          setSelectedUser(userItem);
+                          openUserProfile(userItem);
+                        }}
+                        onLongPress={() => setSelectedUser(userItem)}
+                        activeOpacity={0.85}
                       >
                         <Image source={{ uri: userItem.avatarUrl }} style={styles.radarAvatarImg} />
                         <View
                           style={[
                             styles.radarAvatarDot,
-                            { backgroundColor: isPinged ? "#6D28D9" : "#7C3AED" },
+                            { backgroundColor: isPinged ? T.green : T.purple },
                           ]}
                         />
                       </TouchableOpacity>
@@ -419,91 +471,85 @@ export default function SpotRadarScreen() {
                   })}
                 </View>
               </View>
+              <Text style={styles.radarHint}>Tap an avatar to open profile · live within 1 km</Text>
             </View>
 
-            {/* Selected Profile Highlight Card */}
             {selectedUser ? (
               <Animated.View entering={ZoomIn.duration(280)} style={styles.highlightCard}>
-                <View style={styles.highlightCardInner}>
-                  <Image source={{ uri: selectedUser.avatarUrl }} style={styles.highlightImg} />
-
-                  <View style={{ flex: 1 }}>
-                    <View style={styles.highlightNameRow}>
-                      <Text style={styles.highlightName}>{selectedUser.name}</Text>
-                      {selectedUser.age ? (
-                        <Text style={styles.highlightAge}>, {selectedUser.age}</Text>
-                      ) : null}
-                      {selectedUser.isVerified && (
-                        <Ionicons name="checkmark-circle-sharp" size={14} color="#7C3AED" />
-                      )}
-                    </View>
-
-                    <View style={styles.badgeRow}>
-                      <View style={styles.miniBadge}>
-                        <Ionicons name="navigate-sharp" size={9} color="#7C3AED" />
-                        <Text style={styles.miniBadgeText}>{selectedUser.distance}</Text>
+                <TouchableOpacity activeOpacity={0.92} onPress={() => openUserProfile(selectedUser)}>
+                  <LinearGradient colors={["#FFFFFF", "#F8F5FF"]} style={styles.highlightInner}>
+                    <Image source={{ uri: selectedUser.avatarUrl }} style={styles.highlightImg} />
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.highlightNameRow}>
+                        <Text style={styles.highlightName}>{selectedUser.name}</Text>
+                        {selectedUser.age ? <Text style={styles.highlightAge}>, {selectedUser.age}</Text> : null}
+                        {selectedUser.isVerified && (
+                          <Ionicons name="checkmark-circle" size={15} color={T.purple} />
+                        )}
                       </View>
-                      <View style={styles.miniBadge}>
-                        <Text style={styles.miniBadgeText}>{selectedUser.vibe}</Text>
+                      <Text style={styles.highlightBio} numberOfLines={1}>
+                        {selectedUser.bio || selectedUser.vibe}
+                      </Text>
+                      <View style={styles.badgeRow}>
+                        <View style={styles.miniBadge}>
+                          <Ionicons name="navigate" size={10} color={T.purple} />
+                          <Text style={styles.miniBadgeText}>{selectedUser.distance}</Text>
+                        </View>
+                        <View style={styles.miniBadge}>
+                          <Text style={styles.miniBadgeText}>{selectedUser.vibe}</Text>
+                        </View>
                       </View>
                     </View>
-                  </View>
+                    <Ionicons name="chevron-forward" size={18} color={T.purple} />
+                  </LinearGradient>
+                </TouchableOpacity>
 
-                  <View style={{ gap: 6 }}>
-                    <TouchableOpacity
-                      style={styles.pingBtn}
-                      onPress={() => handleSendPing(selectedUser)}
-                      activeOpacity={0.8}
-                    >
-                      <LinearGradient
-                        colors={
-                          pingedUserIds.includes(selectedUser.id)
-                            ? ["#94A3B8", "#64748B"]
-                            : ["#7C3AED", "#6D28D9"]
-                        }
-                        style={styles.pingBtnGrad}
-                      >
+                <View style={styles.highlightActions}>
+                  <TouchableOpacity
+                    style={styles.pingBtn}
+                    onPress={() => handleSendPing(selectedUser)}
+                    activeOpacity={0.88}
+                  >
+                    {pingedUserIds.includes(selectedUser.id) ? (
+                      <View style={[styles.pingBtnSolid, { backgroundColor: "#94A3B8" }]}>
+                        <Ionicons name="checkmark-done" size={15} color="#FFF" />
+                        <Text style={styles.pingBtnText}>Invited</Text>
+                      </View>
+                    ) : (
+                      <View style={[styles.pingBtnSolid, { backgroundColor: T.green }]}>
                         {sendingPingId === selectedUser.id ? (
                           <ActivityIndicator size="small" color="#FFF" />
                         ) : (
                           <>
-                            <Ionicons
-                              name={
-                                pingedUserIds.includes(selectedUser.id)
-                                  ? "checkmark-done-sharp"
-                                  : "flash-sharp"
-                              }
-                              size={12}
-                              color="#FFF"
-                            />
-                            <Text style={styles.pingBtnText}>
-                              {pingedUserIds.includes(selectedUser.id) ? "Invited" : "Ping"}
-                            </Text>
+                            <Ionicons name="flash" size={15} color="#FFF" />
+                            <Text style={styles.pingBtnText}>Invite to Spot</Text>
                           </>
                         )}
-                      </LinearGradient>
-                    </TouchableOpacity>
+                      </View>
+                    )}
+                  </TouchableOpacity>
 
-                    <TouchableOpacity
-                      style={styles.chatBtn}
-                      onPress={() => handleOpenChat(selectedUser.id)}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="chatbubble-ellipses-sharp" size={12} color="#7C3AED" />
+                  <TouchableOpacity
+                    style={styles.chatBtn}
+                    onPress={() => handleOpenChat(selectedUser.id)}
+                    activeOpacity={0.88}
+                  >
+                    <LinearGradient colors={T.purpleGrad} style={styles.chatBtnGrad}>
+                      <Ionicons name="chatbubble-ellipses" size={16} color="#FFF" />
                       <Text style={styles.chatBtnText}>Chat</Text>
-                    </TouchableOpacity>
-                  </View>
+                    </LinearGradient>
+                  </TouchableOpacity>
                 </View>
               </Animated.View>
             ) : null}
           </View>
         ) : null}
 
-        {/* Nearby Grid Feed */}
+        {/* People feed */}
         <View style={styles.gridSection}>
           <View style={styles.gridSecHeader}>
-            <Ionicons name="flash-sharp" size={14} color="#7C3AED" />
-            <Text style={styles.gridSecTitle}>PEOPLE NEARBY YOUR SPOT</Text>
+            <Text style={styles.gridSecTitle}>People Near You 🔥</Text>
+            <Text style={styles.gridSecCount}>{nearbyUsers.length} live</Text>
           </View>
 
           <View style={styles.grid}>
@@ -515,64 +561,14 @@ export default function SpotRadarScreen() {
                   entering={FadeInDown.delay(index * 40).springify()}
                   style={styles.cardWrap}
                 >
-                  <View style={styles.profileCard}>
-                    <Image source={{ uri: item.avatarUrl }} style={styles.cardImg} />
-
-                    <LinearGradient
-                      colors={["transparent", "rgba(24,24,27,0.92)"]}
-                      style={styles.cardGrad}
-                    />
-
-                    {/* Distance Badge */}
-                    <View style={styles.distBadge}>
-                      <Ionicons name="navigate-sharp" size={9} color="#FFF" />
-                      <Text style={styles.distBadgeText}>{item.distance}</Text>
-                    </View>
-
-                    <View style={styles.cardInfo}>
-                      <View style={styles.cardNameRow}>
-                        <Text style={styles.cardName}>{item.name}</Text>
-                        {item.age ? <Text style={styles.cardAge}>, {item.age}</Text> : null}
-                        {item.isVerified && (
-                          <Ionicons name="checkmark-circle-sharp" size={11} color="#DDD6FE" />
-                        )}
-                      </View>
-
-                      <Text style={styles.cardVibeText}>{item.vibe}</Text>
-
-                      <View style={styles.cardActionRow}>
-                        <TouchableOpacity
-                          style={styles.cardPingBtn}
-                          onPress={() => handleSendPing(item)}
-                          activeOpacity={0.8}
-                        >
-                          <LinearGradient
-                            colors={
-                              isPinged ? ["#94A3B8", "#64748B"] : ["#7C3AED", "#6D28D9"]
-                            }
-                            style={styles.cardPingGrad}
-                          >
-                            <Ionicons
-                              name={isPinged ? "checkmark-done-sharp" : "flash-sharp"}
-                              size={11}
-                              color="#FFF"
-                            />
-                            <Text style={styles.cardPingText}>
-                              {isPinged ? "Invited" : "Invite"}
-                            </Text>
-                          </LinearGradient>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                          style={styles.cardChatIconBtn}
-                          onPress={() => handleOpenChat(item.id)}
-                          activeOpacity={0.8}
-                        >
-                          <Ionicons name="chatbubble-ellipses-sharp" size={12} color="#FFF" />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  </View>
+                  <PressableCard
+                    item={item}
+                    isPinged={isPinged}
+                    sending={sendingPingId === item.id}
+                    onSelect={() => openUserProfile(item)}
+                    onPing={() => handleSendPing(item)}
+                    onChat={() => handleOpenChat(item.id)}
+                  />
                 </Animated.View>
               );
             })}
@@ -585,154 +581,257 @@ export default function SpotRadarScreen() {
   );
 }
 
+function PressableCard({
+  item,
+  isPinged,
+  sending,
+  onSelect,
+  onPing,
+  onChat,
+}: {
+  item: any;
+  isPinged: boolean;
+  sending: boolean;
+  onSelect: () => void;
+  onPing: () => void;
+  onChat: () => void;
+}) {
+  return (
+    <TouchableOpacity style={styles.profileCard} onPress={onSelect} activeOpacity={0.92}>
+      <Image source={{ uri: item.avatarUrl }} style={styles.cardImg} />
+      <LinearGradient colors={["transparent", "rgba(15,23,42,0.55)", "rgba(15,23,42,0.95)"]} style={styles.cardGrad} />
+
+      <View style={styles.distBadge}>
+        <Ionicons name="navigate" size={9} color="#FFF" />
+        <Text style={styles.distBadgeText}>{item.distance}</Text>
+      </View>
+
+      {item.isOnline && (
+        <View style={styles.onlinePill}>
+          <View style={styles.onlineDot} />
+          <Text style={styles.onlineText}>Live</Text>
+        </View>
+      )}
+
+      <View style={styles.cardInfo}>
+        <View style={styles.cardNameRow}>
+          <Text style={styles.cardName}>{item.name}</Text>
+          {item.age ? <Text style={styles.cardAge}>, {item.age}</Text> : null}
+          {item.isVerified && <Ionicons name="checkmark-circle" size={12} color="#C4B5FD" />}
+        </View>
+        <Text style={styles.cardVibeText} numberOfLines={1}>
+          {item.vibe}
+        </Text>
+
+        <View style={styles.cardActionRow}>
+          <TouchableOpacity style={styles.cardPingBtn} onPress={onPing} activeOpacity={0.88}>
+            {isPinged ? (
+              <View style={[styles.cardPingSolid, { backgroundColor: "#94A3B8" }]}>
+                <Text style={styles.cardPingText}>Invited</Text>
+              </View>
+            ) : (
+              <View style={[styles.cardPingSolid, { backgroundColor: T.green }]}>
+                {sending ? (
+                  <ActivityIndicator size="small" color="#FFF" />
+                ) : (
+                  <>
+                    <Ionicons name="flash" size={11} color="#FFF" />
+                    <Text style={styles.cardPingText}>Invite</Text>
+                  </>
+                )}
+              </View>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.cardChatIconBtn} onPress={onChat} activeOpacity={0.88}>
+            <Ionicons name="chatbubble-ellipses" size={13} color="#FFF" />
+          </TouchableOpacity>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: "#F8F9FD",
+  root: { flex: 1, backgroundColor: T.bg },
+  ambientTop: {
+    position: "absolute",
+    top: -50,
+    left: -40,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
   },
-  header: {
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
-  },
-  topHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#F8F9FD",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-  headerCenter: {
-    alignItems: "center",
-    flex: 1,
-  },
-  statusBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "#F3E8FF",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#DDD6FE",
-  },
-  purpleDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#7C3AED",
-  },
-  statusText: {
-    fontSize: 9,
-    fontFamily: VibeFonts.extraBold,
-    color: "#7C3AED",
-    letterSpacing: 0.5,
-  },
-  venueTitle: {
-    fontSize: 16,
-    fontFamily: VibeFonts.extraBold,
-    color: "#18181B",
-    marginTop: 2,
+  ambientRight: {
+    position: "absolute",
+    top: 180,
+    right: -50,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
   },
 
+  heroWrap: { paddingHorizontal: 16, marginBottom: 12, marginTop: 4 },
+  heroCard: {
+    borderRadius: 24,
+    padding: 16,
+    overflow: "hidden",
+    shadowColor: T.purple,
+    shadowOpacity: 0.28,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
+  },
+  heroShine: {
+    position: "absolute",
+    top: -40,
+    right: -20,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: "rgba(255,255,255,0.14)",
+  },
+  heroRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 14,
+  },
+  backOnHero: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroEmojiWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.22)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+  },
+  heroEyebrow: {
+    fontSize: 9,
+    fontFamily: VibeFonts.extraBold,
+    color: "rgba(255,255,255,0.8)",
+    letterSpacing: 0.8,
+  },
+  heroVenue: {
+    fontSize: 17,
+    fontFamily: VibeFonts.extraBold,
+    color: "#FFF",
+    letterSpacing: -0.3,
+    marginTop: 2,
+  },
+  heroVibe: {
+    fontSize: 12,
+    fontFamily: VibeFonts.medium,
+    color: "rgba(255,255,255,0.85)",
+    marginTop: 2,
+  },
   hudStrip: {
     flexDirection: "row",
-    justifyContent: "center",
+    flexWrap: "wrap",
     gap: 8,
-    marginTop: 10,
   },
   hudChip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    backgroundColor: "#F8F9FD",
+    gap: 5,
+    backgroundColor: "rgba(255,255,255,0.2)",
     paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  heroShareChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "rgba(34,197,94,0.95)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
   },
   hudChipText: {
-    color: "#64748B",
-    fontSize: 10,
+    color: "#FFF",
+    fontSize: 11,
     fontFamily: VibeFonts.bold,
   },
 
   viewToggleContainer: {
     flexDirection: "row",
-    backgroundColor: "#F8F9FD",
-    padding: 3,
+    marginHorizontal: 16,
+    backgroundColor: T.card,
+    padding: 4,
     borderRadius: 16,
-    marginTop: 10,
+    marginBottom: 14,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: T.border,
+    gap: 4,
   },
-  toggleBtn: {
-    flex: 1,
+  toggleBtn: { flex: 1, borderRadius: 13, overflow: "hidden" },
+  toggleGrad: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 5,
-    paddingVertical: 8,
-    borderRadius: 14,
+    gap: 6,
+    paddingVertical: 10,
   },
-  toggleBtnActive: {
-    backgroundColor: "#7C3AED",
+  toggleInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 10,
   },
   toggleText: {
     fontSize: 12,
     fontFamily: VibeFonts.bold,
-    color: "#64748B",
+    color: T.muted,
   },
   toggleTextActive: {
-    color: "#FFFFFF",
+    fontSize: 12,
+    fontFamily: VibeFonts.bold,
+    color: "#FFF",
   },
 
   loadingWrap: {
-    padding: 40,
+    padding: 48,
     alignItems: "center",
-    justifyContent: "center",
     gap: 12,
   },
   loadingText: {
-    color: "#64748B",
-    fontSize: 12,
+    color: T.muted,
+    fontSize: 13,
     fontFamily: VibeFonts.medium,
   },
 
-  radarSection: {
-    alignItems: "center",
-    paddingVertical: 18,
-  },
+  radarSection: { alignItems: "center", paddingBottom: 8 },
   radarCardWrap: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: T.card,
     padding: 16,
     borderRadius: 28,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
-    shadowColor: "#7C3AED",
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 4,
+    borderColor: T.border,
+    shadowColor: T.purple,
+    shadowOpacity: 0.14,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 5,
+    overflow: "hidden",
+    alignItems: "center",
   },
+  radarCardBg: { ...StyleSheet.absoluteFillObject },
   radarCircleWrap: {
     width: RADAR_SIZE,
     height: RADAR_SIZE,
     alignItems: "center",
     justifyContent: "center",
-    position: "relative",
   },
   pulseRing: {
     position: "absolute",
@@ -740,31 +839,38 @@ const styles = StyleSheet.create({
     height: RADAR_SIZE,
     borderRadius: RADAR_SIZE / 2,
     borderWidth: 1.5,
-    borderColor: "#7C3AED",
+    borderColor: T.purple,
   },
   radarInnerCircle: {
     width: RADAR_SIZE,
     height: RADAR_SIZE,
     borderRadius: RADAR_SIZE / 2,
-    backgroundColor: "#F8F9FD",
-    borderWidth: 1.5,
+    backgroundColor: "rgba(255,255,255,0.55)",
+    borderWidth: 2,
     borderColor: "rgba(124,58,237,0.25)",
     alignItems: "center",
     justifyContent: "center",
-    position: "relative",
     overflow: "hidden",
+  },
+  radarRingMid: {
+    position: "absolute",
+    width: RADAR_SIZE * 0.55,
+    height: RADAR_SIZE * 0.55,
+    borderRadius: RADAR_SIZE * 0.275,
+    borderWidth: 1,
+    borderColor: "rgba(124,58,237,0.2)",
   },
   radarCrosshairH: {
     position: "absolute",
     width: "100%",
     height: 1,
-    backgroundColor: "rgba(124,58,237,0.18)",
+    backgroundColor: "rgba(124,58,237,0.14)",
   },
   radarCrosshairV: {
     position: "absolute",
     height: "100%",
     width: 1,
-    backgroundColor: "rgba(124,58,237,0.18)",
+    backgroundColor: "rgba(124,58,237,0.14)",
   },
   radarSweepLine: {
     position: "absolute",
@@ -780,65 +886,86 @@ const styles = StyleSheet.create({
   },
   pinGlow: {
     position: "absolute",
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "rgba(124,58,237,0.25)",
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(124,58,237,0.2)",
   },
-
+  pinCore: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2.5,
+    borderColor: "#FFF",
+  },
   radarAvatarMarker: {
     position: "absolute",
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    borderWidth: 2,
-    borderColor: "#7C3AED",
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    borderWidth: 2.5,
+    borderColor: T.purple,
     overflow: "hidden",
     zIndex: 12,
+    shadowColor: T.purple,
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
   },
   radarAvatarSelected: {
-    borderColor: "#6D28D9",
+    borderColor: T.purpleBright,
     borderWidth: 3,
   },
-  radarAvatarImg: {
-    width: "100%",
-    height: "100%",
+  radarAvatarPinged: {
+    borderColor: T.green,
   },
+  radarAvatarImg: { width: "100%", height: "100%" },
   radarAvatarDot: {
     position: "absolute",
-    bottom: 0,
-    right: 0,
-    width: 9,
-    height: 9,
-    borderRadius: 4.5,
+    bottom: 1,
+    right: 1,
+    width: 11,
+    height: 11,
+    borderRadius: 6,
     borderWidth: 1.5,
     borderColor: "#FFF",
+  },
+  radarHint: {
+    marginTop: 12,
+    fontSize: 11,
+    fontFamily: VibeFonts.medium,
+    color: T.muted,
   },
 
   highlightCard: {
     width: SCREEN_W - 32,
     borderRadius: 22,
     overflow: "hidden",
-    marginTop: 16,
-    backgroundColor: "#FFFFFF",
+    marginTop: 14,
+    backgroundColor: T.card,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
-    shadowColor: "#7C3AED",
-    shadowOpacity: 0.1,
+    borderColor: T.border,
+    shadowColor: T.purple,
+    shadowOpacity: 0.12,
     shadowRadius: 14,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 5 },
     elevation: 4,
   },
-  highlightCardInner: {
+  highlightInner: {
     flexDirection: "row",
     alignItems: "center",
     padding: 14,
     gap: 12,
   },
   highlightImg: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: "#DDD6FE",
   },
   highlightNameRow: {
     flexDirection: "row",
@@ -848,84 +975,102 @@ const styles = StyleSheet.create({
   highlightName: {
     fontSize: 16,
     fontFamily: VibeFonts.extraBold,
-    color: "#18181B",
+    color: T.ink,
   },
   highlightAge: {
     fontSize: 15,
     fontFamily: VibeFonts.bold,
-    color: "#18181B",
+    color: T.ink,
+  },
+  highlightBio: {
+    fontSize: 11,
+    fontFamily: VibeFonts.medium,
+    color: T.muted,
+    marginTop: 2,
   },
   badgeRow: {
     flexDirection: "row",
-    gap: 5,
-    marginTop: 3,
+    gap: 6,
+    marginTop: 6,
+    flexWrap: "wrap",
   },
   miniBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
-    backgroundColor: "#F8F9FD",
+    backgroundColor: T.softPurple,
     paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
+    paddingVertical: 4,
+    borderRadius: 999,
   },
   miniBadgeText: {
     fontSize: 10,
     fontFamily: VibeFonts.bold,
-    color: "#64748B",
+    color: T.purple,
   },
-
-  pingBtn: {
-    borderRadius: 12,
-    overflow: "hidden",
+  highlightActions: {
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingBottom: 14,
   },
+  pingBtn: { flex: 1.4, borderRadius: 14, overflow: "hidden" },
   pingBtnGrad: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 12,
   },
-  pingBtnText: {
-    color: "#FFF",
-    fontSize: 11,
-    fontFamily: VibeFonts.bold,
-  },
-  chatBtn: {
+  pingBtnSolid: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 12,
-    backgroundColor: "#F3E8FF",
-    borderWidth: 1,
-    borderColor: "#DDD6FE",
+    gap: 6,
+    paddingVertical: 12,
+  },
+  pingBtnText: {
+    color: "#FFF",
+    fontSize: 13,
+    fontFamily: VibeFonts.extraBold,
+  },
+  chatBtn: {
+    flex: 1,
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  chatBtnGrad: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 12,
   },
   chatBtnText: {
-    color: "#7C3AED",
-    fontSize: 11,
-    fontFamily: VibeFonts.bold,
+    color: "#FFF",
+    fontSize: 13,
+    fontFamily: VibeFonts.extraBold,
   },
 
   gridSection: {
     paddingHorizontal: 16,
-    paddingTop: 10,
+    paddingTop: 18,
   },
   gridSecHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    justifyContent: "space-between",
     marginBottom: 12,
   },
   gridSecTitle: {
-    fontSize: 11,
+    fontSize: 16,
     fontFamily: VibeFonts.extraBold,
-    color: "#7C3AED",
-    letterSpacing: 0.8,
+    color: T.ink,
+  },
+  gridSecCount: {
+    fontSize: 12,
+    fontFamily: VibeFonts.bold,
+    color: T.purple,
   },
   grid: {
     flexDirection: "row",
@@ -934,46 +1079,66 @@ const styles = StyleSheet.create({
   },
   cardWrap: {
     width: (SCREEN_W - 44) / 2,
-    marginBottom: 14,
+    marginBottom: 12,
   },
   profileCard: {
     width: "100%",
-    height: 220,
-    borderRadius: 22,
+    height: 230,
+    borderRadius: 20,
     overflow: "hidden",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: T.card,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
-    shadowColor: "#7C3AED",
-    shadowOpacity: 0.08,
+    borderColor: T.border,
+    shadowColor: T.purple,
+    shadowOpacity: 0.1,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
   },
-  cardImg: {
-    width: "100%",
-    height: "100%",
-  },
+  cardImg: { width: "100%", height: "100%" },
   cardGrad: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    height: 120,
+    height: 130,
   },
   distBadge: {
     position: "absolute",
-    top: 8,
-    left: 8,
-    backgroundColor: "rgba(24,24,27,0.85)",
+    top: 10,
+    left: 10,
+    backgroundColor: "rgba(124,58,237,0.9)",
     paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
   },
   distBadgeText: {
+    color: "#FFF",
+    fontSize: 9,
+    fontFamily: VibeFonts.bold,
+  },
+  onlinePill: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(34,197,94,0.95)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+  },
+  onlineDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: "#FFF",
+  },
+  onlineText: {
     color: "#FFF",
     fontSize: 9,
     fontFamily: VibeFonts.bold,
@@ -1008,31 +1173,27 @@ const styles = StyleSheet.create({
   cardActionRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    marginTop: 6,
+    gap: 6,
+    marginTop: 8,
   },
-  cardPingBtn: {
-    flex: 1,
-    borderRadius: 10,
-    overflow: "hidden",
-  },
-  cardPingGrad: {
+  cardPingBtn: { flex: 1, borderRadius: 10, overflow: "hidden" },
+  cardPingSolid: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 4,
-    paddingVertical: 6,
+    paddingVertical: 7,
   },
   cardPingText: {
     color: "#FFF",
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: VibeFonts.bold,
   },
   cardChatIconBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "rgba(255,255,255,0.22)",
     alignItems: "center",
     justifyContent: "center",
   },

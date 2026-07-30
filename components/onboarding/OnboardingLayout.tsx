@@ -1,13 +1,22 @@
-import { View, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, StyleSheet } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+} from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import AuthBackground from "./AuthBackground";
 import PremiumButton from "./PremiumButton";
-import { Colors, Radius, Spacing } from "../../constants/theme";
+import { VibeFonts } from "../../constants/vibeTheme";
 
-const STEP_LABELS = ["Basic", "About & Life", "Vibes", "Match"];
+const STEP_LABELS = ["Meet", "About", "Vibes", "Match"];
 
 interface Props {
   step: number;
@@ -35,48 +44,92 @@ export default function OnboardingLayout({
   showBack = true,
 }: Props) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const progress = Math.min(1, step / total);
 
   return (
     <AuthBackground>
       <SafeAreaView style={styles.safe} edges={["top"]}>
+        {/* Top chrome */}
         <View style={styles.topBar}>
           {showBack ? (
-            <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.8}>
-              <Ionicons name="arrow-back" size={20} color="#18181B" />
+            <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.85}>
+              <Ionicons name="chevron-back" size={20} color="#18181B" />
             </TouchableOpacity>
           ) : (
-            <View style={styles.backBtn} />
+            <View style={styles.brandMark}>
+              <LinearGradient colors={["#7C3AED", "#8B5CF6"]} style={styles.brandMarkGrad}>
+                <Text style={styles.brandMarkText}>H</Text>
+              </LinearGradient>
+            </View>
           )}
-          <View style={styles.stepDots}>
-            {Array.from({ length: total }).map((_, i) => (
-              <View key={i} style={[styles.dot, i + 1 <= step && styles.dotActive, i + 1 === step && styles.dotCurrent]} />
-            ))}
+
+          <View style={styles.brandCenter}>
+            <Text style={styles.brandName}>
+              Hang<Text style={styles.brandAccent}>ora</Text>
+            </Text>
+            <Text style={styles.brandTag}>Set up your vibe</Text>
           </View>
-          <Text style={styles.stepNum}>{step}/{total}</Text>
+
+          <View style={styles.stepBadge}>
+            <Text style={styles.stepBadgeText}>
+              {step}/{total}
+            </Text>
+          </View>
         </View>
 
-        <View style={styles.headerText}>
-          {emoji && <Text style={styles.emoji}>{emoji}</Text>}
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.subtitle}>{subtitle}</Text>
+        {/* Progress */}
+        <View style={styles.progressWrap}>
+          <View style={styles.progressTrack}>
+            <LinearGradient
+              colors={["#7C3AED", "#8B5CF6"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={[styles.progressFill, { width: `${progress * 100}%` }]}
+            />
+          </View>
           <View style={styles.stepLabels}>
-            {STEP_LABELS.map((l, i) => (
-              <Text key={l} style={[styles.stepLabel, i + 1 === step && styles.stepLabelActive]}>{l}</Text>
+            {STEP_LABELS.slice(0, total).map((l, i) => (
+              <Text
+                key={l}
+                style={[styles.stepLabel, i + 1 === step && styles.stepLabelActive, i + 1 < step && styles.stepLabelDone]}
+              >
+                {l}
+              </Text>
             ))}
           </View>
         </View>
+
+        {/* Hero title */}
+        <Animated.View entering={FadeInDown.duration(380)} style={styles.headerText}>
+          {emoji ? (
+            <View style={styles.emojiWrap}>
+              <Text style={styles.emoji}>{emoji}</Text>
+            </View>
+          ) : null}
+          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.subtitle}>{subtitle}</Text>
+        </Animated.View>
       </SafeAreaView>
 
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <ScrollView
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {children}
-        </ScrollView>
-        <View style={styles.footer}>
-          <PremiumButton label={nextLabel} onPress={onNext} disabled={nextDisabled} />
+        <Animated.View entering={FadeInUp.delay(80).duration(400)} style={styles.sheet}>
+          <ScrollView
+            contentContainerStyle={styles.content}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {children}
+          </ScrollView>
+        </Animated.View>
+
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+          <PremiumButton
+            label={nextLabel}
+            onPress={onNext}
+            disabled={nextDisabled}
+            icon="arrow-forward"
+          />
         </View>
       </KeyboardAvoidingView>
     </AuthBackground>
@@ -84,61 +137,150 @@ export default function OnboardingLayout({
 }
 
 const styles = StyleSheet.create({
-  safe: { paddingHorizontal: Spacing.lg },
-  topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: Spacing.xs },
+  safe: { paddingHorizontal: 18 },
+  topBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingTop: 6,
+  },
   backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 40,
+    height: 40,
+    borderRadius: 14,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: "#EDE7FF",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#7C3AED",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
   },
-  stepDots: { flexDirection: "row", gap: 6 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "rgba(124, 58, 237, 0.15)" },
-  dotActive: { backgroundColor: "rgba(124, 58, 237, 0.4)" },
-  dotCurrent: { width: 24, backgroundColor: "#7C3AED" },
-  stepNum: { color: "#7C3AED", fontSize: 13, fontWeight: "700", width: 42, textAlign: "right" },
-  headerText: { paddingTop: 4, paddingBottom: 8 },
-  emoji: { fontSize: 26, marginBottom: 2 },
-  title: { fontSize: 24, fontWeight: "800", color: "#18181B", letterSpacing: -0.5 },
-  subtitle: { fontSize: 13, color: "#64748B", marginTop: 2, lineHeight: 18 },
-  stepLabels: { flexDirection: "row", gap: Spacing.sm, marginTop: 4 },
-  stepLabel: { fontSize: 10, fontWeight: "600", color: "#94A3B8", letterSpacing: 0.5 },
-  stepLabelActive: { color: "#7C3AED", fontWeight: "700" },
-  flex: { flex: 1, marginTop: 4 },
-  content: {
+  brandMark: { width: 40, height: 40 },
+  brandMarkGrad: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  brandMarkText: {
+    color: "#FFF",
+    fontSize: 16,
+    fontFamily: VibeFonts.extraBold,
+  },
+  brandCenter: { alignItems: "center", flex: 1 },
+  brandName: {
+    fontSize: 17,
+    fontFamily: VibeFonts.extraBold,
+    color: "#18181B",
+    letterSpacing: -0.3,
+  },
+  brandAccent: { color: "#7C3AED" },
+  brandTag: {
+    fontSize: 10,
+    fontFamily: VibeFonts.medium,
+    color: "#94A3B8",
+    marginTop: 1,
+  },
+  stepBadge: {
+    minWidth: 40,
+    height: 28,
+    borderRadius: 999,
+    backgroundColor: "#F3E8FF",
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 8,
+  },
+  stepBadgeText: {
+    fontSize: 12,
+    fontFamily: VibeFonts.extraBold,
+    color: "#7C3AED",
+  },
+
+  progressWrap: { marginTop: 14, marginBottom: 4 },
+  progressTrack: {
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: "#EDE9FE",
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 999,
+  },
+  stepLabels: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 8,
+    paddingHorizontal: 2,
+  },
+  stepLabel: {
+    fontSize: 10,
+    fontFamily: VibeFonts.semiBold,
+    color: "#94A3B8",
+    letterSpacing: 0.3,
+  },
+  stepLabelActive: {
+    color: "#7C3AED",
+    fontFamily: VibeFonts.extraBold,
+  },
+  stepLabelDone: {
+    color: "#A78BFA",
+  },
+
+  headerText: { paddingTop: 14, paddingBottom: 10 },
+  emojiWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#EDE7FF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 10,
+  },
+  emoji: { fontSize: 24 },
+  title: {
+    fontSize: 28,
+    fontFamily: VibeFonts.extraBold,
+    color: "#18181B",
+    letterSpacing: -0.7,
+  },
+  subtitle: {
+    fontSize: 14,
+    fontFamily: VibeFonts.medium,
+    color: "#64748B",
+    marginTop: 6,
+    lineHeight: 20,
+  },
+
+  flex: { flex: 1 },
+  sheet: {
+    flex: 1,
+    marginTop: 4,
     backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
-    paddingBottom: 130,
-    minHeight: 450,
     borderWidth: 1,
-    borderColor: "rgba(124, 58, 237, 0.12)",
-    shadowColor: "#7C3AED",
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    elevation: 6,
+    borderColor: "#EDE7FF",
+    overflow: "hidden",
+  },
+  content: {
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 120,
   },
   footer: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    padding: Spacing.lg,
-    paddingBottom: Spacing.xl,
-    backgroundColor: "rgba(255,255,255,0.98)",
+    paddingHorizontal: 18,
+    paddingTop: 12,
+    backgroundColor: "rgba(248,249,253,0.96)",
     borderTopWidth: 1,
-    borderTopColor: "#E2E8F0",
+    borderTopColor: "#EDE7FF",
   },
 });

@@ -43,7 +43,7 @@ const QUICK_FILTERS = ["All", "Today", "This Weekend", "Free", "Coffee", "Drinks
 // Cities
 const CITIES = ["Nagpur", "Mumbai", "Pune", "Delhi", "Bangalore", "Goa"];
 
-export interface VibelyEvent {
+export interface HangoraEvent {
   id: string;
   title: string;
   category: string;
@@ -69,7 +69,7 @@ export interface VibelyEvent {
   createdById: string;
 }
 
-const PRESET_EVENTS: VibelyEvent[] = [
+const PRESET_EVENTS: HangoraEvent[] = [
   {
     id: "evt-1",
     title: "Sunset Specialty Coffee & Chill ☕",
@@ -219,7 +219,7 @@ export default function ExploreEventsScreen() {
   const currentUserId = user?.id || "u-current";
 
   // Core States
-  const [eventsList, setEventsList] = useState<VibelyEvent[]>(PRESET_EVENTS);
+  const [eventsList, setEventsList] = useState<HangoraEvent[]>(PRESET_EVENTS);
   const [selectedCity, setSelectedCity] = useState("Nagpur");
   const [showCityPicker, setShowCityPicker] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -227,7 +227,7 @@ export default function ExploreEventsScreen() {
   const [searchQuery, setSearchQuery] = useState("");
 
   // Modals & Sheets
-  const [selectedEvent, setSelectedEvent] = useState<VibelyEvent | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<HangoraEvent | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showMyEventsModal, setShowMyEventsModal] = useState(false);
   const [myEventsTab, setMyEventsTab] = useState<"Upcoming" | "Joined">("Joined");
@@ -308,7 +308,7 @@ export default function ExploreEventsScreen() {
     }
 
     const catObj = CATEGORIES.find((c) => c.id === formCategory) || CATEGORIES[0];
-    const newEvt: VibelyEvent = {
+    const newEvt: HangoraEvent = {
       id: `evt-${Date.now()}`,
       title: formTitle.trim(),
       category: formCategory,
@@ -416,7 +416,7 @@ export default function ExploreEventsScreen() {
             <Ionicons name="chevron-back" size={20} color="#18181B" />
           </Pressable>
           <View>
-            <Text style={styles.headerTitle}>Vibely Events</Text>
+            <Text style={styles.headerTitle}>Hangora Events</Text>
             {/* City Picker Dropdown Button */}
             <Pressable style={styles.cityPill} onPress={() => setShowCityPicker(true)}>
               <Ionicons name="location-sharp" size={12} color="#7C3AED" />

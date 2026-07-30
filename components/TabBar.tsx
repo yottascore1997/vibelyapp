@@ -8,6 +8,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withSpring } from "react-na
 import { useRouter, usePathname } from "expo-router";
 import { VibeFonts } from "../constants/vibeTheme";
 import SpotBeaconModal from "./vibe/SpotBeaconModal";
+import { useTabBarVisibility } from "../context/TabBarVisibilityContext";
 
 const tabs = [
   {
@@ -153,7 +154,10 @@ export default function TabBar({ dark = false }: { dark?: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
+  const { hidden } = useTabBarVisibility();
   const [spotModalVisible, setSpotModalVisible] = useState(false);
+
+  if (hidden) return null;
 
   const isActive = (name: string) => {
     if (name === "index") return pathname === "/" || pathname === "/(tabs)" || pathname === "/(tabs)/";

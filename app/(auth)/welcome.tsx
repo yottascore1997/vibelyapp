@@ -278,7 +278,7 @@ export default function WelcomeScreen() {
             </View>
 
             <View style={styles.logoRow}>
-              <Text style={styles.logoText}>VibeMatch</Text>
+              <Text style={styles.logoText}>Hangora</Text>
               <Ionicons name="flash" size={26} color="#7C3AED" style={{ marginLeft: 3 }} />
             </View>
             <Text style={styles.tagline}>Real vibes. Real people. Right now. ✨</Text>

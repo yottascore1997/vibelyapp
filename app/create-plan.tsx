@@ -721,7 +721,7 @@ export default function CreatePlanScreen() {
   useEffect(() => {
     (async () => {
       try {
-        const saved = await AsyncStorage.getItem("@vibely_map_city");
+        const saved = await AsyncStorage.getItem("@hangora_map_city");
         if (saved && CITIES.some((c) => c.id === saved)) {
           setPlanCityId(saved as CityId);
           return;
@@ -799,7 +799,7 @@ export default function CreatePlanScreen() {
         isPrivate: visibility === "FRIENDS",
       });
 
-      await AsyncStorage.setItem("@vibely_map_city", planCityId);
+      await AsyncStorage.setItem("@hangora_map_city", planCityId);
 
       Alert.alert(
         "Plan Live! ✨",

@@ -10,6 +10,7 @@ import {
   ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -21,12 +22,12 @@ import { useSidebar } from "../../context/SidebarContext";
 import { useAuth } from "../../context/AuthContext";
 import { VibeFonts } from "../../constants/vibeTheme";
 
-const { width } = Dimensions.get("window");
-const DRAWER_WIDTH = width * 0.62;
+const { width: SCREEN_W } = Dimensions.get("window");
+const DRAWER_WIDTH = Math.min(SCREEN_W * 0.72, 290);
 
 type IonName = keyof typeof Ionicons.glyphMap;
 
-interface MenuItem {
+type MenuItem = {
   label: string;
   icon: IonName;
   activeIcon: IonName;
@@ -34,24 +35,24 @@ interface MenuItem {
   badge?: string;
   iconBg: string;
   iconColor: string;
-}
+};
 
-const menuItems: MenuItem[] = [
+const MENU: MenuItem[] = [
   {
     label: "Home Feed",
     icon: "home-outline",
     activeIcon: "home",
     path: "/index",
-    iconBg: "#EEF2FF",
-    iconColor: "#4F46E5",
+    iconBg: "#F3E8FF",
+    iconColor: "#7C3AED",
   },
   {
     label: "Discover",
     icon: "heart-outline",
     activeIcon: "heart",
     path: "/discover",
-    iconBg: "#FCE7F3",
-    iconColor: "#DB2777",
+    iconBg: "#F3E8FF",
+    iconColor: "#7C3AED",
   },
   {
     label: "Hangout Hub",
@@ -59,8 +60,8 @@ const menuItems: MenuItem[] = [
     activeIcon: "sparkles",
     path: "/hangout",
     badge: "LIVE",
-    iconBg: "#F3E8FF",
-    iconColor: "#7C3AED",
+    iconBg: "#ECFDF5",
+    iconColor: "#22C55E",
   },
   {
     label: "Events Map",
@@ -75,24 +76,24 @@ const menuItems: MenuItem[] = [
     icon: "ticket-outline",
     activeIcon: "ticket",
     path: "/explore-events",
-    iconBg: "#FEF3C7",
-    iconColor: "#D97706",
+    iconBg: "#F3E8FF",
+    iconColor: "#7C3AED",
   },
   {
     label: "Create Plan",
     icon: "add-circle-outline",
     activeIcon: "add-circle",
     path: "/create-plan",
-    iconBg: "#E0F2FE",
-    iconColor: "#0284C7",
+    iconBg: "#F3E8FF",
+    iconColor: "#7C3AED",
   },
   {
     label: "Chats",
     icon: "chatbubble-ellipses-outline",
     activeIcon: "chatbubble-ellipses",
     path: "/chats",
-    iconBg: "#FFE4E6",
-    iconColor: "#E11D48",
+    iconBg: "#F3E8FF",
+    iconColor: "#7C3AED",
   },
   {
     label: "My Matches",
@@ -100,7 +101,7 @@ const menuItems: MenuItem[] = [
     activeIcon: "heart-circle",
     path: "/my-matches",
     iconBg: "#F3E8FF",
-    iconColor: "#9333EA",
+    iconColor: "#7C3AED",
   },
   {
     label: "My Profile",
@@ -124,21 +125,20 @@ export default function Sidebar() {
 
   useEffect(() => {
     if (isOpen) {
-      translateX.value = withTiming(0, { duration: 220 });
-      backdropOpacity.value = withTiming(0.35, { duration: 220 });
+      translateX.value = withTiming(0, { duration: 240 });
+      backdropOpacity.value = withTiming(0.45, { duration: 240 });
     } else {
       translateX.value = withTiming(-DRAWER_WIDTH, { duration: 200 });
-      backdropOpacity.value = withTiming(0, { duration: 220 });
+      backdropOpacity.value = withTiming(0, { duration: 200 });
     }
   }, [isOpen]);
 
-  const drawerAnimStyle = useAnimatedStyle(() => ({
+  const drawerStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
   }));
 
-  const backdropAnimStyle = useAnimatedStyle(() => ({
+  const backdropStyle = useAnimatedStyle(() => ({
     opacity: backdropOpacity.value,
-    pointerEvents: isOpen ? "auto" : "none",
   }));
 
   const handleNavigate = (path: string) => {
@@ -157,7 +157,7 @@ export default function Sidebar() {
       } else {
         router.push(path as any);
       }
-    }, 150);
+    }, 140);
   };
 
   const handleLogout = async () => {
@@ -165,81 +165,94 @@ export default function Sidebar() {
     setTimeout(async () => {
       await logout();
       router.replace("/(auth)/welcome");
-    }, 150);
+    }, 140);
   };
 
-  const getActiveState = (path: string) => {
+  const isActive = (path: string) => {
     if (path === "/index") {
       return pathname === "/" || pathname === "/(tabs)" || pathname === "/(tabs)/";
     }
     return pathname.includes(path);
   };
 
-  const userAvatar =
+  const avatar =
     user?.avatarUrl ||
     "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&h=200&fit=crop";
 
+  if (!isOpen) return null;
+
   return (
-    <View
-      style={[StyleSheet.absoluteFillObject, { zIndex: 9999 }]}
-      pointerEvents={isOpen ? "auto" : "none"}
-    >
-      {/* Backdrop */}
-      <Animated.View style={[styles.backdrop, backdropAnimStyle]}>
+    <View style={styles.root} pointerEvents="box-none">
+      <Animated.View style={[styles.backdrop, backdropStyle]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={closeSidebar} />
       </Animated.View>
 
-      {/* Drawer */}
       <Animated.View
         style={[
           styles.drawer,
-          drawerAnimStyle,
-          { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 10 },
+          drawerStyle,
+          {
+            paddingTop: insets.top + 12,
+            paddingBottom: Math.max(insets.bottom, 12),
+          },
         ]}
       >
-        {/* Simple Profile Header */}
-        <Pressable
-          style={styles.profileHeader}
-          onPress={() => handleNavigate("/profile")}
-        >
-          <Image source={{ uri: userAvatar }} style={styles.avatar} />
-          <View style={styles.profileInfo}>
-            <Text style={styles.profileName} numberOfLines={1}>
-              {user?.name || "User"}
-            </Text>
-            <Text style={styles.profileSub}>View Profile ›</Text>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.brandRow}>
+            <LinearGradient colors={["#7C3AED", "#8B5CF6"]} style={styles.logo}>
+              <Text style={styles.logoText}>H</Text>
+            </LinearGradient>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.brand}>Hangora</Text>
+              <Text style={styles.tagline}>Find your people</Text>
+            </View>
+            <TouchableOpacity style={styles.closeBtn} onPress={closeSidebar}>
+              <Ionicons name="close" size={18} color="#64748B" />
+            </TouchableOpacity>
           </View>
-          <Pressable style={styles.closeBtn} onPress={closeSidebar}>
-            <Ionicons name="close" size={18} color="#64748B" />
+
+          <Pressable style={styles.profile} onPress={() => handleNavigate("/profile")}>
+            <Image source={{ uri: avatar }} style={styles.avatar} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.name} numberOfLines={1}>
+                {user?.name || "Your profile"}
+              </Text>
+              <Text style={styles.viewProfile}>View profile ›</Text>
+            </View>
           </Pressable>
-        </Pressable>
+        </View>
 
-        <View style={styles.divider} />
+        <View style={styles.line} />
 
-        {/* Tight Menu List */}
-        <ScrollView style={styles.menuScroll} showsVerticalScrollIndicator={false}>
-          {menuItems.map((item, idx) => {
-            const active = getActiveState(item.path);
+        {/* Menu — always visible list */}
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={styles.menuPad}
+          showsVerticalScrollIndicator={false}
+        >
+          {MENU.map((item) => {
+            const active = isActive(item.path);
             return (
               <TouchableOpacity
-                key={idx}
+                key={item.path}
+                style={[styles.item, active && styles.itemActive]}
                 onPress={() => handleNavigate(item.path)}
-                style={[styles.menuItem, active && styles.menuItemActive]}
-                activeOpacity={0.7}
+                activeOpacity={0.75}
               >
                 <View
                   style={[
-                    styles.iconWrap,
+                    styles.iconBox,
                     { backgroundColor: active ? item.iconColor : item.iconBg },
                   ]}
                 >
                   <Ionicons
                     name={active ? item.activeIcon : item.icon}
                     size={16}
-                    color={active ? "#FFFFFF" : item.iconColor}
+                    color={active ? "#FFF" : item.iconColor}
                   />
                 </View>
-                <Text style={[styles.menuLabel, active && styles.menuLabelActive]}>
+                <Text style={[styles.itemLabel, active && styles.itemLabelActive]}>
                   {item.label}
                 </Text>
                 {item.badge ? (
@@ -252,12 +265,11 @@ export default function Sidebar() {
           })}
         </ScrollView>
 
-        <View style={styles.divider} />
+        <View style={styles.line} />
 
-        {/* Compact Footer */}
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+        <TouchableOpacity style={styles.logout} onPress={handleLogout} activeOpacity={0.8}>
           <Ionicons name="log-out-outline" size={16} color="#EF4444" />
-          <Text style={styles.logoutText}>Logout</Text>
+          <Text style={styles.logoutText}>Log out</Text>
         </TouchableOpacity>
       </Animated.View>
     </View>
@@ -265,10 +277,14 @@ export default function Sidebar() {
 }
 
 const styles = StyleSheet.create({
+  root: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 9999,
+    elevation: 9999,
+  },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(15, 23, 42, 0.35)",
-    zIndex: 1000,
+    backgroundColor: "#0F172A",
   },
   drawer: {
     position: "absolute",
@@ -277,111 +293,138 @@ const styles = StyleSheet.create({
     left: 0,
     width: DRAWER_WIDTH,
     backgroundColor: "#FFFFFF",
-    borderRightWidth: 1,
-    borderRightColor: "#E2E8F0",
+    borderTopRightRadius: 20,
+    borderBottomRightRadius: 20,
     shadowColor: "#000",
     shadowOffset: { width: 4, height: 0 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.15,
     shadowRadius: 16,
-    elevation: 16,
-    zIndex: 1001,
+    elevation: 20,
   },
-
-  profileHeader: {
+  header: {
+    paddingHorizontal: 14,
+    gap: 12,
+  },
+  brandRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 14,
     gap: 10,
+  },
+  logo: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoText: {
+    color: "#FFF",
+    fontSize: 15,
+    fontFamily: VibeFonts.extraBold,
+  },
+  brand: {
+    fontSize: 16,
+    fontFamily: VibeFonts.extraBold,
+    color: "#18181B",
+  },
+  tagline: {
+    fontSize: 11,
+    fontFamily: VibeFonts.medium,
+    color: "#64748B",
+  },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  profile: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#F8F9FD",
+    borderRadius: 14,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#EDE7FF",
   },
   avatar: {
     width: 42,
     height: 42,
-    borderRadius: 21,
+    borderRadius: 14,
     borderWidth: 1.5,
     borderColor: "#7C3AED",
   },
-  profileInfo: {
-    flex: 1,
-  },
-  profileName: {
-    fontSize: 15,
+  name: {
+    fontSize: 14,
     fontFamily: VibeFonts.bold,
     color: "#18181B",
   },
-  profileSub: {
+  viewProfile: {
+    marginTop: 2,
     fontSize: 11,
     fontFamily: VibeFonts.medium,
     color: "#7C3AED",
-    marginTop: 1,
   },
-  closeBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "#F1F5F9",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  divider: {
+  line: {
     height: 1,
     backgroundColor: "#F1F5F9",
-    marginVertical: 8,
+    marginVertical: 10,
     marginHorizontal: 14,
   },
-
-  menuScroll: {
-    flex: 1,
+  menuPad: {
     paddingHorizontal: 10,
+    paddingBottom: 8,
   },
-  menuItem: {
+  item: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 10,
     paddingHorizontal: 10,
-    paddingVertical: 7,
+    paddingVertical: 9,
     borderRadius: 12,
     marginBottom: 2,
   },
-  menuItemActive: {
+  itemActive: {
     backgroundColor: "#F3E8FF",
   },
-  iconWrap: {
-    width: 30,
-    height: 30,
-    borderRadius: 9,
+  iconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 10,
   },
-  menuLabel: {
+  itemLabel: {
+    flex: 1,
     fontSize: 13.5,
     fontFamily: VibeFonts.medium,
     color: "#334155",
-    flex: 1,
   },
-  menuLabelActive: {
+  itemLabelActive: {
     fontFamily: VibeFonts.extraBold,
     color: "#7C3AED",
   },
   badge: {
-    backgroundColor: "#7C3AED",
-    paddingHorizontal: 6,
+    backgroundColor: "#22C55E",
+    paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 6,
   },
   badgeText: {
-    color: "#FFFFFF",
-    fontSize: 8.5,
-    fontFamily: VibeFonts.bold,
+    color: "#FFF",
+    fontSize: 9,
+    fontFamily: VibeFonts.extraBold,
   },
-
-  logoutBtn: {
+  logout: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    marginHorizontal: 10,
+    marginHorizontal: 14,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
     borderRadius: 12,
     backgroundColor: "#FEE2E2",
   },

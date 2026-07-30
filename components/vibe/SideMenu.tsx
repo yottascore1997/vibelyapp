@@ -114,7 +114,7 @@ export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
       colors: ["#6366F1", "#4F46E5"],
     },
     {
-      label: "AI VibeMatch",
+      label: "AI Hangora Match",
       sublabel: "AI compatibility score",
       icon: "planet",
       route: "/vibematch",

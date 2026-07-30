@@ -25,30 +25,43 @@ interface CreatePlanInput {
   isPrivate?: boolean;
 }
 
+type ReqStatus = "none" | "pending" | "accepted" | "rejected";
+
 interface PlansContextType {
   myPlans: Plan[];
   nearbyPlans: Plan[];
   loading: boolean;
-  requestStatuses: Record<string, "none" | "pending" | "accepted" | "rejected">;
+  requestStatuses: Record<string, ReqStatus>;
   refresh: () => Promise<void>;
   createPlan: (input: CreatePlanInput) => Promise<Plan>;
   joinPlan: (planId: string) => Promise<void>;
   hasJoined: (planId: string) => boolean;
-  getRequestStatus: (planId: string) => "none" | "pending" | "accepted" | "rejected";
+  getRequestStatus: (planId: string) => ReqStatus;
   respondToRequest: (planId: string, userId: string, accept: boolean) => Promise<void>;
   cancelJoinPlan: (planId: string, remark: string) => Promise<void>;
+  cancelPlan: (planId: string, remark: string) => Promise<void>;
   removeParticipant: (planId: string, userId: string, remark: string) => Promise<void>;
   getRejectionRemark: (planId: string) => string;
 }
 
 const PlansContext = createContext<PlansContextType | null>(null);
 
+function statusFromPlan(p: Plan & { myParticipationStatus?: string | null }, userId: string): ReqStatus {
+  if (p.creatorId === userId) return "accepted";
+  const mine = (p as any).myParticipationStatus as string | null | undefined;
+  if (mine === "ACCEPTED") return "accepted";
+  if (mine === "PENDING") return "pending";
+  if (mine === "REJECTED") return "rejected";
+  if (p.participants?.some((x) => x.id === userId)) return "accepted";
+  if (p.requests?.some((x) => x.id === userId)) return "pending";
+  return "none";
+}
+
 export function PlansProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [plans, setPlans] = useState<Plan[]>([]);
-  const [requestStatuses, setRequestStatuses] = useState<
-    Record<string, "none" | "pending" | "accepted" | "rejected">
-  >({});
+  const [requestStatuses, setRequestStatuses] = useState<Record<string, ReqStatus>>({});
+  const [rejectionRemarks, setRejectionRemarks] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
@@ -68,13 +81,15 @@ export function PlansProvider({ children }: { children: ReactNode }) {
       );
       setPlans(merged);
 
-      const statuses: Record<string, "none" | "pending" | "accepted" | "rejected"> = {};
+      const statuses: Record<string, ReqStatus> = {};
+      const remarks: Record<string, string> = {};
       for (const p of merged) {
-        if (p.creatorId === user.id || p.participants?.some((x) => x.id === user.id)) {
-          statuses[p.id] = "accepted";
-        }
+        statuses[p.id] = statusFromPlan(p as any, user.id);
+        const remark = (p as any).rejectRemark;
+        if (remark) remarks[p.id] = String(remark);
       }
       setRequestStatuses(statuses);
+      setRejectionRemarks((prev) => ({ ...prev, ...remarks }));
     } catch {
       // keep previous
     } finally {
@@ -87,21 +102,20 @@ export function PlansProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   const myPlans = plans.filter(
-    (p) => p.creatorId === user?.id || p.participants?.some((x) => x.id === user?.id)
+    (p) =>
+      p.creatorId === user?.id ||
+      p.participants?.some((x) => x.id === user?.id) ||
+      p.requests?.some((x) => x.id === user?.id) ||
+      requestStatuses[p.id] === "pending" ||
+      requestStatuses[p.id] === "accepted"
   );
   const nearbyPlans = plans.filter((p) => p.creatorId !== user?.id);
 
   const createPlan = async (input: CreatePlanInput): Promise<Plan> => {
     if (!user) throw new Error("Login required");
 
-    const { buildScheduledAt, formatPlanSchedule } = await import("../constants/plans");
+    const { buildScheduledAt } = await import("../constants/plans");
     const scheduledAt = buildScheduledAt({
-      timeId: input.timeId,
-      dateId: input.dateId,
-      customDate: input.customDate,
-      customTime: input.customTime,
-    });
-    const { timeLabel, dateLabel } = formatPlanSchedule({
       timeId: input.timeId,
       dateId: input.dateId,
       customDate: input.customDate,
@@ -124,7 +138,7 @@ export function PlansProvider({ children }: { children: ReactNode }) {
       latitude: input.latitude,
       longitude: input.longitude,
       visibility: input.visibility || (input.isPrivate ? "FRIENDS" : "PUBLIC"),
-      isPrivate: input.isPrivate ?? (input.visibility === "FRIENDS"),
+      isPrivate: input.isPrivate ?? input.visibility === "FRIENDS",
     });
 
     if (!plan) throw new Error("Could not create plan. Check your connection.");
@@ -145,35 +159,51 @@ export function PlansProvider({ children }: { children: ReactNode }) {
 
     try {
       const res = await api.joinPlan(planId);
-      if (!res) throw new Error("Could not join plan. Please try again.");
+      if (!res) throw new Error("Could not send join request. Please try again.");
 
-      setRequestStatuses((s) => ({ ...s, [planId]: "accepted" }));
-      setPlans((prev) =>
-        prev.map((p) => {
-          if (p.id !== planId) return p;
-          const already = p.participants?.some((x) => x.id === user.id);
-          return {
-            ...p,
-            going: already ? p.going : p.going + 1,
-            participants: already
-              ? p.participants
-              : [...(p.participants || []), { id: user.id, name: user.name, avatarUrl: undefined }],
-          };
-        })
-      );
-
-      try {
-        await api.addJarItem({
-          title: `Joined ${planTitle}`,
-          type: "PLAN",
-          description: plan?.location || undefined,
-          meta: plan?.activity,
-        });
-      } catch {
-        // jar save is best-effort
+      const status = (res.status || "pending").toLowerCase() as ReqStatus;
+      if (status === "accepted") {
+        setRequestStatuses((s) => ({ ...s, [planId]: "accepted" }));
+        setPlans((prev) =>
+          prev.map((p) => {
+            if (p.id !== planId) return p;
+            const already = p.participants?.some((x) => x.id === user.id);
+            return {
+              ...p,
+              going: already ? p.going : (p.going || 0) + 1,
+              participants: already
+                ? p.participants
+                : [...(p.participants || []), { id: user.id, name: user.name, avatarUrl: undefined }],
+            };
+          })
+        );
+        Alert.alert("You're in!", `Joined "${planTitle}" successfully.`);
+        try {
+          await api.addJarItem({
+            title: `Joined ${planTitle}`,
+            type: "PLAN",
+            description: plan?.location || undefined,
+            meta: plan?.activity,
+          });
+        } catch {
+          /* best-effort */
+        }
+      } else {
+        setRequestStatuses((s) => ({ ...s, [planId]: "pending" }));
+        setPlans((prev) =>
+          prev.map((p) => {
+            if (p.id !== planId) return p;
+            const alreadyReq = p.requests?.some((x) => x.id === user.id);
+            return {
+              ...p,
+              requests: alreadyReq
+                ? p.requests
+                : [...(p.requests || []), { id: user.id, name: user.name, avatarUrl: undefined }],
+            };
+          })
+        );
+        Alert.alert("Request sent", `Waiting for host to approve "${planTitle}".`);
       }
-
-      Alert.alert("You're in!", `Joined "${planTitle}" successfully.`);
     } catch (err) {
       setRequestStatuses((s) => ({ ...s, [planId]: "none" }));
       throw err instanceof Error ? err : new Error("Join failed");
@@ -187,8 +217,29 @@ export function PlansProvider({ children }: { children: ReactNode }) {
 
   const getRequestStatus = (planId: string) => requestStatuses[planId] || "none";
 
-  const respondToRequest = async (_planId: string, _participantId: string, _accept: boolean) => {
-    Alert.alert("Instant join", "Plans join instantly — no approval queue needed.");
+  const respondToRequest = async (planId: string, targetUserId: string, accept: boolean) => {
+    if (!user) throw new Error("Login required");
+    await api.respondToJoinRequest(planId, targetUserId, accept);
+    setPlans((prev) =>
+      prev.map((p) => {
+        if (p.id !== planId) return p;
+        const req = p.requests?.find((r) => r.id === targetUserId);
+        const nextRequests = (p.requests || []).filter((r) => r.id !== targetUserId);
+        if (accept && req) {
+          return {
+            ...p,
+            going: (p.going || 0) + 1,
+            requests: nextRequests,
+            participants: [...(p.participants || []), req],
+            status:
+              (p.going || 0) + 1 >= p.maxParticipants ? "FULL" : p.status,
+          };
+        }
+        return { ...p, requests: nextRequests };
+      })
+    );
+    Alert.alert(accept ? "Accepted" : "Declined", accept ? "Member added to your plan." : "Request declined.");
+    await refresh();
   };
 
   const cancelJoinPlan = async (planId: string, _remark: string) => {
@@ -200,12 +251,23 @@ export function PlansProvider({ children }: { children: ReactNode }) {
         if (p.id !== planId) return p;
         return {
           ...p,
-          going: Math.max(1, p.going - 1),
+          going: Math.max(1, (p.going || 1) - 1),
           participants: p.participants?.filter((pt) => pt.id !== user.id) || [],
+          requests: p.requests?.filter((r) => r.id !== user.id) || [],
         };
       })
     );
-    Alert.alert("Left", "You have left this hangout.");
+    Alert.alert("Done", "You left / cancelled your join request.");
+    await refresh();
+  };
+
+  const cancelPlan = async (planId: string, remark: string) => {
+    if (!user) throw new Error("Login required");
+    await api.cancelPlan(planId, remark);
+    setPlans((prev) =>
+      prev.map((p) => (p.id === planId ? { ...p, status: "CANCELLED", badge: "Cancelled" } : p))
+    );
+    Alert.alert("Cancelled", "Your plan has been cancelled.");
     await refresh();
   };
 
@@ -217,8 +279,9 @@ export function PlansProvider({ children }: { children: ReactNode }) {
         if (p.id !== planId) return p;
         return {
           ...p,
-          going: Math.max(1, p.going - 1),
+          going: Math.max(1, (p.going || 1) - 1),
           participants: p.participants?.filter((pt) => pt.id !== targetUserId) || [],
+          status: p.status === "FULL" ? "OPEN" : p.status,
         };
       })
     );
@@ -226,7 +289,7 @@ export function PlansProvider({ children }: { children: ReactNode }) {
     await refresh();
   };
 
-  const getRejectionRemark = () => "";
+  const getRejectionRemark = (planId: string) => rejectionRemarks[planId] || "";
 
   return (
     <PlansContext.Provider
@@ -242,6 +305,7 @@ export function PlansProvider({ children }: { children: ReactNode }) {
         getRequestStatus,
         respondToRequest,
         cancelJoinPlan,
+        cancelPlan,
         removeParticipant,
         getRejectionRemark,
       }}

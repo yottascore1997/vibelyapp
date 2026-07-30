@@ -38,7 +38,7 @@ import { VibeFonts } from "../constants/vibeTheme";
 import AppHeader from "../components/vibe/AppHeader";
 import TabBar from "../components/TabBar";
 
-const CITY_STORAGE_KEY = "@vibely_map_city";
+const CITY_STORAGE_KEY = "@hangora_map_city";
 
 const T = {
   bg: "#F8F9FD",
@@ -546,7 +546,7 @@ export default function EventsMapScreen() {
           <View style={[styles.pickerSheet, { paddingBottom: Math.max(insets.bottom, 20) }]}>
             <LinearGradient colors={["#7C3AED", "#6D28D9"]} style={styles.pickerHero}>
               <View style={styles.pickerHandle} />
-              <Text style={styles.pickerKicker}>VIBELY MAP</Text>
+              <Text style={styles.pickerKicker}>HANGORA MAP</Text>
               <Text style={styles.pickerTitle}>Choose your city</Text>
               <Text style={styles.pickerSubLight}>
                 {profileCity ? `Profile city: ${profileCity}` : "Switch cities · map follows you"}

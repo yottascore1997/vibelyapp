@@ -145,6 +145,9 @@ export interface OnboardingData {
   maxDistance: number;
   genderPreference: string;
   lookingFor: string[];
+  latitude: number | null;
+  longitude: number | null;
+  city: string;
 }
 
 export const defaultOnboardingData: OnboardingData = {
@@ -173,4 +176,7 @@ export const defaultOnboardingData: OnboardingData = {
   maxDistance: 25,
   genderPreference: "",
   lookingFor: [],
+  latitude: null,
+  longitude: null,
+  city: "",
 };

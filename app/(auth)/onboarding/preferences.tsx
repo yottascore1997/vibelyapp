@@ -1,17 +1,35 @@
-import { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
-import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { useCallback, useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  ScrollView,
+  Image,
+  StatusBar,
+  Alert,
+  ActivityIndicator,
+} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import OnboardingLayout from "../../../components/onboarding/OnboardingLayout";
-import PillSelect from "../../../components/onboarding/PillSelect";
-import SectionLabel from "../../../components/onboarding/SectionLabel";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Animated, { FadeIn, FadeInDown, FadeInUp } from "react-native-reanimated";
 import { useOnboarding } from "../../../context/OnboardingContext";
 import { useAuth } from "../../../context/AuthContext";
 import { GENDER_PREF_OPTIONS, LOOKING_FOR_OPTIONS } from "../../../constants/onboarding";
-import { Radius, Spacing } from "../../../constants/theme";
+import { VibeFonts } from "../../../constants/vibeTheme";
+import {
+  getCurrentUserLocation,
+  openAppLocationSettings,
+} from "../../../services/location";
 
-// Unified Dual Range Slider Bar Component (Min & Max on single bar)
+const TOTAL = 4;
+const STEP = 4;
+
+const HERO_IMG =
+  "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=500&h=500&fit=crop";
+
 function DualRangeSliderBar({
   minVal,
   maxVal,
@@ -33,16 +51,12 @@ function DualRangeSliderBar({
     if (trackWidth <= 0) return;
     const ratio = Math.max(0, Math.min(1, locationX / trackWidth));
     const rawVal = Math.round(minLimit + ratio * (maxLimit - minLimit));
-
     const distToMin = Math.abs(rawVal - minVal);
     const distToMax = Math.abs(rawVal - maxVal);
-
     if (distToMin < distToMax) {
-      const newMin = Math.min(rawVal, maxVal - 1);
-      onChange(newMin, maxVal);
+      onChange(Math.min(rawVal, maxVal - 1), maxVal);
     } else {
-      const newMax = Math.max(rawVal, minVal + 1);
-      onChange(minVal, newMax);
+      onChange(minVal, Math.max(rawVal, minVal + 1));
     }
   };
 
@@ -51,56 +65,50 @@ function DualRangeSliderBar({
   const rangeWidth = Math.max(0, maxPercent - minPercent);
 
   return (
-    <View style={styles.sliderContainer}>
-      <View style={styles.sliderHeaderRow}>
-        <Text style={styles.sliderHeaderTitle}>Target Age</Text>
-        <View style={styles.sliderValueBadge}>
-          <Text style={styles.sliderValueBadgeText}>
+    <View style={styles.sliderBox}>
+      <View style={styles.sliderHeader}>
+        <Text style={styles.sliderTitle}>Age range</Text>
+        <View style={styles.sliderBadge}>
+          <Text style={styles.sliderBadgeText}>
             {minVal} – {maxVal} {unit}
           </Text>
         </View>
       </View>
-
       <View
-        style={styles.sliderTouchArea}
+        style={styles.sliderTouch}
         onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
         onStartShouldSetResponder={() => true}
         onMoveShouldSetResponder={() => true}
         onResponderGrant={(e) => handleTouch(e.nativeEvent.locationX)}
         onResponderMove={(e) => handleTouch(e.nativeEvent.locationX)}
       >
-        <View style={styles.sliderTrackBg}>
+        <View style={styles.sliderTrack}>
           <LinearGradient
-            colors={["#7C3AED", "#8B5CF6", "#EC4899"]}
+            colors={["#7C3AED", "#A855F7", "#EC4899"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
-            style={[
-              styles.sliderTrackFill,
-              { left: `${minPercent}%`, width: `${rangeWidth}%` },
-            ]}
+            style={[styles.sliderFillRange, { left: `${minPercent}%`, width: `${rangeWidth}%` }]}
           />
         </View>
-
-        {/* Min Thumb Knob */}
-        <View style={[styles.sliderThumb, { left: `${minPercent}%` }]}>
-          <View style={styles.sliderThumbInner} />
+        <View style={[styles.thumb, { left: `${minPercent}%` }]}>
+          <View style={styles.thumbDot} />
         </View>
-
-        {/* Max Thumb Knob */}
-        <View style={[styles.sliderThumb, { left: `${maxPercent}%` }]}>
-          <View style={styles.sliderThumbInner} />
+        <View style={[styles.thumb, { left: `${maxPercent}%` }]}>
+          <View style={styles.thumbDot} />
         </View>
       </View>
-
-      <View style={styles.sliderMinMaxRow}>
-        <Text style={styles.sliderMinMaxText}>{minLimit} {unit}</Text>
-        <Text style={styles.sliderMinMaxText}>{maxLimit} {unit}</Text>
+      <View style={styles.sliderEnds}>
+        <Text style={styles.sliderEndText}>
+          {minLimit} {unit}
+        </Text>
+        <Text style={styles.sliderEndText}>
+          {maxLimit} {unit}
+        </Text>
       </View>
     </View>
   );
 }
 
-// Single Slider Bar Component (for Distance)
 function InteractiveSliderBar({
   value,
   min,
@@ -121,61 +129,114 @@ function InteractiveSliderBar({
   const calculateValueFromX = (locationX: number) => {
     if (trackWidth <= 0) return;
     const ratio = Math.max(0, Math.min(1, locationX / trackWidth));
-    const rawVal = min + ratio * (max - min);
-    const steppedVal = Math.round(rawVal / step) * step;
-    const clampedVal = Math.max(min, Math.min(max, steppedVal));
-    onChange(clampedVal);
+    const stepped = Math.round((min + ratio * (max - min)) / step) * step;
+    onChange(Math.max(min, Math.min(max, stepped)));
   };
 
   const percentage = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
 
   return (
-    <View style={styles.sliderContainer}>
-      <View style={styles.sliderHeaderRow}>
-        <Text style={styles.sliderHeaderTitle}>Distance Limit</Text>
-        <View style={styles.sliderValueBadge}>
-          <Text style={styles.sliderValueBadgeText}>
+    <View style={styles.sliderBox}>
+      <View style={styles.sliderHeader}>
+        <Text style={styles.sliderTitle}>Distance</Text>
+        <View style={styles.sliderBadge}>
+          <Text style={styles.sliderBadgeText}>
             {value} {unit}
           </Text>
         </View>
       </View>
-
       <View
-        style={styles.sliderTouchArea}
+        style={styles.sliderTouch}
         onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
         onStartShouldSetResponder={() => true}
         onMoveShouldSetResponder={() => true}
         onResponderGrant={(e) => calculateValueFromX(e.nativeEvent.locationX)}
         onResponderMove={(e) => calculateValueFromX(e.nativeEvent.locationX)}
       >
-        <View style={styles.sliderTrackBg}>
+        <View style={styles.sliderTrack}>
           <LinearGradient
-            colors={["#7C3AED", "#8B5CF6", "#EC4899"]}
+            colors={["#7C3AED", "#A855F7", "#EC4899"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
-            style={[styles.sliderTrackFillSingle, { width: `${percentage}%` }]}
+            style={[styles.sliderFillSingle, { width: `${percentage}%` }]}
           />
         </View>
-        <View style={[styles.sliderThumb, { left: `${percentage}%` }]}>
-          <View style={styles.sliderThumbInner} />
+        <View style={[styles.thumb, { left: `${percentage}%` }]}>
+          <View style={styles.thumbDot} />
         </View>
       </View>
-
-      <View style={styles.sliderMinMaxRow}>
-        <Text style={styles.sliderMinMaxText}>{min} {unit}</Text>
-        <Text style={styles.sliderMinMaxText}>{max} {unit}</Text>
+      <View style={styles.sliderEnds}>
+        <Text style={styles.sliderEndText}>
+          {min} {unit}
+        </Text>
+        <Text style={styles.sliderEndText}>
+          {max} {unit}
+        </Text>
       </View>
+    </View>
+  );
+}
+
+function FieldLabel({
+  icon,
+  title,
+  hint,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  hint?: string;
+}) {
+  return (
+    <View style={styles.fieldLabelRow}>
+      <View style={styles.fieldIconBox}>
+        <Ionicons name={icon} size={15} color="#7C3AED" />
+      </View>
+      <Text style={styles.fieldLabel}>{title}</Text>
+      {hint ? <Text style={styles.fieldHint}> · {hint}</Text> : null}
     </View>
   );
 }
 
 export default function PreferencesScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { data, update, saveProfile, saving } = useOnboarding();
   const { completeOnboarding } = useAuth();
   const [minAge, setMinAge] = useState(data.minAge || 18);
   const [maxAge, setMaxAge] = useState(data.maxAge || 35);
   const [distance, setDistance] = useState(data.maxDistance || 50);
+  const [locLoading, setLocLoading] = useState(true);
+  const [locError, setLocError] = useState<string | null>(null);
+
+  const hasGps =
+    data.latitude != null &&
+    data.longitude != null &&
+    Number.isFinite(data.latitude) &&
+    Number.isFinite(data.longitude);
+
+  const valid = !!data.genderPreference && data.lookingFor.length > 0 && hasGps;
+
+  const detectLocation = useCallback(async () => {
+    setLocLoading(true);
+    setLocError(null);
+    const result = await getCurrentUserLocation({ highAccuracy: true });
+    if (result.ok) {
+      update({
+        latitude: result.location.latitude,
+        longitude: result.location.longitude,
+        city: result.location.city || data.city || "",
+      });
+      setLocError(null);
+    } else {
+      setLocError(result.message);
+    }
+    setLocLoading(false);
+  }, [data.city, update]);
+
+  useEffect(() => {
+    detectLocation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toggleLookingFor = (id: string) => {
     const list = data.lookingFor.includes(id)
@@ -189,6 +250,17 @@ export default function PreferencesScreen() {
       Alert.alert("Almost there!", "Please select gender preference and what you're looking for");
       return;
     }
+    if (!hasGps) {
+      Alert.alert(
+        "Location required",
+        "Real distance matching needs your GPS location. Please allow location access.",
+        [
+          { text: "Open Settings", onPress: openAppLocationSettings },
+          { text: "Try again", onPress: detectLocation },
+        ]
+      );
+      return;
+    }
     try {
       await saveProfile({
         minAge,
@@ -196,6 +268,9 @@ export default function PreferencesScreen() {
         maxDistance: distance,
         lookingFor: data.lookingFor,
         genderPreference: data.genderPreference,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        city: data.city,
       });
       await completeOnboarding();
       router.replace("/(tabs)");
@@ -205,227 +280,605 @@ export default function PreferencesScreen() {
   };
 
   return (
-    <OnboardingLayout
-      step={4}
-      total={4}
-      emoji="💫"
-      title="Match Preferences"
-      subtitle="Slide to customize your age range & distance radius"
-      onNext={handleFinish}
-      nextLabel={saving ? "Creating profile..." : "Start Matching 🎉"}
-      nextDisabled={!data.genderPreference || data.lookingFor.length === 0 || saving}
-    >
-      {/* Real-time Stat Hero Banner */}
-      <LinearGradient colors={["#1E1B4B", "#2E1065", "#0F172A"]} style={styles.heroCard}>
-        <View style={styles.heroCardGlow} />
-        <View style={styles.heroRow}>
-          <View style={styles.heroStatItem}>
-            <View style={styles.heroStatIcon}>
-              <Ionicons name="people" size={18} color="#F59E0B" />
-            </View>
-            <View>
-              <Text style={styles.heroStatLabel}>IN-BETWEEN AGE</Text>
-              <Text style={styles.heroStatVal}>{minAge} – {maxAge} yrs</Text>
-            </View>
-          </View>
-          <View style={styles.heroStatDivider} />
-          <View style={styles.heroStatItem}>
-            <View style={styles.heroStatIcon}>
-              <Ionicons name="navigate" size={18} color="#10B981" />
-            </View>
-            <View>
-              <Text style={styles.heroStatLabel}>MAX DISTANCE</Text>
-              <Text style={styles.heroStatVal}>{distance} km</Text>
-            </View>
-          </View>
-        </View>
-      </LinearGradient>
-
-      {/* Single Unified In-Between Dual Age Range Slider */}
-      <SectionLabel title="Age Range (In-Between)" emoji="🎂" />
-      <DualRangeSliderBar
-        minVal={minAge}
-        maxVal={maxAge}
-        minLimit={18}
-        maxLimit={65}
-        unit="y/o"
-        onChange={(min, max) => {
-          setMinAge(min);
-          setMaxAge(max);
-        }}
+    <View style={styles.root}>
+      <StatusBar barStyle="dark-content" />
+      <LinearGradient
+        colors={["#F3E8FF", "#FAF5FF", "#F8F9FD"]}
+        locations={[0, 0.35, 1]}
+        style={StyleSheet.absoluteFill}
       />
 
-      {/* Distance Radius Interactive Slider */}
-      <SectionLabel title="Distance Radius" emoji="📍" />
-      <InteractiveSliderBar
-        value={distance}
-        min={1}
-        max={100}
-        unit="km"
-        onChange={(val) => setDistance(val)}
-      />
+      <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+        <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={20} color="#7C3AED" />
+        </Pressable>
 
-      {/* Show me */}
-      <SectionLabel title="Show me" emoji="👁️" />
-      <PillSelect
-        options={GENDER_PREF_OPTIONS}
-        value={data.genderPreference}
-        onChange={(v) => update({ genderPreference: v })}
-        columns={3}
-      />
-
-      {/* Looking for */}
-      <SectionLabel title="Looking for" emoji="💘" subtitle="Select all relationship goals that apply" />
-      <View style={styles.lookingGrid}>
-        {LOOKING_FOR_OPTIONS.map((opt) => {
-          const active = data.lookingFor.includes(opt.id);
-          return (
-            <TouchableOpacity key={opt.id} onPress={() => toggleLookingFor(opt.id)} activeOpacity={0.88}>
-              {active ? (
-                <LinearGradient colors={["#7C3AED", "#8B5CF6"]} style={styles.lookingCardActive}>
-                  <View style={styles.lookingIconBoxActive}>
-                    <Text style={styles.lookingEmoji}>{opt.emoji}</Text>
-                  </View>
-                  <View style={styles.lookingTextGroup}>
-                    <Text style={styles.lookingLabelActive}>{opt.label}</Text>
-                    <Text style={styles.lookingSubActive}>{opt.subtitle}</Text>
-                  </View>
-                  <Ionicons name="checkmark-circle" size={24} color="#FFFFFF" />
-                </LinearGradient>
+        <View style={styles.stepper}>
+          <View style={styles.stepLine} />
+          {[1, 2, 3, 4].map((n) => (
+            <View
+              key={n}
+              style={[
+                styles.stepCircle,
+                n < STEP && styles.stepCircleDone,
+                n === STEP && styles.stepCircleActive,
+              ]}
+            >
+              {n < STEP ? (
+                <Ionicons name="checkmark" size={12} color="#FFF" />
               ) : (
-                <View style={styles.lookingCard}>
-                  <View style={[styles.lookingIconBox, { backgroundColor: opt.color + "18" }]}>
-                    <Text style={styles.lookingEmoji}>{opt.emoji}</Text>
-                  </View>
-                  <View style={styles.lookingTextGroup}>
-                    <Text style={styles.lookingLabel}>{opt.label}</Text>
-                    <Text style={styles.lookingSub}>{opt.subtitle}</Text>
-                  </View>
-                  <View style={styles.checkCircleEmpty} />
-                </View>
+                <Text style={[styles.stepNum, n === STEP && styles.stepNumActive]}>{n}</Text>
               )}
-            </TouchableOpacity>
-          );
-        })}
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.stepChip}>
+          <Ionicons name="sparkles" size={11} color="#7C3AED" />
+          <Text style={styles.stepChipText}>
+            Step {STEP} of {TOTAL}
+          </Text>
+        </View>
       </View>
-    </OnboardingLayout>
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 28 + insets.bottom }}
+      >
+        <Animated.View entering={FadeIn.duration(400)} style={styles.hero}>
+          <View style={styles.heroCopy}>
+            <Text style={styles.heroTitle}>
+              Match{"\n"}
+              <Text style={styles.heroTitleAccent}>Preferences</Text>
+            </Text>
+            <Text style={styles.heroSub}>
+              Set age, distance & goals so we can{" "}
+              <Text style={styles.heroSubAccent}>find your people</Text> 💫
+            </Text>
+          </View>
+          <View style={styles.heroArt}>
+            <View style={styles.floatEmoji}>
+              <Text style={{ fontSize: 16 }}>💘</Text>
+            </View>
+            <View style={styles.floatHeart}>
+              <Ionicons name="heart" size={13} color="#FFF" />
+            </View>
+            <LinearGradient colors={["#DDD6FE", "#F5F3FF"]} style={styles.heroAvatarRing}>
+              <Image source={{ uri: HERO_IMG }} style={styles.heroAvatar} />
+            </LinearGradient>
+          </View>
+        </Animated.View>
+
+        <Animated.View entering={FadeInUp.delay(80).duration(420)} style={styles.card}>
+          {/* GPS status */}
+          <Pressable
+            onPress={hasGps ? undefined : locError ? detectLocation : undefined}
+            style={[
+              styles.gpsBox,
+              hasGps && styles.gpsBoxOk,
+              !!locError && !hasGps && styles.gpsBoxErr,
+            ]}
+          >
+            <View
+              style={[
+                styles.gpsIcon,
+                hasGps && { backgroundColor: "#DCFCE7" },
+                !!locError && !hasGps && { backgroundColor: "#FEE2E2" },
+              ]}
+            >
+              {locLoading ? (
+                <ActivityIndicator size="small" color="#7C3AED" />
+              ) : (
+                <Ionicons
+                  name={hasGps ? "navigate" : locError ? "warning" : "location"}
+                  size={18}
+                  color={hasGps ? "#16A34A" : locError ? "#DC2626" : "#7C3AED"}
+                />
+              )}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.gpsTitle}>
+                {locLoading
+                  ? "Detecting your location…"
+                  : hasGps
+                    ? data.city
+                      ? `Near ${data.city}`
+                      : "Location ready"
+                    : "Location needed"}
+              </Text>
+              <Text style={styles.gpsSub}>
+                {locLoading
+                  ? "GPS se real distance match hoga"
+                  : hasGps
+                    ? `${data.latitude!.toFixed(4)}, ${data.longitude!.toFixed(4)}`
+                    : locError || "Allow location for real nearby matches"}
+              </Text>
+            </View>
+            {!locLoading && !hasGps ? (
+              <Pressable onPress={detectLocation} style={styles.gpsRetry}>
+                <Text style={styles.gpsRetryText}>Retry</Text>
+              </Pressable>
+            ) : null}
+            {!locLoading && hasGps ? (
+              <Pressable onPress={detectLocation} hitSlop={8}>
+                <Ionicons name="refresh" size={18} color="#7C3AED" />
+              </Pressable>
+            ) : null}
+          </Pressable>
+
+          {/* Live summary */}
+          <LinearGradient
+            colors={["#F5F3FF", "#FDF2F8"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.summaryBox}
+          >
+            <View style={styles.summaryItem}>
+              <View style={[styles.summaryIcon, { backgroundColor: "#EDE9FE" }]}>
+                <Ionicons name="people" size={16} color="#7C3AED" />
+              </View>
+              <View>
+                <Text style={styles.summaryLabel}>Age</Text>
+                <Text style={styles.summaryVal}>
+                  {minAge}–{maxAge}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryItem}>
+              <View style={[styles.summaryIcon, { backgroundColor: "#FCE7F3" }]}>
+                <Ionicons name="navigate" size={16} color="#DB2777" />
+              </View>
+              <View>
+                <Text style={styles.summaryLabel}>Distance</Text>
+                <Text style={styles.summaryVal}>{distance} km</Text>
+              </View>
+            </View>
+          </LinearGradient>
+
+          <FieldLabel icon="calendar" title="Age range" />
+          <DualRangeSliderBar
+            minVal={minAge}
+            maxVal={maxAge}
+            minLimit={18}
+            maxLimit={65}
+            unit="y/o"
+            onChange={(min, max) => {
+              setMinAge(min);
+              setMaxAge(max);
+            }}
+          />
+
+          <FieldLabel icon="location" title="Distance radius" />
+          <InteractiveSliderBar
+            value={distance}
+            min={1}
+            max={100}
+            unit="km"
+            onChange={setDistance}
+          />
+
+          <FieldLabel icon="eye" title="Show me" />
+          <View style={styles.genderRow}>
+            {GENDER_PREF_OPTIONS.map((opt) => {
+              const active = data.genderPreference === opt.id;
+              return (
+                <Pressable
+                  key={opt.id}
+                  onPress={() => update({ genderPreference: opt.id })}
+                  style={styles.genderWrap}
+                >
+                  {active ? (
+                    <LinearGradient
+                      colors={["#7C3AED", "#A855F7"]}
+                      style={styles.genderPillActive}
+                    >
+                      {opt.emoji ? <Text style={styles.genderEmoji}>{opt.emoji}</Text> : null}
+                      <Text style={styles.genderTextActive}>{opt.label}</Text>
+                    </LinearGradient>
+                  ) : (
+                    <View style={styles.genderPill}>
+                      {opt.emoji ? <Text style={styles.genderEmoji}>{opt.emoji}</Text> : null}
+                      <Text style={styles.genderText}>{opt.label}</Text>
+                    </View>
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <FieldLabel icon="heart" title="Looking for" hint="select all that apply" />
+          <View style={styles.lookingGrid}>
+            {LOOKING_FOR_OPTIONS.map((opt) => {
+              const active = data.lookingFor.includes(opt.id);
+              return (
+                <Pressable key={opt.id} onPress={() => toggleLookingFor(opt.id)}>
+                  {active ? (
+                    <LinearGradient
+                      colors={["#7C3AED", "#A855F7"]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.lookingActive}
+                    >
+                      <View style={styles.lookingIconActive}>
+                        <Text style={styles.lookingEmoji}>{opt.emoji}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.lookingLabelActive}>{opt.label}</Text>
+                        <Text style={styles.lookingSubActive}>{opt.subtitle}</Text>
+                      </View>
+                      <Ionicons name="checkmark-circle" size={22} color="#FFF" />
+                    </LinearGradient>
+                  ) : (
+                    <View style={styles.lookingCard}>
+                      <View
+                        style={[styles.lookingIcon, { backgroundColor: (opt.color || "#7C3AED") + "18" }]}
+                      >
+                        <Text style={styles.lookingEmoji}>{opt.emoji}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.lookingLabel}>{opt.label}</Text>
+                        <Text style={styles.lookingSub}>{opt.subtitle}</Text>
+                      </View>
+                      <View style={styles.checkEmpty} />
+                    </View>
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <Animated.View entering={FadeInDown.delay(100).duration(360)} style={styles.safeBanner}>
+            <View style={styles.safeShield}>
+              <Ionicons name="shield-checkmark" size={16} color="#FFF" />
+            </View>
+            <Text style={styles.safeText}>
+              You can tweak preferences anytime from{" "}
+              <Text style={styles.safeAccent}>Settings</Text>
+            </Text>
+          </Animated.View>
+
+          <Pressable
+            onPress={handleFinish}
+            disabled={!valid || saving}
+            style={[styles.ctaWrap, (!valid || saving) && { opacity: 0.55 }]}
+          >
+            <LinearGradient
+              colors={["#7C3AED", "#C026D3", "#EC4899"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.cta}
+            >
+              <Ionicons name="sparkles" size={14} color="rgba(255,255,255,0.85)" />
+              <Text style={styles.ctaText}>
+                {saving ? "Creating profile..." : "Start Matching"}
+              </Text>
+              <Ionicons name="arrow-forward" size={18} color="#FFF" />
+              <Ionicons name="sparkles" size={14} color="rgba(255,255,255,0.85)" />
+            </LinearGradient>
+          </Pressable>
+
+          <View style={styles.trustRow}>
+            <View style={styles.trustItem}>
+              <Text style={styles.trustEmoji}>🔒</Text>
+              <Text style={styles.trustLabel}>Secure</Text>
+            </View>
+            <View style={styles.trustItem}>
+              <Text style={styles.trustEmoji}>🛡️</Text>
+              <Text style={styles.trustLabel}>Private</Text>
+            </View>
+            <View style={styles.trustItem}>
+              <Text style={styles.trustEmoji}>👥</Text>
+              <Text style={styles.trustLabel}>Trusted</Text>
+            </View>
+          </View>
+        </Animated.View>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  heroCard: {
-    padding: Spacing.lg,
-    borderRadius: Radius.lg,
-    marginBottom: Spacing.md,
-    marginTop: Spacing.xs,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(124, 58, 237, 0.3)",
-  },
-  heroCardGlow: {
-    position: "absolute",
-    top: -30,
-    right: -30,
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: "rgba(124, 58, 237, 0.25)",
-  },
-  heroRow: {
+  root: { flex: 1, backgroundColor: "#F8F9FD" },
+  topBar: {
+    paddingHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    marginBottom: 6,
   },
-  heroStatItem: {
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(124,58,237,0.12)",
+  },
+  stepper: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 14,
+    position: "relative",
   },
-  heroStatIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+  stepLine: {
+    position: "absolute",
+    left: 12,
+    right: 12,
+    height: 2,
+    backgroundColor: "#E9D5FF",
+    top: "50%",
+    marginTop: -1,
+  },
+  stepCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "#F1F5F9",
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1,
+  },
+  stepCircleActive: { backgroundColor: "#7C3AED", borderColor: "#7C3AED" },
+  stepCircleDone: { backgroundColor: "#A78BFA", borderColor: "#A78BFA" },
+  stepNum: { fontSize: 11, fontFamily: VibeFonts.bold, color: "#64748B" },
+  stepNumActive: { color: "#FFF" },
+  stepChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E9D5FF",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  stepChipText: { fontSize: 11, fontFamily: VibeFonts.bold, color: "#7C3AED" },
+
+  hero: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 8,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  heroCopy: { flex: 1, paddingRight: 8 },
+  heroTitle: {
+    fontSize: 30,
+    lineHeight: 36,
+    fontFamily: VibeFonts.extraBold,
+    color: "#18181B",
+    letterSpacing: -0.7,
+  },
+  heroTitleAccent: { color: "#7C3AED" },
+  heroSub: {
+    marginTop: 8,
+    fontSize: 13,
+    lineHeight: 19,
+    fontFamily: VibeFonts.medium,
+    color: "#64748B",
+  },
+  heroSubAccent: { color: "#7C3AED", fontFamily: VibeFonts.bold },
+  heroArt: {
+    width: 120,
+    height: 130,
+    alignItems: "center",
+    justifyContent: "flex-end",
+  },
+  heroAvatarRing: {
+    width: 108,
+    height: 108,
+    borderRadius: 54,
+    padding: 3,
     alignItems: "center",
     justifyContent: "center",
   },
-  heroStatLabel: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "rgba(255, 255, 255, 0.6)",
-    letterSpacing: 0.8,
+  heroAvatar: { width: 102, height: 102, borderRadius: 51 },
+  floatEmoji: {
+    position: "absolute",
+    top: 10,
+    left: 0,
+    zIndex: 2,
+    backgroundColor: "#FFF",
+    borderRadius: 12,
+    padding: 4,
   },
-  heroStatVal: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#FFFFFF",
-    marginTop: 2,
-  },
-  heroStatDivider: {
-    width: 1,
-    height: 32,
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
+  floatHeart: {
+    position: "absolute",
+    top: 18,
+    right: 2,
+    zIndex: 2,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "#EC4899",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
-  // Dual & Single Slider Bar Styles
-  sliderContainer: {
+  card: {
+    marginTop: 6,
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingHorizontal: 20,
+    paddingTop: 22,
+    paddingBottom: 18,
+    borderWidth: 1,
+    borderColor: "rgba(124,58,237,0.1)",
+    minHeight: 520,
+  },
+
+  gpsBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "#F8F9FD",
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+  },
+  gpsBoxOk: {
+    backgroundColor: "#F0FDF4",
+    borderColor: "#BBF7D0",
+  },
+  gpsBoxErr: {
+    backgroundColor: "#FEF2F2",
+    borderColor: "#FECACA",
+  },
+  gpsIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "#F3E8FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  gpsTitle: {
+    fontSize: 14,
+    fontFamily: VibeFonts.bold,
+    color: "#18181B",
+  },
+  gpsSub: {
+    marginTop: 2,
+    fontSize: 11,
+    fontFamily: VibeFonts.medium,
+    color: "#64748B",
+  },
+  gpsRetry: {
+    backgroundColor: "#7C3AED",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+  },
+  gpsRetryText: {
+    fontSize: 12,
+    fontFamily: VibeFonts.bold,
+    color: "#FFF",
+  },
+
+  summaryBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: "#EDE7FF",
+  },
+  summaryItem: { flex: 1, flexDirection: "row", alignItems: "center", gap: 10 },
+  summaryIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  summaryLabel: {
+    fontSize: 11,
+    fontFamily: VibeFonts.semiBold,
+    color: "#94A3B8",
+  },
+  summaryVal: {
+    fontSize: 16,
+    fontFamily: VibeFonts.extraBold,
+    color: "#18181B",
+    marginTop: 1,
+  },
+  summaryDivider: {
+    width: 1,
+    height: 36,
+    backgroundColor: "#E9D5FF",
+    marginHorizontal: 8,
+  },
+
+  fieldLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 10,
+    marginTop: 4,
+  },
+  fieldIconBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 9,
+    backgroundColor: "#F3E8FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  fieldLabel: {
+    fontSize: 14,
+    fontFamily: VibeFonts.extraBold,
+    color: "#18181B",
+  },
+  fieldHint: {
+    fontSize: 12,
+    fontFamily: VibeFonts.medium,
+    color: "#94A3B8",
+  },
+
+  sliderBox: {
     backgroundColor: "#F8F9FD",
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderWidth: 1.5,
     borderColor: "#E2E8F0",
-    marginBottom: Spacing.md,
+    marginBottom: 14,
   },
-  sliderHeaderRow: {
+  sliderHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 6,
+    marginBottom: 8,
   },
-  sliderHeaderTitle: {
+  sliderTitle: {
     fontSize: 12,
-    fontWeight: "700",
+    fontFamily: VibeFonts.bold,
     color: "#18181B",
   },
-  sliderValueBadge: {
+  sliderBadge: {
     backgroundColor: "#F3E8FF",
     paddingHorizontal: 10,
-    paddingVertical: 3,
+    paddingVertical: 4,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(124, 58, 237, 0.2)",
+    borderColor: "rgba(124,58,237,0.2)",
   },
-  sliderValueBadgeText: {
+  sliderBadgeText: {
     fontSize: 12,
-    fontWeight: "700",
+    fontFamily: VibeFonts.bold,
     color: "#7C3AED",
   },
-  sliderTouchArea: {
-    height: 30,
+  sliderTouch: {
+    height: 32,
     justifyContent: "center",
     position: "relative",
   },
-  sliderTrackBg: {
+  sliderTrack: {
     height: 8,
     borderRadius: 4,
     backgroundColor: "#E2E8F0",
     overflow: "hidden",
     width: "100%",
-    position: "relative",
   },
-  sliderTrackFill: {
+  sliderFillRange: {
     position: "absolute",
     height: 8,
     borderRadius: 4,
   },
-  sliderTrackFillSingle: {
-    height: 8,
-    borderRadius: 4,
-  },
-  sliderThumb: {
+  sliderFillSingle: { height: 8, borderRadius: 4 },
+  thumb: {
     position: "absolute",
-    top: 3,
+    top: 4,
     width: 24,
     height: 24,
     borderRadius: 12,
@@ -435,73 +888,178 @@ const styles = StyleSheet.create({
     marginLeft: -12,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#7C3AED",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 4,
   },
-  sliderThumbInner: {
+  thumbDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
     backgroundColor: "#7C3AED",
   },
-  sliderMinMaxRow: {
+  sliderEnds: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginTop: 4,
   },
-  sliderMinMaxText: {
+  sliderEndText: {
     fontSize: 10,
-    fontWeight: "600",
+    fontFamily: VibeFonts.semiBold,
     color: "#94A3B8",
   },
 
-  lookingGrid: { gap: Spacing.sm },
-  lookingCard: {
+  genderRow: { flexDirection: "row", gap: 8, marginBottom: 14 },
+  genderWrap: { flex: 1 },
+  genderPill: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.md,
-    padding: Spacing.md,
-    borderRadius: Radius.lg,
+    justifyContent: "center",
+    gap: 4,
+    paddingVertical: 12,
+    borderRadius: 14,
     backgroundColor: "#F8F9FD",
     borderWidth: 1.5,
     borderColor: "#E2E8F0",
   },
-  lookingCardActive: {
+  genderPillActive: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.md,
-    padding: Spacing.md,
-    borderRadius: Radius.lg,
+    justifyContent: "center",
+    gap: 4,
+    paddingVertical: 12,
+    borderRadius: 14,
   },
-  lookingIconBox: {
+  genderEmoji: { fontSize: 14 },
+  genderText: {
+    fontSize: 12,
+    fontFamily: VibeFonts.semiBold,
+    color: "#18181B",
+  },
+  genderTextActive: {
+    fontSize: 12,
+    fontFamily: VibeFonts.bold,
+    color: "#FFF",
+  },
+
+  lookingGrid: { gap: 8, marginBottom: 4 },
+  lookingCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: "#F8F9FD",
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+  },
+  lookingActive: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 14,
+    borderRadius: 16,
+  },
+  lookingIcon: {
     width: 44,
     height: 44,
     borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
   },
-  lookingIconBoxActive: {
+  lookingIconActive: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    backgroundColor: "rgba(255,255,255,0.2)",
     alignItems: "center",
     justifyContent: "center",
   },
   lookingEmoji: { fontSize: 22 },
-  lookingTextGroup: { flex: 1 },
-  lookingLabel: { fontSize: 14, fontWeight: "700", color: "#18181B" },
-  lookingLabelActive: { fontSize: 14, fontWeight: "700", color: "#FFFFFF" },
-  lookingSub: { fontSize: 11, color: "#64748B", marginTop: 2, fontWeight: "500" },
-  lookingSubActive: { fontSize: 11, color: "rgba(255, 255, 255, 0.8)", marginTop: 2, fontWeight: "500" },
-  checkCircleEmpty: {
+  lookingLabel: {
+    fontSize: 14,
+    fontFamily: VibeFonts.bold,
+    color: "#18181B",
+  },
+  lookingLabelActive: {
+    fontSize: 14,
+    fontFamily: VibeFonts.bold,
+    color: "#FFF",
+  },
+  lookingSub: {
+    fontSize: 11,
+    fontFamily: VibeFonts.medium,
+    color: "#64748B",
+    marginTop: 2,
+  },
+  lookingSubActive: {
+    fontSize: 11,
+    fontFamily: VibeFonts.medium,
+    color: "rgba(255,255,255,0.8)",
+    marginTop: 2,
+  },
+  checkEmpty: {
     width: 20,
     height: 20,
     borderRadius: 10,
     borderWidth: 1.5,
     borderColor: "#CBD5E1",
+  },
+
+  safeBanner: {
+    marginTop: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#F3E8FF",
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: "#E9D5FF",
+  },
+  safeShield: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "#7C3AED",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  safeText: {
+    flex: 1,
+    fontSize: 11.5,
+    lineHeight: 16,
+    fontFamily: VibeFonts.medium,
+    color: "#475569",
+  },
+  safeAccent: { color: "#7C3AED", fontFamily: VibeFonts.extraBold },
+
+  ctaWrap: {
+    marginTop: 18,
+    borderRadius: 999,
+    overflow: "hidden",
+  },
+  cta: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 16,
+  },
+  ctaText: {
+    color: "#FFF",
+    fontSize: 16,
+    fontFamily: VibeFonts.extraBold,
+  },
+  trustRow: {
+    marginTop: 16,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 22,
+  },
+  trustItem: { flexDirection: "row", alignItems: "center", gap: 4 },
+  trustEmoji: { fontSize: 12 },
+  trustLabel: {
+    fontSize: 11,
+    fontFamily: VibeFonts.semiBold,
+    color: "#94A3B8",
   },
 });

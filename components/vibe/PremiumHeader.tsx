@@ -8,40 +8,52 @@ import { useSidebar } from "../../context/SidebarContext";
 import { VibeFonts } from "../../constants/vibeTheme";
 import { Spacing } from "../../constants/theme";
 
-const T = {
+const Light = {
   ink: "#0F172A",
   muted: "#94A3B8",
   white: "#FFFFFF",
   badge: "#EF4444",
   heartPink: "#EC4899",
   heartPurple: "#A855F7",
+  menu: "#0F172A",
   ring: ["#FB923C", "#EC4899", "#8B5CF6"] as const,
 };
 
-function MenuIcon() {
+const Dark = {
+  ink: "#F7F4F8",
+  muted: "rgba(247,244,248,0.5)",
+  white: "#FFFFFF",
+  badge: "#FF3D7F",
+  heartPink: "#FF3D7F",
+  heartPurple: "#E8C547",
+  menu: "#F7F4F8",
+  ring: ["#E8C547", "#FF3D7F", "#FF1F6B"] as const,
+};
+
+function MenuIcon({ color }: { color: string }) {
   return (
     <View style={styles.menuIcon}>
-      <View style={[styles.menuLine, { width: 18 }]} />
-      <View style={[styles.menuLine, { width: 22 }]} />
-      <View style={[styles.menuLine, { width: 14 }]} />
+      <View style={[styles.menuLine, { width: 18, backgroundColor: color }]} />
+      <View style={[styles.menuLine, { width: 22, backgroundColor: color }]} />
+      <View style={[styles.menuLine, { width: 14, backgroundColor: color }]} />
     </View>
   );
 }
 
-function VibelyMark() {
+function HangoraMark({ pink, gold }: { pink: string; gold: string }) {
   return (
     <View style={styles.markWrap}>
-      <View style={styles.miniHeartDot} />
-      <Ionicons name="heart" size={34} color={T.heartPink} style={styles.heartMain} />
-      <Ionicons name="heart" size={34} color={T.heartPurple} style={styles.heartOverlay} />
+      <View style={[styles.miniHeartDot, { backgroundColor: pink }]} />
+      <Ionicons name="heart" size={34} color={pink} style={styles.heartMain} />
+      <Ionicons name="heart" size={34} color={gold} style={styles.heartOverlay} />
     </View>
   );
 }
 
-function Badge({ count }: { count: number }) {
+function Badge({ count, dark }: { count: number; dark?: boolean }) {
   if (!count || count <= 0) return null;
   return (
-    <View style={styles.badge}>
+    <View style={[styles.badge, dark && styles.badgeDark]}>
       <Text style={styles.badgeText}>{count > 99 ? "99+" : String(count)}</Text>
     </View>
   );
@@ -55,10 +67,11 @@ export interface PremiumHeaderProps {
   onLikesPress?: () => void;
   onChatsPress?: () => void;
   onAvatarPress?: () => void;
+  dark?: boolean;
 }
 
 /**
- * [menu · logo · Vibely/tagline]     [likes · chats · avatar]
+ * [menu · logo · Hangora/tagline]     [likes · chats · avatar]
  */
 export default function PremiumHeader({
   tagline = "Find your vibe",
@@ -68,10 +81,12 @@ export default function PremiumHeader({
   onLikesPress,
   onChatsPress,
   onAvatarPress,
+  dark = false,
 }: PremiumHeaderProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { openSidebar } = useSidebar();
+  const T = dark ? Dark : Light;
 
   const avatar =
     avatarUrl ||
@@ -85,20 +100,25 @@ export default function PremiumHeader({
       <View style={styles.bar}>
         <View style={styles.left}>
           <Pressable onPress={openSidebar} hitSlop={12} style={styles.menuHit}>
-            <MenuIcon />
+            <MenuIcon color={T.menu} />
           </Pressable>
 
           <View style={styles.brand}>
-            <VibelyMark />
+            <HangoraMark pink={T.heartPink} gold={dark ? Dark.heartPurple : Light.heartPurple} />
             <View style={styles.brandCopy}>
-              <Text style={styles.brandName} numberOfLines={1}>
-                Vibely
-              </Text>
+              <View style={styles.brandNameRow}>
+                <Text style={[styles.brandName, { color: T.ink }]} numberOfLines={1}>
+                  Hang
+                </Text>
+                <Text style={[styles.brandNameAccent, dark && styles.brandNameAccentDark]} numberOfLines={1}>
+                  ora
+                </Text>
+              </View>
               <View style={styles.tagRow}>
-                <Text style={styles.tagline} numberOfLines={1}>
+                <Text style={[styles.tagline, { color: T.muted }]} numberOfLines={1}>
                   {tagline}
                 </Text>
-                <Ionicons name="sparkles" size={12} color={T.heartPurple} />
+                <Ionicons name="sparkles" size={12} color={dark ? "#E8C547" : T.heartPurple} />
               </View>
             </View>
           </View>
@@ -110,7 +130,7 @@ export default function PremiumHeader({
             onPress={onLikesPress ?? (() => router.push("/my-matches"))}
           >
             <Ionicons name="heart-outline" size={26} color={T.ink} />
-            <Badge count={likesCount} />
+            <Badge count={likesCount} dark={dark} />
           </Pressable>
 
           <Pressable
@@ -118,12 +138,12 @@ export default function PremiumHeader({
             onPress={onChatsPress ?? (() => router.push("/(tabs)/chats"))}
           >
             <Ionicons name="chatbubble-ellipses-outline" size={25} color={T.ink} />
-            <Badge count={chatsCount} />
+            <Badge count={chatsCount} dark={dark} />
           </Pressable>
 
           <Pressable onPress={onAvatarPress ?? (() => router.push("/(tabs)/profile"))}>
             <LinearGradient colors={[...T.ring]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.avatarRing}>
-              <View style={styles.avatarInner}>
+              <View style={[styles.avatarInner, dark && styles.avatarInnerDark]}>
                 <Image source={{ uri: avatar }} style={styles.avatar} />
               </View>
             </LinearGradient>
@@ -167,7 +187,6 @@ const styles = StyleSheet.create({
   menuLine: {
     height: 2.4,
     borderRadius: 1.5,
-    backgroundColor: T.ink,
   },
 
   brand: {
@@ -189,7 +208,6 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#F472B6",
     zIndex: 2,
   },
   heartMain: {
@@ -204,12 +222,25 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     justifyContent: "center",
   },
+  brandNameRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+  },
   brandName: {
     fontSize: 24,
     fontFamily: VibeFonts.extraBold,
-    color: T.ink,
     letterSpacing: -0.7,
     lineHeight: 28,
+  },
+  brandNameAccent: {
+    fontSize: 24,
+    fontFamily: VibeFonts.extraBold,
+    color: "#C9A227",
+    letterSpacing: -0.7,
+    lineHeight: 28,
+  },
+  brandNameAccentDark: {
+    color: "#E8C547",
   },
   tagRow: {
     flexDirection: "row",
@@ -220,7 +251,6 @@ const styles = StyleSheet.create({
   tagline: {
     fontSize: 12,
     fontFamily: VibeFonts.medium,
-    color: T.muted,
     lineHeight: 16,
   },
 
@@ -243,12 +273,16 @@ const styles = StyleSheet.create({
     minWidth: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: T.badge,
+    backgroundColor: "#EF4444",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 4,
     borderWidth: 1.5,
-    borderColor: T.white,
+    borderColor: "#FFFFFF",
+  },
+  badgeDark: {
+    backgroundColor: "#FF3D7F",
+    borderColor: "#050508",
   },
   badgeText: {
     fontSize: 9,
@@ -266,7 +300,10 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 21,
     overflow: "hidden",
-    backgroundColor: T.white,
+    backgroundColor: "#FFFFFF",
+  },
+  avatarInnerDark: {
+    backgroundColor: "#0D0D14",
   },
   avatar: {
     width: "100%",

@@ -277,6 +277,7 @@ export default function PlanDetailsScreen() {
     joinPlan,
     respondToRequest,
     cancelJoinPlan,
+    cancelPlan,
     removeParticipant,
     getRejectionRemark,
   } = usePlans();
@@ -286,7 +287,7 @@ export default function PlanDetailsScreen() {
   const [cancellationRemark, setCancellationRemark] = useState("");
   const [cancelContext, setCancelContext] = useState<{
     userId: string;
-    type: "user_leave" | "host_remove";
+    type: "user_leave" | "host_remove" | "host_cancel";
   } | null>(null);
   const [nowTick, setNowTick] = useState(Date.now());
 
@@ -382,9 +383,16 @@ export default function PlanDetailsScreen() {
   const extraCount = Math.max(0, plan.going - previewAvatars.length);
 
   const handleRequestJoin = async () => {
+    if (plan?.status === "FULL") {
+      Alert.alert("Plan full", "All seats are taken.");
+      return;
+    }
+    if (plan?.status === "CANCELLED" || plan?.status === "COMPLETED") {
+      Alert.alert("Unavailable", "This plan is no longer open.");
+      return;
+    }
     try {
-      await joinPlan(plan.id);
-      Alert.alert("You're in! ☕", "Join request sent to the host. Hang tight!");
+      await joinPlan(plan!.id);
     } catch (e) {
       Alert.alert("Error", e instanceof Error ? e.message : "Request failed");
     }
@@ -392,7 +400,7 @@ export default function PlanDetailsScreen() {
 
   const handleOpenCancelModal = (
     targetUserId: string,
-    type: "user_leave" | "host_remove"
+    type: "user_leave" | "host_remove" | "host_cancel"
   ) => {
     setCancellationRemark("");
     setCancelContext({ userId: targetUserId, type });
@@ -407,13 +415,20 @@ export default function PlanDetailsScreen() {
     setShowCancelModal(false);
     if (cancelContext?.type === "host_remove") {
       try {
-        await removeParticipant(plan.id, cancelContext.userId, cancellationRemark.trim());
+        await removeParticipant(plan!.id, cancelContext.userId, cancellationRemark.trim());
       } catch (e) {
         Alert.alert("Error", e instanceof Error ? e.message : "Could not remove member");
       }
+    } else if (cancelContext?.type === "host_cancel") {
+      try {
+        await cancelPlan(plan!.id, cancellationRemark.trim());
+        router.back();
+      } catch (e) {
+        Alert.alert("Error", e instanceof Error ? e.message : "Could not cancel plan");
+      }
     } else {
       try {
-        await cancelJoinPlan(plan.id, cancellationRemark.trim());
+        await cancelJoinPlan(plan!.id, cancellationRemark.trim());
       } catch (e) {
         Alert.alert("Error", e instanceof Error ? e.message : "Could not leave hangout");
       }
@@ -433,13 +448,47 @@ export default function PlanDetailsScreen() {
   const fillSlots = Array.from({ length: Math.min(openSpots, 2) });
 
   const renderBottomCta = () => {
+    if (plan.status === "CANCELLED") {
+      return (
+        <View style={styles.ctaBlock}>
+          <View style={styles.rejectedPill}>
+            <Ionicons name="ban" size={16} color="#EF4444" />
+            <Text style={styles.rejectedPillText}>Plan cancelled</Text>
+          </View>
+        </View>
+      );
+    }
+    if (plan.status === "COMPLETED") {
+      return (
+        <View style={styles.ctaBlock}>
+          <View style={styles.hostPill}>
+            <Ionicons name="checkmark-done" size={16} color={C.purple} />
+            <Text style={styles.hostPillText}>This hangout has ended</Text>
+          </View>
+        </View>
+      );
+    }
+
     if (isMine) {
       return (
         <View style={styles.ctaBlock}>
           <View style={styles.hostPill}>
             <Ionicons name="star" size={16} color={C.purple} />
-            <Text style={styles.hostPillText}>You're hosting this hangout</Text>
+            <Text style={styles.hostPillText}>
+              {plan.status === "FULL"
+                ? "Plan is full — manage members below"
+                : "You're hosting this hangout"}
+            </Text>
           </View>
+          <Pressable
+            style={{ marginTop: 10 }}
+            onPress={() => handleOpenCancelModal(user?.id || "", "host_cancel")}
+          >
+            <View style={styles.rejectedPill}>
+              <Ionicons name="trash-outline" size={16} color="#EF4444" />
+              <Text style={styles.rejectedPillText}>Cancel Plan</Text>
+            </View>
+          </Pressable>
           <Text style={styles.cancelHint}>Manage join requests below</Text>
         </View>
       );
@@ -471,7 +520,7 @@ export default function PlanDetailsScreen() {
               </LinearGradient>
             </Pressable>
           </View>
-          <Text style={styles.cancelHint}>You can cancel anytime</Text>
+          <Text style={styles.cancelHint}>You can leave anytime</Text>
         </View>
       );
     }
@@ -490,16 +539,38 @@ export default function PlanDetailsScreen() {
               <Text style={styles.pendingCtaText}>Request Pending</Text>
             </View>
           </View>
-          <Text style={styles.cancelHint}>You can cancel anytime</Text>
+          <Text style={styles.cancelHint}>Host will accept or decline</Text>
         </View>
       );
     }
     if (requestStatus === "rejected") {
+      const remark = getRejectionRemark(plan.id);
       return (
         <View style={styles.ctaBlock}>
           <View style={styles.rejectedPill}>
             <Ionicons name="close-circle" size={16} color="#EF4444" />
             <Text style={styles.rejectedPillText}>Join Request Declined</Text>
+          </View>
+          {remark ? <Text style={styles.cancelHint}>{remark}</Text> : null}
+          <Pressable style={[styles.primaryCtaWrap, { marginTop: 10 }]} onPress={handleRequestJoin}>
+            <LinearGradient
+              colors={[...C.cta]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.primaryCta}
+            >
+              <Text style={styles.primaryCtaText}>Request Again</Text>
+            </LinearGradient>
+          </Pressable>
+        </View>
+      );
+    }
+    if (plan.status === "FULL") {
+      return (
+        <View style={styles.ctaBlock}>
+          <View style={styles.rejectedPill}>
+            <Ionicons name="people" size={16} color="#EF4444" />
+            <Text style={styles.rejectedPillText}>Plan is full</Text>
           </View>
         </View>
       );
@@ -513,10 +584,10 @@ export default function PlanDetailsScreen() {
             end={{ x: 1, y: 0 }}
             style={styles.primaryCta}
           >
-            <Text style={styles.primaryCtaText}>I'm In! Let's Go {activity.emoji}</Text>
+            <Text style={styles.primaryCtaText}>Request to Join {activity.emoji}</Text>
           </LinearGradient>
         </Pressable>
-        <Text style={styles.cancelHint}>You can cancel anytime</Text>
+        <Text style={styles.cancelHint}>Host must approve your request</Text>
       </View>
     );
   };
@@ -924,7 +995,7 @@ export default function PlanDetailsScreen() {
             >
               <Text style={styles.bottomPromoEmoji}>🎁</Text>
               <Text style={styles.bottomPromoCopy}>
-                Bring a friend & get Vibely points!
+                Bring a friend & get Hangora points!
               </Text>
             </LinearGradient>
           </View>

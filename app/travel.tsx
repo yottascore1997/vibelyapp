@@ -41,7 +41,7 @@ import type { Plan } from "../constants/plans";
 
 const createTrip3d = require("../assets/create_plan_3d.jpg");
 
-const FAV_STORAGE_KEY = "@vibely_travel_favorites";
+const FAV_STORAGE_KEY = "@hangora_travel_favorites";
 const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get("window");
 const CARD_W = SCREEN_W * 0.46;
 

@@ -1,9 +1,11 @@
 import { View, StyleSheet } from "react-native";
 import { Slot, usePathname } from "expo-router";
 import TabBar from "../../components/TabBar";
+import { useTabBarVisibility } from "../../context/TabBarVisibilityContext";
 
 export default function TabsLayout() {
   const pathname = usePathname();
+  const { hidden } = useTabBarVisibility();
   const lightChrome =
     pathname === "/" ||
     pathname === "/(tabs)" ||
@@ -19,7 +21,7 @@ export default function TabsLayout() {
       <View style={[styles.content, lightChrome && styles.contentLight]}>
         <Slot />
       </View>
-      <TabBar dark={!lightChrome} />
+      {!hidden ? <TabBar dark={!lightChrome} /> : null}
     </View>
   );
 }

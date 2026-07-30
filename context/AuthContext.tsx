@@ -27,10 +27,13 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 async function apiCall(endpoint: string, body: object) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30000);
+  // Railway cold start can exceed 30s — keep auth usable on Play Store
+  const timeoutMs = 60000;
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
   const fullUrl = `${API_URL}${cleanEndpoint}`;
+  const isProdApi = /^https:\/\//i.test(API_URL);
 
   try {
     const res = await fetch(fullUrl, {
@@ -48,10 +51,12 @@ async function apiCall(endpoint: string, body: object) {
       json = JSON.parse(text);
     } catch {
       if (res.status === 404) {
-        throw new Error(`API endpoint not found (404).\nURL: ${API_URL}${endpoint}`);
+        throw new Error(`API endpoint not found (404).\nURL: ${fullUrl}`);
       }
       throw new Error(
-        `Server HTML response (Status ${res.status}).\n\nPossible Reasons:\n1. Backend Next.js server not running (cd web -> npm run dev)\n2. MySQL database error or not running\n3. Wrong IP address in mobile/.env: ${API_URL}`
+        isProdApi
+          ? `Server error (${res.status}). Production API down or misconfigured.\nURL: ${API_URL}`
+          : `Server HTML response (Status ${res.status}).\n\nPossible Reasons:\n1. Backend Next.js server not running (cd web -> npm run dev)\n2. MySQL database error or not running\n3. Wrong IP address in mobile/.env: ${API_URL}`
       );
     }
 
@@ -65,13 +70,17 @@ async function apiCall(endpoint: string, body: object) {
 
     if (err instanceof Error && err.name === "AbortError") {
       throw new Error(
-        `Request timeout (30s).\n\n1. Backend restart: cd web → npm run dev\n2. Phone same WiFi\n3. Windows Firewall port 3000 allow karo\n4. API: ${API_URL}`
+        isProdApi
+          ? `Server timeout (${timeoutMs / 1000}s).\nProduction API slow / sleeping.\nURL: ${API_URL}\nRailway service wake up hone do, phir retry.`
+          : `Request timeout (${timeoutMs / 1000}s).\n\n1. Backend restart: cd web → npm run dev\n2. Phone same WiFi\n3. Windows Firewall port 3000 allow karo\n4. API: ${API_URL}`
       );
     }
 
     if (err instanceof TypeError) {
       throw new Error(
-        `Network fail — server tak nahi pahuncha.\n\nBackend: npm run dev\nAPI URL: ${API_URL}\nPhone aur PC same WiFi hon.`
+        isProdApi
+          ? `Network fail — production server tak nahi pahuncha.\nURL: ${API_URL}\nInternet on hai? Railway deploy live hai?`
+          : `Network fail — server tak nahi pahuncha.\n\nBackend: npm run dev\nAPI URL: ${API_URL}\nPhone aur PC same WiFi hon.`
       );
     }
 

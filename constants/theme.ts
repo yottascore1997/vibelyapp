@@ -46,9 +46,11 @@ export const Radius = {
 };
 
 export const API_URL = (() => {
-  let url = (process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000/api").trim().replace(/\/+$/, "");
-  if (!url.endsWith("/api")) {
-    url = `${url}/api`;
-  }
+  // Production Railway — Play Store + Expo Go default
+  const PROD_API = "https://vibely-production-d2c1.up.railway.app/api";
+  const fromEnv = (process.env.EXPO_PUBLIC_API_URL || "").trim();
+  // Never silently fall back to localhost (causes fake "same WiFi" errors)
+  let url = (fromEnv || PROD_API).replace(/\/+$/, "");
+  if (!url.endsWith("/api")) url = `${url}/api`;
   return url;
 })();

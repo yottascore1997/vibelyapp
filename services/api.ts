@@ -119,7 +119,25 @@ export const api = {
   createPlan: (data: object) =>
     fetchApi<Plan>("/hangouts", { method: "POST", body: JSON.stringify(data) }),
   joinPlan: (planId: string, _userId?: string) =>
-    fetchApi(`/hangouts/${planId}/join`, { method: "POST", body: JSON.stringify({}) }),
+    fetchApi<{ message?: string; status?: string; going?: number }>(
+      `/hangouts/${planId}/join`,
+      { method: "POST", body: JSON.stringify({}) }
+    ),
+  respondToJoinRequest: (
+    planId: string,
+    userId: string,
+    accept: boolean,
+    remark?: string
+  ) =>
+    fetchApi(`/hangouts/${planId}/respond`, {
+      method: "POST",
+      body: JSON.stringify({ userId, accept, remark }),
+    }),
+  cancelPlan: (planId: string, remark?: string) =>
+    fetchApi(`/hangouts/${planId}/cancel`, {
+      method: "POST",
+      body: JSON.stringify({ remark }),
+    }),
   leavePlan: (planId: string) =>
     fetchApi(`/hangouts/${planId}/leave`, { method: "POST", body: JSON.stringify({}) }),
   kickFromPlan: (planId: string, userId: string, remark?: string) =>
@@ -149,6 +167,15 @@ export const api = {
     fetchApi("/auth/profile", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(data),
+    }),
+  updateLocation: (data: {
+    latitude: number;
+    longitude: number;
+    city?: string;
+  }) =>
+    fetchApi("/auth/location", {
+      method: "POST",
       body: JSON.stringify(data),
     }),
   uploadImage: async (uri: string, token: string): Promise<{ url: string } | null> => {
@@ -260,4 +287,10 @@ export const api = {
   }) => fetchApi<any>(`/expenses`, { method: "POST", body: JSON.stringify(data) }),
   settleExpenseSplit: (splitIdOrUserId: string) =>
     fetchApi<any>(`/expenses/settle`, { method: "POST", body: JSON.stringify({ splitId: splitIdOrUserId, userId: splitIdOrUserId }) }),
+  deleteAccount: (token?: string) =>
+    fetchApi<{ message: string }>("/auth/delete-account", {
+      method: "DELETE",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    }),
 };
+

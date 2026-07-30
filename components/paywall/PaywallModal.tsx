@@ -76,7 +76,7 @@ export default function PaywallModal() {
       await new Promise((res) => setTimeout(res, 800));
       await upgradeTier(selectedPlan);
       Alert.alert(
-        "🎉 VibeMatch Premium Active!",
+        "🎉 Hangora Premium Active!",
         `Congratulations! Your ${activePlanObj.title} is now active.`
       );
     } catch {
@@ -117,7 +117,7 @@ export default function PaywallModal() {
                 <Text style={styles.countdownText}>SPECIAL LAUNCH PRICE • ENDS IN 14:59</Text>
               </View>
 
-              <Text style={styles.heroTitle}>Unlock VibeMatch Premium</Text>
+              <Text style={styles.heroTitle}>Unlock Hangora Premium</Text>
               <Text style={styles.heroSub}>
                 🔥 Join 12,400+ members matching 3x faster with Premium
               </Text>

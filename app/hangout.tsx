@@ -912,7 +912,7 @@ function MockupPlanCard({
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               >
-                <Text style={styles.joinBtnText}>Join Vibe 🚀</Text>
+                <Text style={styles.joinBtnText}>Request ✋</Text>
               </LinearGradient>
             </Pressable>
           ) : requestStatus === "pending" ? (

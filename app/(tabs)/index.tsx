@@ -14,6 +14,7 @@ import {
   FlatList,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  StatusBar,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -55,7 +56,7 @@ const APP_FEATURES = [
   { id: "create", title: "Create", icon: "add" as const, colors: ["#F97316", "#EA580C"] as const, route: "/create-plan" },
 ];
 
-/** Auto-sliding promo banners — light premium Hangout palette */
+/** Auto-sliding promo banners — Hangout light palette */
 const PROMO_BANNERS = [
   {
     id: "b1",
@@ -64,7 +65,7 @@ const PROMO_BANNERS = [
     subtitle: "Coffee, movie, sports — join in minutes",
     cta: "Open Hangout",
     emoji: "☕",
-    colors: ["#8B5CF6", "#A855F7", "#EC4899"] as const,
+    colors: ["#7C3AED", "#8B5CF6", "#EC4899"] as const,
     route: "/hangout",
   },
   {
@@ -74,7 +75,7 @@ const PROMO_BANNERS = [
     subtitle: "Radar scan · find who is close right now",
     cta: "Find Nearby",
     emoji: "📡",
-    colors: ["#FF3D7F", "#DB2777", "#8B5CF6"] as const,
+    colors: ["#EC4899", "#F472B6", "#8B5CF6"] as const,
     route: "/people-nearby",
   },
   {
@@ -84,7 +85,7 @@ const PROMO_BANNERS = [
     subtitle: "Swipe, match & start real conversations",
     cta: "Start Discover",
     emoji: "💖",
-    colors: ["#EC4899", "#F472B6", "#8B5CF6"] as const,
+    colors: ["#8B5CF6", "#A855F7", "#EC4899"] as const,
     route: "/(tabs)/discover",
   },
   {
@@ -94,19 +95,9 @@ const PROMO_BANNERS = [
     subtitle: "Ranked live hangouts near you — join in one tap",
     cta: "Try Smart Match",
     emoji: "✨",
-    colors: ["#7C3AED", "#8B5CF6", "#14B8A6"] as const,
+    colors: ["#7C3AED", "#8B5CF6", "#EC4899"] as const,
     route: "/vibematch",
   },
-  /* {
-    id: "b4",
-    tag: "TRAVEL",
-    title: "Find your travel buddy",
-    subtitle: "Weekend trips & partners near you",
-    cta: "Find Partner",
-    emoji: "✈️",
-    colors: ["#3B82F6", "#6366F1", "#8B5CF6"] as const,
-    route: "/travel",
-  }, */
 ];
 
 const HOME_TODAY_EVENTS = [
@@ -532,8 +523,11 @@ export default function HomeScreen() {
 
   const chatsUnread = conversations.reduce((sum, t) => sum + (t.unread || 0), 0);
 
+  const firstName = (profile?.name || user?.name || "there").split(" ")[0];
+
   return (
     <View style={{ flex: 1, backgroundColor: Luxe.bg }}>
+      <StatusBar barStyle="dark-content" backgroundColor={Luxe.bg} />
       {showConfetti && (
         <View pointerEvents="none" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999 }}>
           <FirecrackerLauncher />
@@ -546,15 +540,15 @@ export default function HomeScreen() {
       hideHeader={true}
       contentStyle={{ backgroundColor: "transparent" }}
     >
-      {/* Light premium ambient */}
+      {/* Soft Hangout ambient */}
       <LinearGradient
-        colors={["rgba(167,139,250,0.28)", "transparent"]}
+        colors={["rgba(167,139,250,0.18)", "transparent"]}
         style={styles.ambientGlowLeft}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       />
       <LinearGradient
-        colors={["rgba(244,114,182,0.16)", "transparent"]}
+        colors={["rgba(244,114,182,0.12)", "transparent"]}
         style={styles.ambientGlowRight}
         start={{ x: 1, y: 0 }}
         end={{ x: 0, y: 1 }}
@@ -568,12 +562,35 @@ export default function HomeScreen() {
         tagline="Find your vibe"
       />
 
-      {/* Live Social Energy Card — exact match to Hangouts */}
-      <Animated.View entering={FadeInUp.duration(450).springify()}>
+      {/* Premium welcome — Hangout slogan style */}
+      <Animated.View entering={FadeInUp.duration(420).springify()} style={styles.sloganHeaderWrap}>
+        <View style={styles.doodleRow}>
+          <View style={styles.doodlePill}>
+            <Text style={styles.doodleText}>Hey {firstName}</Text>
+            <Ionicons name="sparkles" size={12} color="#7C3AED" />
+          </View>
+          <View style={styles.liveNowBadge}>
+            <View style={styles.liveDot} />
+            <Text style={styles.liveNowText}>{activeUsers.length || "—"} online</Text>
+          </View>
+        </View>
+        <Text style={styles.sloganTitle} numberOfLines={2}>
+          Ready to find your{" "}
+          <Text style={styles.sloganHighlight}>next vibe?</Text>
+        </Text>
+        <LinearGradient
+          colors={["#7C3AED", "#EC4899", "#F59E0B"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.sloganUnderline}
+        />
+      </Animated.View>
+
+      {/* Live Social Energy Card — Hangout match */}
+      <Animated.View entering={FadeInUp.delay(40).duration(450).springify()}>
         <View style={styles.socialEnergyCard}>
           <Text style={styles.socialEnergyTitle}>What's your social energy today?</Text>
           <View style={styles.orbsContainer}>
-            {/* Lessgo */}
             <TouchableOpacity
               style={styles.orbWrapper}
               activeOpacity={0.8}
@@ -598,7 +615,6 @@ export default function HomeScreen() {
               <Text style={[styles.orbLabel, { color: "#16A34A" }]}>Lessgo</Text>
             </TouchableOpacity>
 
-            {/* Maybe */}
             <TouchableOpacity
               style={styles.orbWrapper}
               activeOpacity={0.8}
@@ -623,7 +639,6 @@ export default function HomeScreen() {
               <Text style={[styles.orbLabel, { color: "#D97706" }]}>Maybe</Text>
             </TouchableOpacity>
 
-            {/* Off grid */}
             <TouchableOpacity
               style={styles.orbWrapper}
               activeOpacity={0.8}
@@ -651,8 +666,8 @@ export default function HomeScreen() {
         </View>
       </Animated.View>
 
-      {/* Live Cafe Spot Beacon Hero Card */}
-      <Animated.View entering={FadeInUp.delay(60).duration(400).springify()}>
+      {/* Spot Beacon — elevated light CTA */}
+      <Animated.View entering={FadeInUp.delay(80).duration(400).springify()}>
         <TouchableOpacity
           style={styles.spotHeroCard}
           onPress={() => setSpotModalVisible(true)}
@@ -664,25 +679,29 @@ export default function HomeScreen() {
             end={{ x: 1, y: 1 }}
             style={styles.spotHeroGrad}
           >
+            <View style={styles.spotShine} />
             <View style={styles.spotHeroRow}>
               <View style={styles.spotHeroIconWrap}>
-                <Ionicons name="flash" size={24} color="#FFF" />
+                <Ionicons name="flash" size={22} color="#FFF" />
               </View>
               <View style={{ flex: 1 }}>
                 <View style={styles.spotBadge}>
-                  <Text style={styles.spotBadgeText}>INSTANT MEETUP BEACON ⚡</Text>
+                  <Text style={styles.spotBadgeText}>INSTANT MEETUP</Text>
                 </View>
-                <Text style={styles.spotHeroTitle}>Bored at a Cafe right now?</Text>
+                <Text style={styles.spotHeroTitle}>Bored at a cafe right now?</Text>
                 <Text style={styles.spotHeroSub}>
-                  Drop a Spot to find nearby companions in 30 mins →
+                  Drop a Spot · find nearby companions in 30 mins
                 </Text>
+              </View>
+              <View style={styles.spotArrow}>
+                <Ionicons name="arrow-forward" size={16} color="#FFF" />
               </View>
             </View>
           </LinearGradient>
         </TouchableOpacity>
       </Animated.View>
 
-      {/* Auto-sliding promo banners */}
+      {/* Promo banners */}
       <View style={styles.bannerCarouselWrap}>
         <FlatList
           ref={bannerRef}
@@ -705,6 +724,7 @@ export default function HomeScreen() {
                 end={{ x: 1, y: 1 }}
                 style={styles.promoBanner}
               >
+                <View style={styles.promoShine} />
                 <View style={styles.promoBannerLeft}>
                   <View style={styles.promoTag}>
                     <Text style={styles.promoTagText}>{item.tag}</Text>
@@ -728,9 +748,9 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* Compact Explore Vibely — limited horizontal chips */}
+      {/* Explore Hangora — premium tile chips */}
       <View style={styles.featureHubHeader}>
-        <Text style={styles.featureHubTitle}>Explore Vibely</Text>
+        <Text style={styles.featureHubTitle}>Explore Hangora</Text>
         <Text style={styles.featureHubLink} onPress={() => router.push("/hangout")}>See more</Text>
       </View>
       <ScrollView
@@ -758,7 +778,7 @@ export default function HomeScreen() {
         ))}
       </ScrollView>
 
-      {/* Search Bar */}
+      {/* Search */}
       <View style={styles.searchBar}>
         <Ionicons name="search" size={18} color={Luxe.inkFaint} />
         <TextInput
@@ -1056,20 +1076,96 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  sloganHeaderWrap: {
+    paddingHorizontal: 2,
+    marginBottom: 16,
+  },
+  doodleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 8,
+    flexWrap: "wrap",
+  },
+  doodlePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#EDE7FF",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+  },
+  doodleText: {
+    fontSize: 12,
+    fontFamily: VibeFonts.semiBold,
+    color: "#7C3AED",
+  },
+  liveNowBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#ECFDF5",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#A7F3D0",
+  },
+  liveDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: "#22C55E",
+  },
+  liveNowText: {
+    fontSize: 11,
+    fontFamily: VibeFonts.bold,
+    color: "#059669",
+  },
+  sloganTitle: {
+    fontSize: 26,
+    fontFamily: VibeFonts.extraBold,
+    color: "#18181B",
+    letterSpacing: -0.8,
+    lineHeight: 32,
+  },
+  sloganHighlight: {
+    color: "#7C3AED",
+  },
+  sloganUnderline: {
+    height: 3,
+    width: 72,
+    borderRadius: 2,
+    marginTop: 10,
+  },
   spotHeroCard: {
-    borderRadius: 22,
+    borderRadius: 24,
     overflow: "hidden",
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "rgba(124,58,237,0.2)",
+    borderColor: "rgba(124,58,237,0.18)",
     shadowColor: "#7C3AED",
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    shadowOpacity: 0.22,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
   },
   spotHeroGrad: {
-    padding: 16,
+    padding: 18,
+    position: "relative",
+    overflow: "hidden",
+  },
+  spotShine: {
+    position: "absolute",
+    top: -40,
+    right: -20,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: "rgba(255,255,255,0.12)",
   },
   spotHeroRow: {
     flexDirection: "row",
@@ -1077,12 +1173,14 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   spotHeroIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.22)",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.28)",
   },
   spotBadge: {
     backgroundColor: "rgba(255,255,255,0.22)",
@@ -1090,24 +1188,33 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: Radius.full,
     alignSelf: "flex-start",
-    marginBottom: 3,
+    marginBottom: 4,
   },
   spotBadgeText: {
     color: "#FFF",
     fontSize: 9,
     fontFamily: VibeFonts.extraBold,
-    letterSpacing: 0.6,
+    letterSpacing: 0.8,
   },
   spotHeroTitle: {
     color: "#FFF",
-    fontSize: 16,
+    fontSize: 17,
     fontFamily: VibeFonts.extraBold,
+    letterSpacing: -0.3,
   },
   spotHeroSub: {
-    color: "rgba(255,255,255,0.9)",
-    fontSize: 11,
+    color: "rgba(255,255,255,0.88)",
+    fontSize: 12,
     fontFamily: VibeFonts.medium,
-    marginTop: 2,
+    marginTop: 3,
+  },
+  spotArrow: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   coolOrb: {
     position: "absolute",
@@ -1116,7 +1223,7 @@ const styles = StyleSheet.create({
     width: 180,
     height: 180,
     borderRadius: 90,
-    backgroundColor: "rgba(125, 211, 252, 0.1)",
+    backgroundColor: "rgba(125, 211, 252, 0.08)",
   },
   welcomeBlob: {
     position: "absolute",
@@ -1407,19 +1514,28 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   promoBanner: {
-    height: 132,
-    borderRadius: 22,
+    height: 140,
+    borderRadius: 24,
     paddingHorizontal: 18,
     paddingVertical: 16,
     flexDirection: "row",
     alignItems: "center",
     overflow: "hidden",
     borderWidth: 0,
-    shadowColor: "#8B5CF6",
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 4,
+    shadowColor: "#7C3AED",
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 5,
+  },
+  promoShine: {
+    position: "absolute",
+    top: -30,
+    right: 40,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: "rgba(255,255,255,0.1)",
   },
   promoBannerLeft: {
     flex: 1,
@@ -1427,9 +1543,9 @@ const styles = StyleSheet.create({
   },
   promoTag: {
     alignSelf: "flex-start",
-    backgroundColor: "rgba(255,255,255,0.14)",
+    backgroundColor: "rgba(255,255,255,0.18)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
+    borderColor: "rgba(255,255,255,0.25)",
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 999,
@@ -1451,7 +1567,7 @@ const styles = StyleSheet.create({
   promoSub: {
     fontSize: 11,
     fontFamily: VibeFonts.medium,
-    color: "rgba(255,255,255,0.7)",
+    color: "rgba(255,255,255,0.78)",
     marginTop: 4,
     marginBottom: 10,
   },
@@ -1462,7 +1578,7 @@ const styles = StyleSheet.create({
     gap: 4,
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: 999,
   },
   promoCtaText: {
@@ -1495,13 +1611,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 8,
+    marginBottom: 10,
   },
   featureHubTitle: {
-    fontSize: 15,
-    fontFamily: VibeFonts.bold,
+    fontSize: 16,
+    fontFamily: VibeFonts.extraBold,
     color: "#18181B",
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
   },
   featureHubLink: {
     fontSize: 12,
@@ -1510,7 +1626,7 @@ const styles = StyleSheet.create({
   },
   featureChipScroll: {
     marginBottom: Spacing.sm,
-    maxHeight: 44,
+    maxHeight: 48,
   },
   featureChipRow: {
     paddingRight: 8,
@@ -1522,21 +1638,22 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: "#EDE7FF",
     paddingLeft: 6,
-    paddingRight: 12,
+    paddingRight: 14,
     paddingVertical: 6,
     borderRadius: 999,
     marginRight: 8,
-    shadowColor: "#000",
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    elevation: 1,
+    shadowColor: "#7C3AED",
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
   featureChipIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1554,13 +1671,13 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
     marginTop: Spacing.sm,
     backgroundColor: "#FFFFFF",
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: "#EDE7FF",
     shadowColor: "#7C3AED",
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
     elevation: 2,
   },
   searchInput: {
@@ -1592,35 +1709,35 @@ const styles = StyleSheet.create({
 
   suggestedScroll: { paddingRight: Spacing.md },
   suggestedCard: {
-    width: 160,
-    height: 220,
-    borderRadius: 20,
+    width: 168,
+    height: 228,
+    borderRadius: 22,
     overflow: "hidden",
     marginRight: Spacing.md,
     position: "relative",
     borderWidth: 1,
-    borderColor: "#E4DFF0",
+    borderColor: "#EDE7FF",
     shadowColor: "#8B5CF6",
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 4,
   },
   suggestedAvatar: { width: "100%", height: "100%", resizeMode: "cover" },
-  suggestedOverlay: { position: "absolute", bottom: 0, left: 0, right: 0, padding: 10, paddingTop: 30 },
-  suggestedName: { fontSize: 13, fontFamily: VibeFonts.bold, color: "#fff" },
-  suggestedSub: { fontSize: 10, fontFamily: VibeFonts.medium, color: "rgba(255,255,255,0.7)", marginTop: 2 },
-  suggestedVibeBtn: { marginTop: 8, borderRadius: Radius.sm, overflow: "hidden" },
-  suggestedVibeBtnGradient: { paddingVertical: 5, alignItems: "center", justifyContent: "center" },
-  suggestedVibeText: { color: "#fff", fontSize: 9, fontFamily: VibeFonts.bold },
+  suggestedOverlay: { position: "absolute", bottom: 0, left: 0, right: 0, padding: 12, paddingTop: 36 },
+  suggestedName: { fontSize: 14, fontFamily: VibeFonts.bold, color: "#fff" },
+  suggestedSub: { fontSize: 10, fontFamily: VibeFonts.medium, color: "rgba(255,255,255,0.75)", marginTop: 2 },
+  suggestedVibeBtn: { marginTop: 10, borderRadius: Radius.sm, overflow: "hidden" },
+  suggestedVibeBtnGradient: { paddingVertical: 6, alignItems: "center", justifyContent: "center" },
+  suggestedVibeText: { color: "#fff", fontSize: 10, fontFamily: VibeFonts.bold },
 
   actCard: {
     alignItems: "center",
     marginRight: Spacing.md,
     padding: Spacing.md,
-    width: 100,
-    minHeight: 110,
-    borderRadius: 20,
+    width: 104,
+    minHeight: 114,
+    borderRadius: 22,
     borderWidth: 1,
     shadowColor: "#8B5CF6",
     shadowOpacity: 0.08,
@@ -1709,17 +1826,16 @@ const styles = StyleSheet.create({
     letterSpacing: -0.1,
   },
   socialEnergyCard: {
-    marginHorizontal: 16,
     marginBottom: 16,
-    padding: 16,
+    padding: 18,
     borderRadius: 24,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#F1F5F9",
+    borderColor: "#EDE7FF",
     shadowColor: "#7C3AED",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.08,
-    shadowRadius: 12,
+    shadowRadius: 16,
     elevation: 3,
   },
   socialEnergyTitle: {
@@ -1727,7 +1843,8 @@ const styles = StyleSheet.create({
     fontFamily: VibeFonts.extraBold,
     color: "#18181B",
     textAlign: "center",
-    marginBottom: 14,
+    marginBottom: 16,
+    letterSpacing: -0.2,
   },
   orbsContainer: {
     flexDirection: "row",
@@ -1736,25 +1853,25 @@ const styles = StyleSheet.create({
   },
   orbWrapper: {
     alignItems: "center",
-    gap: 6,
+    gap: 8,
   },
   orbSphere: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     overflow: "hidden",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.32,
+    shadowRadius: 10,
+    elevation: 5,
   },
   orbSphereGreen: { shadowColor: "#22C55E" },
   orbSphereYellow: { shadowColor: "#F59E0B" },
   orbSphereRed: { shadowColor: "#EF4444" },
-  orbActiveGreen: { borderWidth: 2, borderColor: "#4ADE80", transform: [{ scale: 1.08 }] },
-  orbActiveYellow: { borderWidth: 2, borderColor: "#FDE047", transform: [{ scale: 1.08 }] },
-  orbActiveRed: { borderWidth: 2, borderColor: "#FCA5A5", transform: [{ scale: 1.08 }] },
-  orbGrad: { width: "100%", height: "100%", borderRadius: 27, padding: 5 },
+  orbActiveGreen: { borderWidth: 2.5, borderColor: "#4ADE80", transform: [{ scale: 1.1 }] },
+  orbActiveYellow: { borderWidth: 2.5, borderColor: "#FDE047", transform: [{ scale: 1.1 }] },
+  orbActiveRed: { borderWidth: 2.5, borderColor: "#FCA5A5", transform: [{ scale: 1.1 }] },
+  orbGrad: { width: "100%", height: "100%", borderRadius: 28, padding: 5 },
   orbGlint: { width: 12, height: 12, borderRadius: 6, backgroundColor: "rgba(255, 255, 255, 0.65)", marginLeft: 4, marginTop: 2 },
   orbLabel: { fontSize: 11, fontFamily: VibeFonts.bold },
   orbWrapperOuter: {
@@ -1961,13 +2078,18 @@ const styles = StyleSheet.create({
     paddingRight: Spacing.xl,
   },
   eventCardHome: {
-    width: 280,
-    height: 196,
-    borderRadius: 20,
+    width: 288,
+    height: 200,
+    borderRadius: 22,
     overflow: "hidden",
     marginRight: Spacing.md,
     borderWidth: 1,
     borderColor: "rgba(138, 86, 255, 0.12)",
+    shadowColor: "#7C3AED",
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 4,
   },
   eventCardImageHome: {
     width: "100%",

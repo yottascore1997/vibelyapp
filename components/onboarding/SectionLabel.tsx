@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Spacing } from "../../constants/theme";
+import { VibeFonts } from "../../constants/vibeTheme";
 
 interface Props {
   title: string;
@@ -18,30 +18,44 @@ export default function SectionLabel({ title, subtitle, icon, emoji, optional }:
           <Text style={styles.emojiBadge}>{emoji}</Text>
         ) : icon ? (
           <View style={styles.iconBox}>
-            <Ionicons name={icon} size={15} color="#7C3AED" />
+            <Ionicons name={icon} size={14} color="#7C3AED" />
           </View>
         ) : null}
         <Text style={styles.title}>{title}</Text>
-        {optional && <Text style={styles.optional}> · Optional</Text>}
+        {optional ? <Text style={styles.optional}> · Optional</Text> : null}
       </View>
-      {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+      {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { marginTop: Spacing.md, marginBottom: Spacing.xs },
-  titleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  wrap: { marginTop: 14, marginBottom: 8 },
+  titleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   iconBox: {
     width: 26,
     height: 26,
-    borderRadius: 8,
-    backgroundColor: "rgba(124, 58, 237, 0.1)",
+    borderRadius: 9,
+    backgroundColor: "#F3E8FF",
     alignItems: "center",
     justifyContent: "center",
   },
-  emojiBadge: { fontSize: 16 },
-  title: { fontSize: 14, fontWeight: "700", color: "#18181B", letterSpacing: 0.2 },
-  optional: { fontSize: 12, fontWeight: "500", color: "#94A3B8" },
-  subtitle: { fontSize: 12, color: "#64748B", marginTop: 2 },
+  emojiBadge: { fontSize: 15 },
+  title: {
+    fontSize: 14,
+    fontFamily: VibeFonts.extraBold,
+    color: "#18181B",
+  },
+  optional: {
+    fontSize: 12,
+    fontFamily: VibeFonts.medium,
+    color: "#94A3B8",
+  },
+  subtitle: {
+    fontSize: 12,
+    fontFamily: VibeFonts.medium,
+    color: "#64748B",
+    marginTop: 4,
+    marginLeft: 34,
+  },
 });

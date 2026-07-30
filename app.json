@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Vibely",
+    "name": "Hangora",
     "slug": "vibematch",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -14,6 +14,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "in.speedza.app",
       "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Hangora uses your location to show people and hangouts near you with real distance.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Hangora uses your location to show people and hangouts near you with real distance.",
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true,
           "NSAllowsLocalNetworking": true
@@ -24,6 +26,10 @@
       "package": "in.speedza.app",
       "versionCode": 23,
       "usesCleartextTraffic": true,
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#8A56FF",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -37,7 +43,22 @@
     "plugins": [
       "expo-router",
       "expo-asset",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Hangora to use your location to show real distance to people nearby."
+        }
+      ],
+      [
+        "expo-navigation-bar",
+        {
+          "position": "absolute",
+          "visibility": "hidden",
+          "behavior": "overlay-swipe",
+          "backgroundColor": "#00000000"
+        }
+      ]
     ],
     "extra": {
       "router": {},

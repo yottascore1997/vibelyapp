@@ -10,7 +10,10 @@ import LoadingScreen from "../components/LoadingScreen";
 import Sidebar from "../components/vibe/Sidebar";
 
 import { PremiumProvider } from "../context/PremiumContext";
+import { TabBarVisibilityProvider } from "../context/TabBarVisibilityContext";
 import PaywallModal from "../components/paywall/PaywallModal";
+import LocationSync from "../components/LocationSync";
+import { useImmersiveNavigationBar } from "../hooks/useImmersiveNavigationBar";
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -21,6 +24,8 @@ export default function RootLayout() {
     Inter_800ExtraBold,
   });
 
+  useImmersiveNavigationBar();
+
   if (!fontsLoaded) return <LoadingScreen />;
 
   return (
@@ -30,6 +35,8 @@ export default function RootLayout() {
           <OnboardingProvider>
             <PlansProvider>
               <MatchesProvider>
+                <TabBarVisibilityProvider>
+                <LocationSync />
                 <PaywallModal />
                 {/* dark-content screens (Hangout/Travel/Profile) — avoid light icons on light bg */}
                 <StatusBar style="dark" />
@@ -75,6 +82,7 @@ export default function RootLayout() {
             <Stack.Screen name="vibematch" />
             <Stack.Screen name="edit-profile" options={{ animation: "slide_from_bottom" }} />
             <Stack.Screen name="chat/[id]" options={{ animation: "slide_from_right" }} />
+            <Stack.Screen name="user/[id]" options={{ animation: "slide_from_right" }} />
             <Stack.Screen name="my-matches" options={{ animation: "slide_from_right" }} />
             <Stack.Screen
               name="events-map"
@@ -93,6 +101,7 @@ export default function RootLayout() {
             <Stack.Screen name="explore-events" options={{ animation: "slide_from_right" }} />
           </Stack>
           <Sidebar />
+                </TabBarVisibilityProvider>
           </MatchesProvider>
           </PlansProvider>
         </OnboardingProvider>
