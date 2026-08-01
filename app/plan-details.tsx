@@ -24,6 +24,7 @@ import { PLAN_ACTIVITIES } from "../constants/plans";
 import { VibeFonts } from "../constants/vibeTheme";
 import { Radius, Spacing } from "../constants/theme";
 import TabBar from "../components/TabBar";
+import HangoutCinematicBackground from "../components/vibe/HangoutCinematicBackground";
 import VibeSplitModal from "../components/vibe/VibeSplitModal";
 import Animated, {
   useSharedValue,
@@ -47,27 +48,27 @@ const FALLBACK_AVATARS = [
 const CAFE_THUMB =
   "https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=200&h=200&fit=crop";
 
-/** Premium Light Palette — matching Hangout screen */
+/** Match Hangout — dark navy + premium multi-accent */
 const C = {
-  green: "#10B981",
-  greenBright: "#059669",
-  greenSoft: "rgba(16, 185, 129, 0.12)",
-  greenBorder: "rgba(16, 185, 129, 0.3)",
-  pink: "#EC4899",
-  pinkSoft: "rgba(236,72,153,0.12)",
-  pinkBorder: "rgba(236,72,153,0.3)",
-  purple: "#7C3AED",
-  purpleDeep: "#6D28D9",
-  softPurple: "#F3E8FF",
-  ink: "#18181B",
-  muted: "#475569",
-  faint: "#94A3B8",
-  bg: "#F8F9FD",
-  card: "#FFFFFF",
-  cardElevated: "#FFFFFF",
-  border: "#F1F5F9",
-  cta: ["#7C3AED", "#EC4899"] as const,
-  ring: ["#7C3AED", "#EC4899", "#10B981"] as const,
+  green: "#34D399",
+  greenBright: "#6EE7B7",
+  greenSoft: "rgba(52, 211, 153, 0.16)",
+  greenBorder: "rgba(52, 211, 153, 0.35)",
+  pink: "#F472B6",
+  pinkSoft: "rgba(244, 114, 182, 0.16)",
+  pinkBorder: "rgba(244, 114, 182, 0.35)",
+  purple: "#A78BFA",
+  purpleDeep: "#8B5CF6",
+  softPurple: "rgba(139, 92, 246, 0.18)",
+  ink: "#F4F6FB",
+  muted: "#A7B0C4",
+  faint: "#7C869C",
+  bg: "#070A14",
+  card: "rgba(22, 26, 46, 0.94)",
+  cardElevated: "rgba(28, 32, 54, 0.96)",
+  border: "rgba(160, 170, 200, 0.16)",
+  cta: ["#7C3AED", "#A78BFA"] as const,
+  ring: ["#7C3AED", "#EC4899", "#34D399"] as const,
   hostRing: ["#7C3AED", "#A855F7", "#EC4899"] as const,
 };
 
@@ -330,23 +331,23 @@ export default function PlanDetailsScreen() {
       {
         label: activity.name,
         emoji: activity.emoji,
-        bg: "#FFF1E6",
-        border: "#FDBA74",
-        text: "#EA580C",
+        bg: "rgba(249, 115, 22, 0.16)",
+        border: "rgba(251, 146, 60, 0.4)",
+        text: "#FB923C",
       },
       {
         label: "Deep Talks",
         emoji: "💬",
-        bg: "#FCE7F3",
-        border: "#F9A8D4",
-        text: "#DB2777",
+        bg: "rgba(244, 114, 182, 0.16)",
+        border: "rgba(249, 168, 212, 0.4)",
+        text: "#F9A8D4",
       },
       {
         label: a.includes("chill") || a.includes("coffee") ? "Chill" : "Good Vibes",
         emoji: "😎",
-        bg: "#ECFDF5",
-        border: "#86EFAC",
-        text: "#16A34A",
+        bg: "rgba(52, 211, 153, 0.14)",
+        border: "rgba(110, 231, 183, 0.4)",
+        text: "#6EE7B7",
       },
     ];
   }, [plan?.activity, activity]);
@@ -364,7 +365,7 @@ export default function PlanDetailsScreen() {
   if (!plan) {
     return (
       <View style={styles.errorRoot}>
-        <StatusBar style="dark" />
+        <StatusBar style="light" />
         <Text style={styles.errorText}>Plan not found</Text>
         <TouchableOpacity style={styles.errorBtn} onPress={() => router.back()}>
           <Text style={styles.errorBtnText}>Go Back</Text>
@@ -445,6 +446,26 @@ export default function PlanDetailsScreen() {
     Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${q}`);
   };
 
+  const openUserProfile = (person: {
+    id?: string;
+    name?: string;
+    avatarUrl?: string;
+  }) => {
+    if (!person?.id) return;
+    // Don't open own profile from plan
+    if (user?.id && person.id === user.id) return;
+    router.push({
+      pathname: "/user/[id]",
+      params: {
+        id: String(person.id),
+        name: person.name || "User",
+        avatarUrl: person.avatarUrl || "",
+        city: plan.location || "",
+        isOnline: "1",
+      },
+    });
+  };
+
   const fillSlots = Array.from({ length: Math.min(openSpots, 2) });
 
   const renderBottomCta = () => {
@@ -472,24 +493,23 @@ export default function PlanDetailsScreen() {
     if (isMine) {
       return (
         <View style={styles.ctaBlock}>
-          <View style={styles.hostPill}>
-            <Ionicons name="star" size={16} color={C.purple} />
-            <Text style={styles.hostPillText}>
-              {plan.status === "FULL"
-                ? "Plan is full — manage members below"
-                : "You're hosting this hangout"}
-            </Text>
-          </View>
-          <Pressable
-            style={{ marginTop: 10 }}
-            onPress={() => handleOpenCancelModal(user?.id || "", "host_cancel")}
-          >
-            <View style={styles.rejectedPill}>
-              <Ionicons name="trash-outline" size={16} color="#EF4444" />
-              <Text style={styles.rejectedPillText}>Cancel Plan</Text>
+          <View style={styles.hostCtaRow}>
+            <View style={[styles.hostPill, styles.hostPillCompact, styles.hostPillGreen]}>
+              <Ionicons name="star" size={13} color="#ECFDF5" />
+              <Text style={[styles.hostPillText, styles.hostPillTextOnGreen]}>
+                {plan.status === "FULL" ? "Plan is full" : "You are host"}
+              </Text>
             </View>
-          </Pressable>
-          <Text style={styles.cancelHint}>Manage join requests below</Text>
+            <Pressable
+              onPress={() => handleOpenCancelModal(user?.id || "", "host_cancel")}
+              style={{ flex: 1 }}
+            >
+              <View style={[styles.rejectedPill, styles.hostPillCompact]}>
+                <Ionicons name="trash-outline" size={13} color="#EF4444" />
+                <Text style={styles.rejectedPillText}>Cancel Plan</Text>
+              </View>
+            </Pressable>
+          </View>
         </View>
       );
     }
@@ -596,21 +616,10 @@ export default function PlanDetailsScreen() {
 
   return (
     <View style={styles.root}>
+      <HangoutCinematicBackground />
       <StatusBar style="light" />
 
-      <LinearGradient
-        colors={["rgba(167,139,250,0.2)", "transparent"]}
-        style={styles.ambientTop}
-        start={{ x: 0.3, y: 0 }}
-        end={{ x: 0.7, y: 1 }}
-      />
-      <LinearGradient
-        colors={["rgba(125,211,252,0.12)", "transparent"]}
-        style={styles.ambientCool}
-        start={{ x: 0, y: 1 }}
-        end={{ x: 1, y: 0 }}
-      />
-
+      <View style={styles.foreground}>
       <ScrollView
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
@@ -624,13 +633,13 @@ export default function PlanDetailsScreen() {
         <View style={styles.heroWrap}>
           <Image source={{ uri: heroImage }} style={styles.heroImage} />
           <LinearGradient
-            colors={["rgba(26,31,54,0.25)", "rgba(26,31,54,0.08)", "transparent"]}
-            locations={[0, 0.35, 0.7]}
+            colors={["rgba(7,10,20,0.55)", "rgba(7,10,20,0.2)", "transparent"]}
+            locations={[0, 0.4, 0.75]}
             style={StyleSheet.absoluteFillObject}
           />
           <SafeAreaView edges={["top"]} style={styles.heroNav}>
             <TouchableOpacity style={styles.navBtn} onPress={() => router.back()}>
-              <Ionicons name="chevron-back" size={22} color={C.ink} />
+              <Ionicons name="chevron-back" size={22} color="#F4F6FB" />
             </TouchableOpacity>
             <View style={styles.liveBadge}>
               <Ionicons name="star" size={11} color="#fff" />
@@ -646,7 +655,7 @@ export default function PlanDetailsScreen() {
                 ])
               }
             >
-              <Ionicons name="ellipsis-horizontal" size={20} color={C.ink} />
+              <Ionicons name="ellipsis-horizontal" size={20} color="#F4F6FB" />
             </TouchableOpacity>
           </SafeAreaView>
         </View>
@@ -836,7 +845,22 @@ export default function PlanDetailsScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.peopleRow}
             >
-              <View style={styles.personCol}>
+              <TouchableOpacity
+                style={styles.personCol}
+                activeOpacity={0.85}
+                onPress={() => {
+                  const hostId = plan.creatorId;
+                  const hostParticipant = participants.find((p) => p.id === plan.creatorId);
+                  openUserProfile({
+                    id: hostId,
+                    name: plan.creatorName || hostParticipant?.name,
+                    avatarUrl:
+                      plan.creatorAvatar ||
+                      hostParticipant?.avatarUrl ||
+                      FALLBACK_AVATARS[0],
+                  });
+                }}
+              >
                 <View style={styles.hostAvatarRing}>
                   <LinearGradient colors={[...C.hostRing]} style={styles.hostRingGrad}>
                     <Image
@@ -857,12 +881,25 @@ export default function PlanDetailsScreen() {
                   {isMine ? "You" : plan.creatorName?.split(" ")[0] || "Host"}{" "}
                   <Text style={styles.hostLabel}>(Host)</Text>
                 </Text>
-              </View>
+              </TouchableOpacity>
 
               {participants
                 .filter((p) => p.id !== plan.creatorId)
                 .map((p, i) => (
-                  <View key={p.id} style={styles.personCol}>
+                  <TouchableOpacity
+                    key={p.id}
+                    style={styles.personCol}
+                    activeOpacity={0.85}
+                    onPress={() =>
+                      openUserProfile({
+                        id: p.id,
+                        name: p.name,
+                        avatarUrl:
+                          p.avatarUrl ||
+                          FALLBACK_AVATARS[(i + 1) % FALLBACK_AVATARS.length],
+                      })
+                    }
+                  >
                     <View style={styles.personAvatarWrap}>
                       <Image
                         source={{
@@ -885,7 +922,7 @@ export default function PlanDetailsScreen() {
                     <Text style={styles.personName} numberOfLines={1}>
                       {p.name.split(" ")[0]}
                     </Text>
-                  </View>
+                  </TouchableOpacity>
                 ))}
 
               {fillSlots.map((_, i) => (
@@ -956,18 +993,30 @@ export default function PlanDetailsScreen() {
               </Text>
               {plan.requests.map((req) => (
                 <View key={req.id} style={styles.requestCard}>
-                  <Image
-                    source={{
-                      uri:
-                        req.avatarUrl ||
-                        "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&h=120&fit=crop",
-                    }}
-                    style={styles.requestAvatar}
-                  />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.requestName}>{req.name}</Text>
-                    <Text style={styles.requestSub}>wants to join your hangout</Text>
-                  </View>
+                  <TouchableOpacity
+                    style={{ flexDirection: "row", alignItems: "center", flex: 1, gap: 10 }}
+                    activeOpacity={0.85}
+                    onPress={() =>
+                      openUserProfile({
+                        id: req.id || (req as any).userId,
+                        name: req.name,
+                        avatarUrl: req.avatarUrl,
+                      })
+                    }
+                  >
+                    <Image
+                      source={{
+                        uri:
+                          req.avatarUrl ||
+                          "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&h=120&fit=crop",
+                      }}
+                      style={styles.requestAvatar}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.requestName}>{req.name}</Text>
+                      <Text style={styles.requestSub}>wants to join your hangout</Text>
+                    </View>
+                  </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => respondToRequest(plan.id, req.id, true)}
                     style={[styles.reqBtn, { backgroundColor: "#22C55E" }]}
@@ -1005,7 +1054,7 @@ export default function PlanDetailsScreen() {
 
       {/* Sticky CTA above TabBar */}
       <View style={[styles.footer, { bottom: tabBarHeight }]}>
-        <BlurView intensity={50} tint="light" style={StyleSheet.absoluteFillObject} />
+        <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFillObject} />
         <View style={styles.footerInner}>{renderBottomCta()}</View>
       </View>
 
@@ -1015,7 +1064,7 @@ export default function PlanDetailsScreen() {
         hangoutId={plan?.id}
         titleName={plan?.title || "Hangout"}
       />
-      <TabBar dark={false} />
+      <TabBar dark={true} />
 
       {showCancelModal && (
         <View style={styles.modalOverlay}>
@@ -1055,12 +1104,14 @@ export default function PlanDetailsScreen() {
           </View>
         </View>
       )}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.bg },
+  root: { flex: 1, backgroundColor: "#070A14" },
+  foreground: { flex: 1, zIndex: 1, backgroundColor: "transparent" },
   ambientTop: {
     position: "absolute",
     top: 180,
@@ -1103,7 +1154,7 @@ const styles = StyleSheet.create({
     width: SCREEN_W,
     height: HERO_H - 40,
     position: "relative",
-    backgroundColor: "#D4CBE8",
+    backgroundColor: "#12182C",
   },
   heroImage: {
     ...StyleSheet.absoluteFillObject,
@@ -1126,13 +1177,13 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.95)",
+    backgroundColor: "rgba(12, 16, 30, 0.72)",
     borderWidth: 1,
-    borderColor: "#fff",
+    borderColor: "rgba(167, 139, 250, 0.28)",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#1A1F36",
-    shadowOpacity: 0.12,
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
     elevation: 3,
@@ -1141,7 +1192,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: C.purple,
+    backgroundColor: C.purpleDeep,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
@@ -1165,7 +1216,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     marginTop: -28,
     shadowColor: "#8B5CF6",
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.18,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 6 },
     elevation: 4,
@@ -1175,9 +1226,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "#F3E8FF",
+    backgroundColor: "rgba(139, 92, 246, 0.2)",
     borderWidth: 1,
-    borderColor: "#DDD6FE",
+    borderColor: "rgba(167, 139, 250, 0.35)",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 999,
@@ -1187,27 +1238,27 @@ const styles = StyleSheet.create({
   activityPillText: {
     fontSize: 11,
     fontFamily: VibeFonts.bold,
-    color: "#7C3AED",
+    color: "#C4B5FD",
     letterSpacing: 0.8,
   },
   heroTitle: {
     fontSize: 28,
     fontFamily: VibeFonts.extraBold,
-    color: "#18181B",
+    color: "#F4F6FB",
     letterSpacing: -0.6,
     lineHeight: 34,
   },
   heroTitleAccent: {
-    color: "#7C3AED",
+    color: "#A78BFA",
   },
   tagline: {
     marginTop: 6,
     fontSize: 14,
     fontFamily: VibeFonts.medium,
-    color: "#64748B",
+    color: "#A7B0C4",
     fontStyle: "italic",
   },
-  taglineHeart: { color: "#EC4899" },
+  taglineHeart: { color: "#F472B6" },
 
   body: {
     paddingHorizontal: 16,
@@ -1387,13 +1438,13 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontFamily: VibeFonts.extraBold,
-    color: "#18181B",
+    color: "#F4F6FB",
     marginBottom: 10,
   },
   aboutText: {
     fontSize: 13,
     fontFamily: VibeFonts.medium,
-    color: "#475569",
+    color: "#A7B0C4",
     lineHeight: 20,
     marginBottom: 12,
   },
@@ -1425,7 +1476,7 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 26,
     borderWidth: 2,
-    borderColor: "#fff",
+    borderColor: "#1A2238",
   },
   crownBadge: {
     position: "absolute",
@@ -1434,11 +1485,11 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: "#FFF7ED",
+    backgroundColor: "rgba(251, 191, 36, 0.2)",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#FDBA74",
+    borderColor: "rgba(251, 191, 36, 0.45)",
   },
   personAvatarWrap: {
     position: "relative",
@@ -1449,7 +1500,7 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 26,
     borderWidth: 2,
-    borderColor: C.card,
+    borderColor: "#1A2238",
   },
   onlineDot: {
     position: "absolute",
@@ -1551,8 +1602,8 @@ const styles = StyleSheet.create({
   scheduleCard: {},
   vibeCard: {
     overflow: "hidden",
-    backgroundColor: "#FFF5F9",
-    borderColor: "rgba(236,72,153,0.25)",
+    backgroundColor: "rgba(244, 114, 182, 0.1)",
+    borderColor: "rgba(244, 114, 182, 0.28)",
   },
   dualTitle: {
     fontSize: 14,
@@ -1691,7 +1742,7 @@ const styles = StyleSheet.create({
     zIndex: 40,
     borderTopWidth: 1,
     borderTopColor: C.border,
-    backgroundColor: "rgba(248,246,255,0.96)",
+    backgroundColor: "rgba(7, 10, 20, 0.92)",
     overflow: "hidden",
   },
   footerInner: {
@@ -1705,9 +1756,9 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 16,
-    backgroundColor: "rgba(239,68,68,0.1)",
+    backgroundColor: "rgba(239,68,68,0.16)",
     borderWidth: 1,
-    borderColor: "rgba(239,68,68,0.3)",
+    borderColor: "rgba(239,68,68,0.35)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1737,13 +1788,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FFFBEB",
+    backgroundColor: "rgba(251, 191, 36, 0.14)",
     borderWidth: 1,
-    borderColor: "#FCD34D",
+    borderColor: "rgba(251, 191, 36, 0.4)",
     borderRadius: 16,
   },
   pendingCtaText: {
-    color: "#D97706",
+    color: "#FBBF24",
     fontSize: 15,
     fontFamily: VibeFonts.bold,
   },
@@ -1751,32 +1802,51 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(139,92,246,0.35)",
+    borderColor: "rgba(139,92,246,0.4)",
     backgroundColor: C.softPurple,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
   },
+  hostCtaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  hostPillCompact: {
+    flex: 1,
+    height: 40,
+    borderRadius: 12,
+    gap: 5,
+    paddingHorizontal: 8,
+  },
+  hostPillGreen: {
+    backgroundColor: "rgba(34, 197, 94, 0.22)",
+    borderColor: "rgba(74, 222, 128, 0.5)",
+  },
   hostPillText: {
-    color: C.purpleDeep,
-    fontSize: 15,
+    color: "#C4B5FD",
+    fontSize: 12,
     fontFamily: VibeFonts.bold,
+  },
+  hostPillTextOnGreen: {
+    color: "#86EFAC",
   },
   rejectedPill: {
     height: 52,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(239,68,68,0.3)",
-    backgroundColor: "rgba(239,68,68,0.08)",
+    borderColor: "rgba(239,68,68,0.35)",
+    backgroundColor: "rgba(239,68,68,0.12)",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
   },
   rejectedPillText: {
-    color: "#DC2626",
-    fontSize: 15,
+    color: "#FCA5A5",
+    fontSize: 12,
     fontFamily: VibeFonts.bold,
   },
   cancelHint: {

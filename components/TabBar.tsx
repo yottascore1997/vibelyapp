@@ -22,9 +22,9 @@ const tabs = [
   },
   {
     name: "discover",
-    label: "Discover",
-    icon: "heart-outline" as const,
-    activeIcon: "heart" as const,
+    label: "Vibes",
+    icon: "albums-outline" as const,
+    activeIcon: "albums" as const,
     gradient: ["#EC4899", "#E11D48"] as const,
     accent: "#EC4899",
     hasBadge: false,
@@ -63,13 +63,16 @@ function TabItem({
   tab,
   active,
   onPress,
+  dark,
 }: {
   tab: (typeof tabs)[0];
   active: boolean;
   onPress: () => void;
+  dark: boolean;
 }) {
   const scale = useSharedValue(1);
   const anim = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const idleColor = dark ? "#94A3B8" : "#64748B";
 
   if (tab.isCenterSpot) {
     return (
@@ -88,11 +91,21 @@ function TabItem({
             colors={[...tab.gradient]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={styles.centerSpotBtnGrad}
+            style={[
+              styles.centerSpotBtnGrad,
+              dark && styles.centerSpotBtnGradDark,
+            ]}
           >
             <Ionicons name="flash" size={20} color="#FFFFFF" />
           </LinearGradient>
-          <Text style={styles.centerSpotLabel}>{tab.label}</Text>
+          <Text
+            style={[
+              styles.centerSpotLabel,
+              dark && styles.centerSpotLabelDark,
+            ]}
+          >
+            {tab.label}
+          </Text>
         </Animated.View>
       </Pressable>
     );
@@ -122,17 +135,19 @@ function TabItem({
             </LinearGradient>
           ) : (
             <View style={styles.iconIdle}>
-              <Ionicons name={tab.icon} size={20} color="#64748B" />
+              <Ionicons name={tab.icon} size={20} color={idleColor} />
             </View>
           )}
 
-          {tab.hasBadge && !active ? <View style={styles.badgeDot} /> : null}
+          {tab.hasBadge && !active ? (
+            <View style={[styles.badgeDot, dark && styles.badgeDotDark]} />
+          ) : null}
         </View>
 
         <Text
           style={[
             styles.label,
-            { color: active ? tab.accent : "#64748B" },
+            { color: active ? tab.accent : idleColor },
             active && styles.labelActive,
           ]}
           numberOfLines={1}
@@ -179,15 +194,20 @@ export default function TabBar({ dark = false }: { dark?: boolean }) {
   return (
     <>
       <View style={[styles.outerContainer, { paddingBottom: bottomMargin }]}>
-        <View style={styles.floatingShell}>
-          <BlurView intensity={70} tint="light" style={StyleSheet.absoluteFill} />
-          <View style={styles.bgOverlay} />
+        <View style={[styles.floatingShell, dark && styles.floatingShellDark]}>
+          <BlurView
+            intensity={dark ? 55 : 70}
+            tint={dark ? "dark" : "light"}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={[styles.bgOverlay, dark && styles.bgOverlayDark]} />
           <View style={styles.row}>
             {tabs.map((tab) => (
               <TabItem
                 key={tab.name}
                 tab={tab}
                 active={isActive(tab.name)}
+                dark={dark}
                 onPress={() => {
                   if (tab.isCenterSpot) {
                     router.push("/spot-broadcast");
@@ -208,7 +228,6 @@ export default function TabBar({ dark = false }: { dark?: boolean }) {
         </View>
       </View>
 
-      {/* Spot Beacon Modal */}
       <SpotBeaconModal
         visible={spotModalVisible}
         onClose={() => setSpotModalVisible(false)}
@@ -242,11 +261,19 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 10,
   },
+  floatingShellDark: {
+    backgroundColor: "rgba(15, 22, 38, 0.94)",
+    borderColor: "rgba(160, 170, 200, 0.18)",
+    shadowOpacity: 0.35,
+  },
   bgOverlay: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: 28,
     overflow: "hidden",
     backgroundColor: "rgba(255,255,255,0.85)",
+  },
+  bgOverlayDark: {
+    backgroundColor: "rgba(12, 18, 32, 0.72)",
   },
   row: {
     flex: 1,
@@ -286,6 +313,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#EF4444",
     borderWidth: 1.5,
     borderColor: "#FFFFFF",
+  },
+  badgeDotDark: {
+    borderColor: "#12182C",
   },
   label: {
     fontSize: 9.5,
@@ -332,10 +362,16 @@ const styles = StyleSheet.create({
     borderWidth: 2.5,
     borderColor: "#FFFFFF",
   },
+  centerSpotBtnGradDark: {
+    borderColor: "#1A2238",
+  },
   centerSpotLabel: {
     fontSize: 9.5,
     fontFamily: VibeFonts.extraBold,
     color: "#7C3AED",
     marginTop: 2,
+  },
+  centerSpotLabelDark: {
+    color: "#C4B5FD",
   },
 });

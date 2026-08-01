@@ -21,6 +21,8 @@ interface Props {
   scrollEnabled?: boolean;
   lightMode?: boolean;
   hideHeader?: boolean;
+  /** When true: no fill/orbs — parent supplies the backdrop (e.g. Hangout cinematic bg). */
+  transparentChrome?: boolean;
 }
 
 export default function PremiumScreen({
@@ -38,16 +40,26 @@ export default function PremiumScreen({
   scrollEnabled = true,
   lightMode = false,
   hideHeader = false,
+  transparentChrome = false,
 }: Props) {
   const insets = useSafeAreaInsets();
   const scrollPad = footer ? 160 + insets.bottom : 100;
   const { openSidebar } = useSidebar();
 
   return (
-    <View style={[styles.root, lightMode && { backgroundColor: "#EEE9F8" }]}>
-      <View style={[styles.orb, styles.orb1, lightMode && { backgroundColor: "rgba(167,139,250,0.16)" }]} />
-      <View style={[styles.orb, styles.orb2, lightMode && { backgroundColor: "rgba(125,211,252,0.1)" }]} />
-
+    <View
+      style={[
+        styles.root,
+        lightMode && !transparentChrome && { backgroundColor: "#EEE9F8" },
+        transparentChrome && { backgroundColor: "transparent" },
+      ]}
+    >
+      {!transparentChrome ? (
+        <>
+          <View style={[styles.orb, styles.orb1, lightMode && { backgroundColor: "rgba(167,139,250,0.16)" }]} />
+          <View style={[styles.orb, styles.orb2, lightMode && { backgroundColor: "rgba(125,211,252,0.1)" }]} />
+        </>
+      ) : null}
       {!hideHeader && (
         <ImageBackground source={{ uri: heroImage }} style={styles.hero}>
           <LinearGradient

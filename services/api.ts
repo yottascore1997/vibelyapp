@@ -135,6 +135,11 @@ export const api = {
     fetchApi(
       `/profiles?mode=${mode}&userId=${userId}${city ? `&city=${encodeURIComponent(city)}` : ""}`
     ),
+  undoSwipe: (receiverId: string) =>
+    fetchApi<{ undone?: boolean; matchRemoved?: boolean; action?: string }>("/swipe", {
+      method: "DELETE",
+      body: JSON.stringify({ receiverId }),
+    }),
   getMatches: (_userId?: string) => fetchApi(`/matches`),
   getLikes: (_userId?: string) => fetchApi<{ count: number; likes: unknown[] }>(`/likes`),
   getOnlineUsers: () => fetchApi("/users/online"),
@@ -145,8 +150,13 @@ export const api = {
     ),
   getMyPlans: (_userId?: string, kind?: string) =>
     fetchApi<Plan[]>(`/hangouts?mine=true${kind ? `&kind=${kind}` : ""}`),
-  getNearbyPlans: (_userId?: string, kind?: string) =>
-    fetchApi<Plan[]>(`/hangouts${kind ? `?kind=${kind}` : ""}`),
+  getNearbyPlans: (_userId?: string, kind?: string, maxKm?: number) => {
+    const qs = new URLSearchParams();
+    if (kind) qs.set("kind", kind);
+    if (maxKm != null) qs.set("maxKm", String(maxKm));
+    const q = qs.toString();
+    return fetchApi<Plan[]>(`/hangouts${q ? `?${q}` : ""}`);
+  },
   createPlan: (data: object) =>
     fetchApi<Plan>("/hangouts", { method: "POST", body: JSON.stringify(data) }),
   joinPlan: (planId: string, _userId?: string) =>
@@ -252,6 +262,7 @@ export const api = {
     timeLabel: string;
     inviteeName?: string;
     inviteePhone?: string;
+    hangoutId?: string;
   }) =>
     fetchApi<{
       id: string;
@@ -260,6 +271,7 @@ export const api = {
       whatsappUrl: string;
       shareMessage: string;
       senderName: string;
+      hangoutId?: string | null;
     }>("/invites/public-create", {
       method: "POST",
       body: JSON.stringify(data),

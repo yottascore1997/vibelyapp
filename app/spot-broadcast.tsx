@@ -34,22 +34,29 @@ import { PLAN_ACTIVITIES } from "../constants/plans";
 import { api } from "../services/api";
 import TabBar from "../components/TabBar";
 import AppHeader from "../components/vibe/AppHeader";
+import HangoutCinematicBackground from "../components/vibe/HangoutCinematicBackground";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 const BANNER_W = SCREEN_W - 32;
 
+/** Match Hangout — dark navy + multi-accent */
 const T = {
-  bg: "#F8F9FD",
-  card: "#FFFFFF",
-  ink: "#18181B",
-  muted: "#64748B",
-  faint: "#94A3B8",
-  border: "#E2E8F0",
-  purple: "#7C3AED",
-  softPurple: "#F3E8FF",
-  green: "#22C55E",
-  greenDark: "#16A34A",
-  cta: ["#7C3AED", "#8B5CF6"] as const,
+  bg: "#070A14",
+  card: "rgba(22, 26, 46, 0.94)",
+  cardElevated: "rgba(28, 32, 54, 0.96)",
+  ink: "#F4F6FB",
+  muted: "#A7B0C4",
+  faint: "#7C869C",
+  border: "rgba(160, 170, 200, 0.16)",
+  purple: "#A78BFA",
+  purpleDeep: "#8B5CF6",
+  softPurple: "rgba(139, 92, 246, 0.18)",
+  pink: "#F472B6",
+  green: "#34D399",
+  greenDark: "#10B981",
+  gold: "#FBBF24",
+  cta: ["#7C3AED", "#A78BFA"] as const,
+  promo: ["#6D28D9", "#8B5CF6", "#EC4899"] as const,
 };
 
 const FLUENT_3D = "https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets";
@@ -334,6 +341,7 @@ export default function SpotBroadcastScreen() {
           vibe: selectedAct.name,
           emoji: selectedAct.emoji,
           duration: String(duration),
+          activityId: selectedAct.id,
         },
       });
     }
@@ -363,61 +371,65 @@ export default function SpotBroadcastScreen() {
 
   return (
     <View style={styles.root}>
-      <StatusBar style="dark" backgroundColor={T.bg} />
+      <HangoutCinematicBackground />
+      <StatusBar style="light" backgroundColor={T.bg} />
 
-      <AppHeader variant="light" tagline="Live spots · Instant meetups" />
+      <View style={styles.foreground}>
+        <AppHeader variant="dark" tagline="Live spots · Instant meetups" />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {/* Sliding banner */}
-        <View style={styles.bannerWrap}>
-          <FlatList
-            ref={bannerRef}
-            data={SPOT_BANNERS}
-            keyExtractor={(item) => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            snapToInterval={BANNER_W + 12}
-            decelerationRate="fast"
-            onScroll={onBannerScroll}
-            scrollEventThrottle={16}
-            onScrollToIndexFailed={() => {}}
-            contentContainerStyle={{ paddingHorizontal: 16 }}
-            renderItem={({ item, index }) => (
-              <Animated.View
-                entering={FadeInUp.delay(index * 40).duration(350)}
-                style={{ width: BANNER_W, marginRight: 12 }}
-              >
-                <View style={styles.bannerCard}>
-                  <Image source={{ uri: item.image }} style={styles.bannerImage} />
-                  <LinearGradient
-                    colors={["rgba(15,23,42,0.15)", "rgba(15,23,42,0.75)"]}
-                    style={styles.bannerOverlay}
-                  >
-                    <View style={styles.bannerTag}>
-                      <Text style={styles.bannerTagText}>{item.tag}</Text>
-                    </View>
-                    <Text style={styles.bannerEmoji}>{item.emoji}</Text>
-                    <Text style={styles.bannerTitle}>{item.title}</Text>
-                    <Text style={styles.bannerSub}>{item.subtitle}</Text>
-                  </LinearGradient>
-                </View>
-              </Animated.View>
-            )}
-          />
-          <View style={styles.bannerDots}>
-            {SPOT_BANNERS.map((b, i) => (
-              <View key={b.id} style={[styles.bannerDot, i === bannerIndex && styles.bannerDotActive]} />
-            ))}
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+          {/* Sliding banner */}
+          <View style={styles.bannerWrap}>
+            <FlatList
+              ref={bannerRef}
+              data={SPOT_BANNERS}
+              keyExtractor={(item) => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              snapToInterval={BANNER_W + 12}
+              decelerationRate="fast"
+              onScroll={onBannerScroll}
+              scrollEventThrottle={16}
+              onScrollToIndexFailed={() => {}}
+              contentContainerStyle={{ paddingHorizontal: 16 }}
+              renderItem={({ item, index }) => (
+                <Animated.View
+                  entering={FadeInUp.delay(index * 40).duration(350)}
+                  style={{ width: BANNER_W, marginRight: 12 }}
+                >
+                  <View style={styles.bannerCard}>
+                    <Image source={{ uri: item.image }} style={styles.bannerImage} />
+                    <LinearGradient
+                      colors={["rgba(7,10,20,0.2)", "rgba(7,10,20,0.88)"]}
+                      style={styles.bannerOverlay}
+                    >
+                      <View style={styles.bannerTag}>
+                        <View style={styles.bannerTagDot} />
+                        <Text style={styles.bannerTagText}>{item.tag}</Text>
+                      </View>
+                      <Text style={styles.bannerEmoji}>{item.emoji}</Text>
+                      <Text style={styles.bannerTitle}>{item.title}</Text>
+                      <Text style={styles.bannerSub}>{item.subtitle}</Text>
+                    </LinearGradient>
+                  </View>
+                </Animated.View>
+              )}
+            />
+            <View style={styles.bannerDots}>
+              {SPOT_BANNERS.map((b, i) => (
+                <View key={b.id} style={[styles.bannerDot, i === bannerIndex && styles.bannerDotActive]} />
+              ))}
+            </View>
           </View>
-        </View>
 
-        {/* Active spots — compact */}
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Active Spots 🔥</Text>
-          <TouchableOpacity onPress={() => router.push("/hangout")}>
-            <Text style={styles.seeAllText}>See All ›</Text>
-          </TouchableOpacity>
-        </View>
+          {/* Active spots — compact */}
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Active Spots</Text>
+            <TouchableOpacity onPress={() => router.push("/hangout")} style={styles.seeAllPill}>
+              <Text style={styles.seeAllText}>See All</Text>
+              <Ionicons name="chevron-forward" size={12} color={T.purple} />
+            </TouchableOpacity>
+          </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.eventsScroll}>
           {eventsList.map((evt, idx) => (
@@ -435,7 +447,7 @@ export default function SpotBroadcastScreen() {
                   style={styles.eventImage}
                 />
                 <LinearGradient
-                  colors={["transparent", "rgba(15,23,42,0.88)"]}
+                  colors={["transparent", "rgba(7,10,20,0.92)"]}
                   style={styles.eventOverlay}
                 >
                   <View style={styles.eventBadge}>
@@ -484,17 +496,23 @@ export default function SpotBroadcastScreen() {
 
         {/* Broadcast — Pick Activity style */}
         <Animated.View entering={FadeInUp.delay(80).duration(400)} style={styles.broadcastSection}>
+          <LinearGradient
+            colors={["rgba(124,58,237,0.22)", "rgba(236,72,153,0.08)", "transparent"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.broadcastGlow}
+          />
           <View style={styles.sectionHead}>
             <LinearGradient colors={[...T.cta]} style={styles.stepBadge}>
               <Ionicons name="radio" size={11} color="#fff" />
             </LinearGradient>
             <View style={{ flex: 1 }}>
               <Text style={styles.broadcastTitle}>Broadcast Live Spot</Text>
-              <Text style={styles.broadcastSub}>Tap a 3D move to start</Text>
+              <Text style={styles.broadcastSub}>Tap a vibe · then scan nearby</Text>
             </View>
             <View style={styles.hotPill}>
               <Ionicons name="flash" size={9} color="#fff" />
-              <Text style={styles.hotPillText}>HOT</Text>
+              <Text style={styles.hotPillText}>LIVE</Text>
             </View>
           </View>
 
@@ -550,7 +568,7 @@ export default function SpotBroadcastScreen() {
               disabled={loading}
               activeOpacity={0.9}
             >
-              <LinearGradient colors={["#7C3AED", "#8B5CF6"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.broadcastBtnGrad}>
+              <LinearGradient colors={[...T.cta]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.broadcastBtnGrad}>
                 {loading ? (
                   <ActivityIndicator color="#FFF" />
                 ) : (
@@ -573,9 +591,10 @@ export default function SpotBroadcastScreen() {
             </TouchableOpacity>
           </View>
         </Animated.View>
-      </ScrollView>
+        </ScrollView>
+      </View>
 
-      <TabBar dark={false} />
+      <TabBar dark />
     </View>
   );
 }
@@ -584,6 +603,11 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: T.bg,
+  },
+  foreground: {
+    flex: 1,
+    zIndex: 1,
+    backgroundColor: "transparent",
   },
   scrollContent: {
     paddingTop: 4,
@@ -597,7 +621,9 @@ const styles = StyleSheet.create({
     height: 148,
     borderRadius: 22,
     overflow: "hidden",
-    backgroundColor: "#1E1B4B",
+    backgroundColor: "#1A2238",
+    borderWidth: 1,
+    borderColor: T.border,
   },
   bannerImage: {
     ...StyleSheet.absoluteFillObject,
@@ -611,11 +637,20 @@ const styles = StyleSheet.create({
   },
   bannerTag: {
     alignSelf: "flex-start",
-    backgroundColor: "rgba(124,58,237,0.9)",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(124,58,237,0.92)",
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
     marginBottom: 8,
+  },
+  bannerTagDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#34D399",
   },
   bannerTagText: {
     color: "#FFF",
@@ -651,11 +686,11 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: "#DDD6FE",
+    backgroundColor: "rgba(167,139,250,0.35)",
   },
   bannerDotActive: {
     width: 18,
-    backgroundColor: "#8B5CF6",
+    backgroundColor: T.purple,
   },
 
   sectionHeaderRow: {
@@ -669,6 +704,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: VibeFonts.extraBold,
     color: T.ink,
+  },
+  seeAllPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    backgroundColor: T.softPurple,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
   },
   seeAllText: {
     fontSize: 12,
@@ -690,7 +734,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: T.card,
     borderWidth: 1,
-    borderColor: "#EDE7FF",
+    borderColor: T.border,
   },
   eventImage: {
     ...StyleSheet.absoluteFillObject,
@@ -706,7 +750,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 10,
     left: 10,
-    backgroundColor: "rgba(124,58,237,0.9)",
+    backgroundColor: "rgba(124,58,237,0.92)",
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 999,
@@ -751,7 +795,7 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 11,
     borderWidth: 1.5,
-    borderColor: "#FFF",
+    borderColor: "#1A2238",
   },
   hostName: {
     fontSize: 11,
@@ -769,7 +813,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 6,
     paddingVertical: 9,
-    backgroundColor: T.green,
+    backgroundColor: T.greenDark,
   },
   joinEventText: {
     color: "#FFF",
@@ -779,16 +823,15 @@ const styles = StyleSheet.create({
 
   broadcastSection: {
     marginHorizontal: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: T.card,
     borderRadius: 24,
     padding: 16,
     borderWidth: 1,
-    borderColor: "#EDE7FF",
-    shadowColor: T.purple,
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+    borderColor: "rgba(167, 139, 250, 0.28)",
+    overflow: "hidden",
+  },
+  broadcastGlow: {
+    ...StyleSheet.absoluteFillObject,
   },
   sectionHead: {
     flexDirection: "row",
@@ -818,7 +861,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
-    backgroundColor: "#F97316",
+    backgroundColor: "#DB2777",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 999,
@@ -878,10 +921,10 @@ const styles = StyleSheet.create({
   inputWrap: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: T.bg,
+    backgroundColor: "rgba(15, 22, 38, 0.9)",
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#EDE7FF",
+    borderColor: T.border,
     height: 46,
     marginBottom: 12,
     paddingHorizontal: 6,
@@ -922,12 +965,12 @@ const styles = StyleSheet.create({
     gap: 5,
     paddingVertical: 11,
     borderRadius: 12,
-    backgroundColor: T.bg,
+    backgroundColor: "rgba(15, 22, 38, 0.9)",
     borderWidth: 1,
     borderColor: T.border,
   },
   timeChipSelected: {
-    backgroundColor: T.purple,
+    backgroundColor: T.purpleDeep,
     borderColor: T.purple,
   },
   timeEmoji: { fontSize: 14 },
@@ -969,7 +1012,7 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 13,
     borderRadius: 14,
-    backgroundColor: "#22C55E",
+    backgroundColor: T.greenDark,
   },
   shareBtnText: {
     color: "#FFF",

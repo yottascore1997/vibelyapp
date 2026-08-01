@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   Alert,
   Image,
-  TextInput,
   StatusBar,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -17,7 +16,7 @@ import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import PremiumScreen from "../components/vibe/PremiumScreen";
 import AppHeader from "../components/vibe/AppHeader";
-import StarrySkyBackground from "../components/vibe/StarrySkyBackground";
+import HangoutCinematicBackground from "../components/vibe/HangoutCinematicBackground";
 import { usePlans } from "../context/PlansContext";
 import { useAuth } from "../context/AuthContext";
 import { useMatches } from "../context/MatchesContext";
@@ -25,39 +24,32 @@ import { VibeFonts } from "../constants/vibeTheme";
 import { Spacing } from "../constants/theme";
 import { api } from "../services/api";
 import TabBar from "../components/TabBar";
+import CreatePlanFab from "../components/CreatePlanFab";
 import { ReelsContent } from "./reels";
 
 const friendsHangout3d = require("../assets/friends_hangout_3d.png");
 
-/** Clean light minimal aesthetic matching reference screenshot */
+/** Premium dark hangout — multi-accent (purple / mint / gold), not mono-green */
 const T = {
-  bg: "#F8F9FD",
-  card: "#FFFFFF",
-  cardElevated: "#FFFFFF",
-  ink: "#18181B",
-  muted: "#64748B",
-  faint: "#94A3B8",
-  border: "#E2E8F0",
-  purple: "#7C3AED",
-  purpleDeep: "#6D28D9",
-  purpleBright: "#8B5CF6",
-  softPurple: "#F3E8FF",
-  pink: "#EC4899",
-  green: "#10B981",
-  yellow: "#F59E0B",
-  red: "#EF4444",
-  blue: "#2563EB",
-  cta: ["#7C3AED", "#8B5CF6"] as const,
-  promo: ["#7C3AED", "#8B5CF6", "#EC4899"] as const,
+  bg: "#070A14",
+  card: "rgba(22, 26, 46, 0.94)",
+  cardElevated: "rgba(28, 32, 54, 0.96)",
+  ink: "#F4F6FB",
+  muted: "#A7B0C4",
+  faint: "#7C869C",
+  border: "rgba(160, 170, 200, 0.16)",
+  purple: "#A78BFA",
+  purpleDeep: "#8B5CF6",
+  purpleBright: "#C4B5FD",
+  softPurple: "rgba(139, 92, 246, 0.16)",
+  pink: "#F472B6",
+  green: "#34D399",
+  yellow: "#FBBF24",
+  red: "#F87171",
+  blue: "#60A5FA",
+  cta: ["#7C3AED", "#A78BFA"] as const,
+  promo: ["#6D28D9", "#8B5CF6", "#EC4899"] as const,
 };
-
-const filters = [
-  { key: "All", label: "All Moves", icon: "grid" as const },
-  { key: "Public", label: "Public 🌍", icon: "earth" as const },
-  { key: "Friends", label: "Friends Only 🔒", icon: "lock-closed" as const },
-  { key: "Near You", label: "Near You", icon: "navigate" as const },
-  { key: "Today", label: "Today", icon: "calendar" as const },
-];
 
 const MOCK_AVATARS = [
   "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop",
@@ -130,9 +122,8 @@ export default function HangoutScreen() {
   const { myPlans, nearbyPlans, joinPlan, getRequestStatus, refresh } = usePlans();
   const { matches } = useMatches();
 
-  const [activeFilter, setActiveFilter] = useState("All");
-  const [hangoutMode, setHangoutMode] = useState<"PUBLIC" | "CLOSE_FRIENDS" | "MY_PLANS">("PUBLIC");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [hangoutMode, setHangoutMode] = useState<"FRIENDS_PLANS" | "MY_PLANS">("FRIENDS_PLANS");
+  const [planVisibility, setPlanVisibility] = useState<"PUBLIC" | "FRIENDS_ONLY">("PUBLIC");
   const [dynamicActivities, setDynamicActivities] = useState<any[]>(activitiesFallback);
   const [selectedFriend, setSelectedFriend] = useState<any>(null);
   const [selectedVibeAct, setSelectedVibeAct] = useState("beer");
@@ -274,33 +265,19 @@ export default function HangoutScreen() {
     }
   };
 
-  const filteredPlans = nearbyPlans.filter((plan) => {
-    if (searchQuery.trim().length > 0) {
-      const q = searchQuery.toLowerCase();
-      const matchTitle = plan.title?.toLowerCase().includes(q);
-      const matchDesc = plan.description?.toLowerCase().includes(q);
-      const matchLoc = plan.location?.toLowerCase().includes(q);
-      if (!matchTitle && !matchDesc && !matchLoc) return false;
+  const filteredPlans = useMemo(() => {
+    if (planVisibility === "FRIENDS_ONLY") {
+      return nearbyPlans.filter((p) => p.isPrivate || p.visibility === "FRIENDS");
     }
+    return nearbyPlans.filter((p) => !p.isPrivate && p.visibility !== "FRIENDS");
+  }, [nearbyPlans, planVisibility]);
 
-    if (activeFilter === "All") return true;
-    if (activeFilter === "Public") return !plan.isPrivate && plan.visibility !== "FRIENDS";
-    if (activeFilter === "Friends") return plan.isPrivate || plan.visibility === "FRIENDS";
-    if (activeFilter === "Near You") return (plan.distance || 0) < 5.0;
-    if (activeFilter === "Today") {
-      return (
-        plan.badge?.toLowerCase() === "today" ||
-        plan.timeLabel?.toLowerCase().includes("today")
-      );
-    }
-    return true;
-  });
-
-  const yourPlansList = useMemo(() => {
+  const othersPlans = useMemo(() => {
     const mineIds = new Set(myPlans.map((p) => p.id));
-    const near = filteredPlans.filter((p) => !mineIds.has(p.id));
-    return [...myPlans, ...near];
-  }, [myPlans, filteredPlans]);
+    return filteredPlans.filter(
+      (p) => !mineIds.has(p.id) && p.creatorId !== user?.id
+    );
+  }, [filteredPlans, myPlans, user?.id]);
 
   const venueCards = useMemo(() => {
     const fromPlans = filteredPlans
@@ -326,15 +303,18 @@ export default function HangoutScreen() {
   }, [filteredPlans]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: T.bg }}>
-      <StatusBar barStyle="dark-content" backgroundColor={T.bg} />
-      <AppHeader variant="light" tagline="Post & join plans · Real Moves" />
+    <View style={styles.screenRoot}>
+      <HangoutCinematicBackground />
+      <StatusBar barStyle="light-content" backgroundColor="#070A14" />
+      <View style={styles.screenForeground}>
+      <AppHeader variant="dark" tagline="Post & join plans · Real Moves" />
 
       <PremiumScreen
         heroImage=""
         title=""
         hideHeader={true}
         lightMode={true}
+        transparentChrome={true}
         contentStyle={{ paddingHorizontal: 0, paddingTop: 0, backgroundColor: "transparent", paddingBottom: 120 + insets.bottom }}
       >
         <View style={{ height: insets.top + 4 }} />
@@ -344,7 +324,7 @@ export default function HangoutScreen() {
           <View style={styles.doodleRow}>
             <View style={styles.doodlePill}>
               <Text style={styles.doodleText}>Post & join plans</Text>
-              <Ionicons name="return-down-forward" size={14} color="#7C3AED" />
+              <Ionicons name="return-down-forward" size={14} color="#A78BFA" />
             </View>
             <View style={styles.liveNowBadge}>
               <View style={styles.liveDot} />
@@ -355,7 +335,7 @@ export default function HangoutScreen() {
             Swipe plans, <Text style={styles.sloganHighlight}>not profiles! ✨</Text>
           </Text>
           <LinearGradient
-            colors={["#7C3AED", "#EC4899", "#F59E0B"]}
+            colors={["#8B5CF6", "#F472B6", "#FBBF24"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.sloganUnderline}
@@ -382,7 +362,7 @@ export default function HangoutScreen() {
                   <View style={styles.orbGlint} />
                 </LinearGradient>
               </View>
-              <Text style={[styles.orbLabel, { color: "#16A34A" }]}>Lessgo</Text>
+              <Text style={[styles.orbLabel, { color: "#6EE7B7" }]}>Lessgo</Text>
             </TouchableOpacity>
 
             {/* Maybe */}
@@ -401,7 +381,7 @@ export default function HangoutScreen() {
                   <View style={styles.orbGlint} />
                 </LinearGradient>
               </View>
-              <Text style={[styles.orbLabel, { color: "#D97706" }]}>Maybe</Text>
+              <Text style={[styles.orbLabel, { color: "#FBBF24" }]}>Maybe</Text>
             </TouchableOpacity>
 
             {/* Off grid */}
@@ -420,83 +400,35 @@ export default function HangoutScreen() {
                   <View style={styles.orbGlint} />
                 </LinearGradient>
               </View>
-              <Text style={[styles.orbLabel, { color: "#DC2626" }]}>Off grid</Text>
+              <Text style={[styles.orbLabel, { color: "#FCA5A5" }]}>Off grid</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Search */}
-        <View style={styles.searchSection}>
-          <View style={styles.searchBarWrapper}>
-            <Ionicons name="search" size={18} color={T.muted} style={{ marginRight: 8 }} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search plans, people or activities..."
-              placeholderTextColor={T.faint}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-          </View>
-          <Pressable style={styles.searchFilterBtn} onPress={() => router.push("/events-map")}>
-            <LinearGradient
-              colors={[...T.cta]}
-              style={StyleSheet.absoluteFill}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            />
-            <Ionicons name="map" size={18} color="#fff" />
-          </Pressable>
-        </View>
-
-        {/* 3-Tab Segmented Mode Switcher */}
+        {/* 2-Tab: Friends Plans | My Plans */}
         <View style={styles.modeSwitcherTrack}>
-          {/* Public Plans */}
           <Pressable
-            onPress={() => setHangoutMode("PUBLIC")}
+            onPress={() => setHangoutMode("FRIENDS_PLANS")}
             style={[
               styles.modeSwitcherBtn,
-              hangoutMode === "PUBLIC" && styles.modeBtnActivePublic,
-            ]}
-          >
-            <Ionicons
-              name="earth"
-              size={13}
-              color={hangoutMode === "PUBLIC" ? "#FFFFFF" : "#64748B"}
-            />
-            <Text
-              style={[
-                styles.modeSwitcherText,
-                hangoutMode === "PUBLIC" && styles.modeTextActiveWhite,
-              ]}
-            >
-              Public Plans
-            </Text>
-          </Pressable>
-
-          {/* Close Friends */}
-          <Pressable
-            onPress={() => setHangoutMode("CLOSE_FRIENDS")}
-            style={[
-              styles.modeSwitcherBtn,
-              hangoutMode === "CLOSE_FRIENDS" && styles.modeBtnActivePink,
+              hangoutMode === "FRIENDS_PLANS" && styles.modeBtnActivePublic,
             ]}
           >
             <Ionicons
               name="people"
               size={13}
-              color={hangoutMode === "CLOSE_FRIENDS" ? "#FFFFFF" : "#64748B"}
+              color={hangoutMode === "FRIENDS_PLANS" ? "#FFFFFF" : "#A8B4C8"}
             />
             <Text
               style={[
                 styles.modeSwitcherText,
-                hangoutMode === "CLOSE_FRIENDS" && styles.modeTextActiveWhite,
+                hangoutMode === "FRIENDS_PLANS" && styles.modeTextActiveWhite,
               ]}
             >
-              Close Friends
+              Friends Plans
             </Text>
           </Pressable>
 
-          {/* My Plans */}
           <Pressable
             onPress={() => setHangoutMode("MY_PLANS")}
             style={[
@@ -507,7 +439,7 @@ export default function HangoutScreen() {
             <Ionicons
               name="calendar"
               size={13}
-              color={hangoutMode === "MY_PLANS" ? "#FFFFFF" : "#64748B"}
+              color={hangoutMode === "MY_PLANS" ? "#FFFFFF" : "#A8B4C8"}
             />
             <Text
               style={[
@@ -520,40 +452,64 @@ export default function HangoutScreen() {
           </Pressable>
         </View>
 
-        {/* MODE CONTENT SWITCHING */}
-        {hangoutMode === "PUBLIC" ? (
+        {hangoutMode === "FRIENDS_PLANS" ? (
           <View>
-            {/* Filter chips */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.filtersScroll}
-              contentContainerStyle={{ paddingLeft: 16, paddingRight: 24 }}
-            >
-              {filters.map((f) => {
-                const isActive = activeFilter === f.key;
-                return (
-                  <Pressable key={f.key} onPress={() => setActiveFilter(f.key)}>
-                    {isActive ? (
-                      <View style={styles.filterPillActive}>
-                        <Ionicons name={f.icon} size={14} color="#fff" />
-                        <Text style={styles.filterTextActive}>{f.label}</Text>
-                      </View>
-                    ) : (
-                      <View style={styles.filterPillInactive}>
-                        <Ionicons name={`${f.icon}-outline` as any} size={14} color={T.muted} />
-                        <Text style={styles.filterTextInactive}>{f.label}</Text>
-                      </View>
-                    )}
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
+            {/* Public vs Friends-only inside one place */}
+            <View style={styles.visibilityToggle}>
+              <Pressable
+                onPress={() => setPlanVisibility("PUBLIC")}
+                style={[
+                  styles.visibilityChip,
+                  planVisibility === "PUBLIC" && styles.visibilityChipActive,
+                ]}
+              >
+                <Ionicons
+                  name="earth"
+                  size={13}
+                  color={planVisibility === "PUBLIC" ? "#34D399" : T.muted}
+                />
+                <Text
+                  style={[
+                    styles.visibilityChipText,
+                    planVisibility === "PUBLIC" && styles.visibilityChipTextActive,
+                  ]}
+                >
+                  Public
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setPlanVisibility("FRIENDS_ONLY")}
+                style={[
+                  styles.visibilityChip,
+                  planVisibility === "FRIENDS_ONLY" && styles.visibilityChipActiveFriends,
+                ]}
+              >
+                <Ionicons
+                  name="lock-closed"
+                  size={13}
+                  color={planVisibility === "FRIENDS_ONLY" ? "#F472B6" : T.muted}
+                />
+                <Text
+                  style={[
+                    styles.visibilityChipText,
+                    planVisibility === "FRIENDS_ONLY" && styles.visibilityChipTextActiveFriends,
+                  ]}
+                >
+                  Closed · Friends only
+                </Text>
+              </Pressable>
+            </View>
 
+            {planVisibility === "FRIENDS_ONLY" ? (
+              <View style={{ flex: 1, minHeight: 650, marginTop: 4 }}>
+                <ReelsContent embed={true} initialTab="invite" hideSegTabs={true} />
+              </View>
+            ) : (
+              <View>
             {/* Hero */}
             <View style={styles.heroCardContainer}>
               <LinearGradient
-                colors={["#1E1B4B", "#2E1065", "#0F172A"]}
+                colors={["#1A1530", "#151B2E", "#0E1424"]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.heroCard}
@@ -565,7 +521,7 @@ export default function HangoutScreen() {
 
                 <View style={styles.heroCardLeft}>
                   <View style={styles.luxePill}>
-                    <Ionicons name="diamond" size={10} color={T.purple} />
+                    <Ionicons name="diamond" size={10} color="#FBBF24" />
                     <Text style={styles.luxePillText}>PREMIUM</Text>
                   </View>
                   <Text style={styles.heroCardTitle}>What's the plan{"\n"}today?</Text>
@@ -620,7 +576,6 @@ export default function HangoutScreen() {
                   <Pressable
                     key={act.id}
                     style={styles.popCardWrap}
-                    onPress={() => setSearchQuery(act.name)}
                   >
                     <LinearGradient
                       colors={theme.bgGrad as any}
@@ -676,9 +631,9 @@ export default function HangoutScreen() {
               })}
             </ScrollView>
 
-            {/* Your Plans */}
+            {/* Others' plans to join — not your own */}
             <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionTitle}>Your Plans ✨</Text>
+              <Text style={styles.sectionTitle}>Plans near you</Text>
               <Pressable onPress={refresh} style={styles.refreshRow}>
                 <Ionicons name="refresh" size={14} color={T.purple} />
                 <Text style={styles.seeAllText}>Refresh</Text>
@@ -686,23 +641,20 @@ export default function HangoutScreen() {
             </View>
 
             <View style={styles.plansListContainer}>
-              {yourPlansList.length === 0 ? (
+              {othersPlans.length === 0 ? (
                 <View style={styles.emptyCard}>
                   <Text style={styles.emptyEmoji}>🌙</Text>
-                  <Text style={styles.emptyTitle}>No plans yet</Text>
+                  <Text style={styles.emptyTitle}>No plans nearby</Text>
                   <Text style={styles.emptySub}>
-                    Create a plan or join one nearby to see it here.
+                    Be the first — create a plan and invite others.
                   </Text>
-                  <Pressable onPress={() => router.push("/create-plan")} style={styles.emptyCta}>
-                    <Text style={styles.emptyCtaText}>+ Create a Plan</Text>
-                  </Pressable>
                 </View>
               ) : (
-                yourPlansList.map((plan) => (
+                othersPlans.map((plan) => (
                   <MockupPlanCard
                     key={plan.id}
                     plan={plan}
-                    isMine={plan.creatorId === user?.id || myPlans.some((m) => m.id === plan.id)}
+                    isMine={false}
                     requestStatus={getRequestStatus(plan.id)}
                     onJoin={() => handleRequestJoin(plan.id)}
                   />
@@ -728,7 +680,6 @@ export default function HangoutScreen() {
                 <Pressable
                   key={venue.id}
                   style={styles.venueCard}
-                  onPress={() => setSearchQuery(venue.name)}
                 >
                   <Image source={{ uri: venue.image }} style={styles.venueImage} />
                   <LinearGradient
@@ -771,22 +722,53 @@ export default function HangoutScreen() {
                 </Pressable>
               </LinearGradient>
             </View>
-          </View>
-        ) : hangoutMode === "CLOSE_FRIENDS" ? (
-          /* MODE 2: CLOSE FRIENDS (Invite form with Quick Activities) */
-          <View style={{ flex: 1, minHeight: 650, marginTop: 4 }}>
-            <ReelsContent embed={true} initialTab="invite" hideSegTabs={true} />
+              </View>
+            )}
           </View>
         ) : (
-          /* MODE 3: MY PLANS (Friend plans list) */
-          <View style={{ flex: 1, minHeight: 650, marginTop: 4 }}>
-            <ReelsContent embed={true} initialTab="plans" hideSegTabs={true} />
+          /* My Plans — your hosted / joined hangouts */
+          <View style={{ flex: 1, marginTop: 8, minHeight: 400 }}>
+            <View style={[styles.myPlansHeaderRow, { paddingHorizontal: 16 }]}>
+              <View>
+                <Text style={styles.myPlansHeading}>Your hangouts</Text>
+                <Text style={styles.myPlansSub}>
+                  Plans you host, joined, or requested
+                </Text>
+              </View>
+              <Pressable onPress={refresh} style={styles.refreshRow}>
+                <Ionicons name="refresh" size={14} color={T.purple} />
+                <Text style={styles.seeAllText}>Refresh</Text>
+              </Pressable>
+            </View>
+            {myPlans.length === 0 ? (
+              <View style={[styles.myPlansEmpty, { marginHorizontal: 16 }]}>
+                <Ionicons name="calendar-outline" size={36} color={T.faint} />
+                <Text style={styles.myPlansEmptyTitle}>No plans yet</Text>
+                <Text style={styles.myPlansEmptySub}>
+                  Create a hangout with the green button, or join one from Friends Plans.
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.plansListContainer}>
+                {myPlans.map((plan) => (
+                  <MockupPlanCard
+                    key={plan.id}
+                    plan={plan}
+                    isMine={plan.creatorId === user?.id}
+                    requestStatus={getRequestStatus(plan.id)}
+                    onJoin={() => handleRequestJoin(plan.id)}
+                  />
+                ))}
+              </View>
+            )}
           </View>
         )}
 
         <View style={{ height: 16 }} />
       </PremiumScreen>
-      <TabBar dark={false} />
+      <CreatePlanFab />
+      <TabBar dark={true} />
+      </View>
     </View>
   );
 }
@@ -844,7 +826,7 @@ function MockupPlanCard({
         </View>
 
         <View style={styles.floatingSparkleBadge}>
-          <Ionicons name="sparkles" size={13} color="#7C3AED" />
+          <Ionicons name="sparkles" size={13} color="#A78BFA" />
         </View>
       </View>
 
@@ -863,7 +845,7 @@ function MockupPlanCard({
         <View style={styles.cardMetaLine}>
           <View style={styles.spotsRow}>
             <LinearGradient
-              colors={["#7C3AED", "#EC4899"]}
+              colors={["#8B5CF6", "#EC4899"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.spotsCountBadge}
@@ -889,7 +871,7 @@ function MockupPlanCard({
 
         <View style={styles.cardFooterRow}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 4, flex: 1 }}>
-            <Ionicons name="location" size={12} color="#7C3AED" />
+            <Ionicons name="location" size={12} color="#A78BFA" />
             <Text style={styles.cardTimeText} numberOfLines={1}>
               {plan.timeLabel || plan.time || "Today"} · {plan.location || "Nearby"}
             </Text>
@@ -944,48 +926,48 @@ function getActivityCardTheme(name: string) {
   const n = name.toLowerCase();
   if (n.includes("coffee") || n.includes("cafe")) {
     return {
-      bgGrad: ["#FFFDF5", "#FEF3C7"],
+      bgGrad: ["#1F1A2E", "#1A1624"],
       iconGrad: ["#F59E0B", "#D97706"],
-      accent: "#B45309",
+      accent: "#FBBF24",
       tag: "POPULAR ☕",
     };
   }
   if (n.includes("food") || n.includes("pizza") || n.includes("burger")) {
     return {
-      bgGrad: ["#FFF7ED", "#FFEDD5"],
+      bgGrad: ["#241A1E", "#1C1518"],
       iconGrad: ["#F97316", "#EA580C"],
-      accent: "#C2410C",
+      accent: "#FB923C",
       tag: "TRENDING 🍕",
     };
   }
   if (n.includes("movie") || n.includes("film") || n.includes("cinema")) {
     return {
-      bgGrad: ["#F5F3FF", "#EDE9FE"],
-      iconGrad: ["#8B5CF6", "#7C3AED"],
-      accent: "#6D28D9",
+      bgGrad: ["#1A1630", "#151228"],
+      iconGrad: ["#A78BFA", "#7C3AED"],
+      accent: "#C4B5FD",
       tag: "HOT 🍿",
     };
   }
   if (n.includes("sport") || n.includes("gym") || n.includes("run")) {
     return {
-      bgGrad: ["#F0FDF4", "#DCFCE7"],
-      iconGrad: ["#22C55E", "#16A34A"],
-      accent: "#15803D",
+      bgGrad: ["#14241E", "#101C1A"],
+      iconGrad: ["#34D399", "#059669"],
+      accent: "#6EE7B7",
       tag: "ACTIVE 🏃",
     };
   }
   if (n.includes("drive") || n.includes("ride") || n.includes("bike")) {
     return {
-      bgGrad: ["#FDF2F8", "#FCE7F3"],
+      bgGrad: ["#221528", "#1A1220"],
       iconGrad: ["#EC4899", "#DB2777"],
-      accent: "#BE185D",
+      accent: "#F9A8D4",
       tag: "VIBE 🏎️",
     };
   }
   return {
-    bgGrad: ["#F0F9FF", "#E0F2FE"],
-    iconGrad: ["#0EA5E9", "#0284C7"],
-    accent: "#0369A1",
+    bgGrad: ["#161E32", "#121828"],
+    iconGrad: ["#60A5FA", "#3B82F6"],
+    accent: "#93C5FD",
     tag: "LIVE ✨",
   };
 }
@@ -1000,6 +982,56 @@ function getEmojiForTitle(title?: string) {
 }
 
 const styles = StyleSheet.create({
+  screenRoot: {
+    flex: 1,
+    backgroundColor: "#070A14",
+  },
+  screenForeground: {
+    flex: 1,
+    zIndex: 1,
+    backgroundColor: "transparent",
+  },
+  myPlansHeaderRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    marginBottom: 14,
+    gap: 12,
+  },
+  myPlansHeading: {
+    fontSize: 20,
+    fontFamily: VibeFonts.extraBold,
+    color: T.ink,
+    marginBottom: 4,
+  },
+  myPlansSub: {
+    fontSize: 13,
+    fontFamily: VibeFonts.medium,
+    color: T.muted,
+  },
+  myPlansEmpty: {
+    alignItems: "center",
+    paddingVertical: 48,
+    paddingHorizontal: 24,
+    backgroundColor: T.card,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: T.border,
+  },
+  myPlansEmptyTitle: {
+    marginTop: 12,
+    fontSize: 16,
+    fontFamily: VibeFonts.bold,
+    color: T.ink,
+  },
+  myPlansEmptySub: {
+    marginTop: 6,
+    fontSize: 13,
+    fontFamily: VibeFonts.medium,
+    color: T.muted,
+    textAlign: "center",
+    lineHeight: 18,
+  },
   ambientTop: {
     position: "absolute",
     top: -40,
@@ -1125,47 +1157,49 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "#F3E8FF",
+    backgroundColor: "rgba(139, 92, 246, 0.18)",
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(167, 139, 250, 0.35)",
   },
   doodleText: {
     fontSize: 13,
     fontFamily: VibeFonts.bold,
-    color: "#7C3AED",
+    color: "#C4B5FD",
   },
   liveNowBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    backgroundColor: "#ECFDF5",
+    backgroundColor: "rgba(16, 185, 129, 0.16)",
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(16, 185, 129, 0.2)",
+    borderColor: "rgba(52, 211, 153, 0.32)",
   },
   liveDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: "#10B981",
+    backgroundColor: "#34D399",
   },
   liveNowText: {
     fontSize: 11,
     fontFamily: VibeFonts.bold,
-    color: "#059669",
+    color: "#6EE7B7",
   },
   sloganTitle: {
     fontSize: 22,
     fontFamily: VibeFonts.extraBold,
-    color: "#18181B",
+    color: "#F8FAFC",
     lineHeight: 28,
     letterSpacing: -0.5,
   },
   sloganHighlight: {
-    color: "#7C3AED",
+    color: "#FBBF24",
   },
   sloganUnderline: {
     width: 240,
@@ -1175,16 +1209,16 @@ const styles = StyleSheet.create({
   },
 
   heroPlanCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: T.card,
     borderRadius: 28,
     padding: 12,
     marginHorizontal: 16,
     marginBottom: 18,
     borderWidth: 1,
-    borderColor: "#F1F5F9",
-    shadowColor: "#7C3AED",
+    borderColor: T.border,
+    shadowColor: "#8B5CF6",
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.14,
+    shadowOpacity: 0.18,
     shadowRadius: 20,
     elevation: 5,
   },
@@ -1266,17 +1300,17 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: "#F3E8FF",
+    backgroundColor: "rgba(139, 92, 246, 0.28)",
     alignItems: "center",
     justifyContent: "center",
   },
   cardBottomInfo: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "rgba(14, 20, 36, 0.95)",
     borderRadius: 22,
     padding: 14,
     marginTop: 10,
     borderWidth: 1,
-    borderColor: "#F1F5F9",
+    borderColor: T.border,
   },
   cardHeaderLine: {
     flexDirection: "row",
@@ -1287,7 +1321,7 @@ const styles = StyleSheet.create({
   cardTitleText: {
     fontSize: 18,
     fontFamily: VibeFonts.extraBold,
-    color: "#18181B",
+    color: "#F8FAFC",
     flex: 1,
     marginRight: 6,
   },
@@ -1295,7 +1329,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "rgba(96, 165, 250, 0.16)",
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 10,
@@ -1303,7 +1337,7 @@ const styles = StyleSheet.create({
   verifiedHostText: {
     fontSize: 10,
     fontFamily: VibeFonts.bold,
-    color: "#2563EB",
+    color: "#93C5FD",
   },
   cardMetaLine: {
     flexDirection: "row",
@@ -1331,7 +1365,7 @@ const styles = StyleSheet.create({
   spotsLabelText: {
     fontSize: 12,
     fontFamily: VibeFonts.bold,
-    color: "#7C3AED",
+    color: "#C4B5FD",
   },
   attendingRow: {
     flexDirection: "row",
@@ -1342,18 +1376,18 @@ const styles = StyleSheet.create({
     height: 26,
     borderRadius: 13,
     borderWidth: 2,
-    borderColor: "#FFFFFF",
+    borderColor: "#1E2438",
   },
   moreAvatarBadge: {
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: "#7C3AED",
+    backgroundColor: "#8B5CF6",
     alignItems: "center",
     justifyContent: "center",
     marginLeft: -8,
     borderWidth: 2,
-    borderColor: "#FFFFFF",
+    borderColor: "#1E2438",
   },
   moreAvatarText: {
     color: "#FFFFFF",
@@ -1365,13 +1399,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     borderTopWidth: 1,
-    borderTopColor: "#F1F5F9",
+    borderTopColor: "rgba(148, 163, 184, 0.14)",
     paddingTop: 10,
   },
   cardTimeText: {
     fontSize: 11,
     fontFamily: VibeFonts.medium,
-    color: "#64748B",
+    color: "#94A3B8",
   },
   joinBtnPill: {
     paddingHorizontal: 16,
@@ -1391,19 +1425,19 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     padding: 16,
     borderRadius: 24,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: T.card,
     borderWidth: 1,
-    borderColor: "#F1F5F9",
-    shadowColor: "#7C3AED",
+    borderColor: T.border,
+    shadowColor: "#8B5CF6",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.14,
     shadowRadius: 12,
     elevation: 3,
   },
   socialEnergyTitle: {
     fontSize: 15,
     fontFamily: VibeFonts.extraBold,
-    color: "#18181B",
+    color: "#F8FAFC",
     textAlign: "center",
     marginBottom: 14,
   },
@@ -1439,11 +1473,49 @@ const styles = StyleSheet.create({
   modeSwitcherTrack: {
     marginHorizontal: 16,
     marginBottom: 14,
-    backgroundColor: "#E2E8F0",
+    backgroundColor: "rgba(15, 22, 38, 0.9)",
     borderRadius: 20,
     padding: 4,
     flexDirection: "row",
     gap: 4,
+    borderWidth: 1,
+    borderColor: T.border,
+  },
+  visibilityToggle: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    flexDirection: "row",
+    gap: 8,
+  },
+  visibilityChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: "rgba(20, 28, 48, 0.9)",
+    borderWidth: 1,
+    borderColor: T.border,
+  },
+  visibilityChipActive: {
+    backgroundColor: "rgba(52, 211, 153, 0.14)",
+    borderColor: "rgba(52, 211, 153, 0.4)",
+  },
+  visibilityChipActiveFriends: {
+    backgroundColor: "rgba(244, 114, 182, 0.14)",
+    borderColor: "rgba(244, 114, 182, 0.38)",
+  },
+  visibilityChipText: {
+    fontSize: 12,
+    fontFamily: VibeFonts.bold,
+    color: T.muted,
+  },
+  visibilityChipTextActive: {
+    color: "#6EE7B7",
+  },
+  visibilityChipTextActiveFriends: {
+    color: "#F9A8D4",
   },
   modeSwitcherBtn: {
     flex: 1,
@@ -1457,22 +1529,22 @@ const styles = StyleSheet.create({
   },
   modeBtnActivePublic: {
     backgroundColor: "#7C3AED",
-    shadowColor: "#7C3AED",
+    shadowColor: "#A78BFA",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.35,
     shadowRadius: 8,
     elevation: 4,
   },
   modeBtnActivePink: {
-    backgroundColor: "#EC4899",
-    shadowColor: "#EC4899",
+    backgroundColor: "#DB2777",
+    shadowColor: "#F472B6",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
   modeBtnActivePurple: {
-    backgroundColor: "#8B5CF6",
+    backgroundColor: "#6D28D9",
     shadowColor: "#8B5CF6",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -1482,7 +1554,7 @@ const styles = StyleSheet.create({
   modeSwitcherText: {
     fontSize: 12,
     fontFamily: VibeFonts.bold,
-    color: "#64748B",
+    color: "#94A3B8",
   },
   modeTextActiveWhite: {
     color: "#FFFFFF",
@@ -1503,10 +1575,10 @@ const styles = StyleSheet.create({
     minHeight: 132,
     position: "relative",
     borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.35)",
+    borderColor: "rgba(167, 139, 250, 0.32)",
     shadowColor: "#8B5CF6",
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.22,
     shadowRadius: 12,
     elevation: 4,
   },
@@ -1517,13 +1589,13 @@ const styles = StyleSheet.create({
     width: 90,
     height: 90,
     borderRadius: 45,
-    backgroundColor: "rgba(139,92,246,0.1)",
+    backgroundColor: "rgba(139, 92, 246, 0.12)",
   },
   heroStar1: {
     position: "absolute",
     top: 10,
     right: 60,
-    color: "rgba(139,92,246,0.4)",
+    color: "rgba(251, 191, 36, 0.55)",
     fontSize: 9,
     zIndex: 1,
   },
@@ -1531,7 +1603,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 34,
     right: 24,
-    color: "rgba(236,72,153,0.35)",
+    color: "rgba(244, 114, 182, 0.4)",
     fontSize: 8,
     zIndex: 1,
   },
@@ -1539,7 +1611,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 18,
     right: 72,
-    color: "rgba(139,92,246,0.3)",
+    color: "rgba(167, 139, 250, 0.4)",
     fontSize: 7,
     zIndex: 1,
   },
@@ -1625,12 +1697,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontFamily: VibeFonts.bold,
-    color: "#18181B",
+    color: "#F1F5F9",
   },
   seeAllText: {
     fontSize: 12,
     fontFamily: VibeFonts.bold,
-    color: T.purple,
+    color: "#C4B5FD",
   },
   refreshRow: {
     flexDirection: "row",
@@ -1669,10 +1741,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#FFFFFF",
+    borderColor: "rgba(148, 163, 184, 0.2)",
   },
   popTagPill: {
-    backgroundColor: "rgba(255, 255, 255, 0.75)",
+    backgroundColor: "rgba(7, 10, 20, 0.45)",
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 10,
@@ -1701,7 +1773,7 @@ const styles = StyleSheet.create({
   popActivityTitle: {
     fontSize: 13,
     fontFamily: VibeFonts.extraBold,
-    color: "#18181B",
+    color: "#F8FAFC",
     textAlign: "center",
     marginBottom: 4,
   },
@@ -1854,15 +1926,17 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 10,
     left: 10,
-    backgroundColor: "rgba(255,255,255,0.92)",
+    backgroundColor: "rgba(7, 10, 20, 0.72)",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(251, 191, 36, 0.35)",
   },
   venueDistanceText: {
     fontSize: 11,
     fontFamily: VibeFonts.bold,
-    color: T.ink,
+    color: "#FDE68A",
   },
   venueTextWrap: {
     position: "absolute",
@@ -1922,13 +1996,13 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   bottomPromoBtn: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "rgba(255,255,255,0.95)",
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 16,
   },
   bottomPromoBtnText: {
-    color: T.purpleDeep,
+    color: "#6D28D9",
     fontSize: 11,
     fontFamily: VibeFonts.bold,
   },

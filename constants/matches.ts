@@ -10,6 +10,7 @@ export interface DiscoverProfile {
   distance: number;
   isVerified?: boolean;
   isOnline?: boolean;
+  lastSeenAt?: string | null;
   vibeMatch?: number;
   avatarUrl: string;
   photos?: string[];
@@ -21,6 +22,8 @@ export interface DiscoverProfile {
     timeLabel?: string | null;
   } | null;
   energy?: string;
+  freeNow?: boolean;
+  sharedInterestCount?: number;
 }
 
 export interface MatchProfile extends DiscoverProfile {

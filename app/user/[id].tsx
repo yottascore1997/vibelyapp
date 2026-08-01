@@ -40,18 +40,22 @@ const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 const HERO_H = Math.min(SCREEN_H * 0.58, SCREEN_W * 1.15);
 
 const T = {
-  bg: "#F8F9FD",
-  card: "#FFFFFF",
-  ink: "#18181B",
-  muted: "#64748B",
-  soft: "#94A3B8",
-  purple: "#7C3AED",
-  purpleBright: "#8B5CF6",
-  green: "#22C55E",
-  softPurple: "#F3E8FF",
-  softGreen: "#ECFDF5",
-  border: "#EDE7FF",
-  purpleGrad: ["#7C3AED", "#8B5CF6"] as [string, string],
+  bg: "#070A14",
+  card: "rgba(22, 26, 46, 0.94)",
+  cardElevated: "rgba(28, 32, 54, 0.98)",
+  ink: "#F4F6FB",
+  muted: "#A7B0C4",
+  soft: "#7C869C",
+  purple: "#A78BFA",
+  purpleBright: "#C4B5FD",
+  pink: "#F472B6",
+  green: "#34D399",
+  softPurple: "rgba(139, 92, 246, 0.18)",
+  softPink: "rgba(244, 114, 182, 0.16)",
+  softGreen: "rgba(52, 211, 153, 0.16)",
+  border: "rgba(160, 170, 200, 0.16)",
+  purpleGrad: ["#7C3AED", "#A78BFA"] as [string, string],
+  promoGrad: ["#6D28D9", "#8B5CF6", "#DB2777"] as [string, string],
 };
 
 const FALLBACK_INTERESTS = [
@@ -126,7 +130,7 @@ function MatchRing({ score }: { score: number }) {
 
   return (
     <View style={styles.matchRing}>
-      <LinearGradient colors={["#EDE9FE", "#F5F3FF"]} style={styles.matchRingBg}>
+      <LinearGradient colors={["rgba(139,92,246,0.22)", "rgba(244,114,182,0.14)"]} style={styles.matchRingBg}>
         <Animated.View style={[styles.matchArc, fillStyle]}>
           <LinearGradient colors={T.purpleGrad} style={styles.matchArcInner} />
         </Animated.View>
@@ -294,7 +298,7 @@ export default function UserProfileScreen() {
   if (loading) {
     return (
       <View style={[styles.root, styles.center]}>
-        <LinearGradient colors={["#F8F9FD", "#F3E8FF"]} style={StyleSheet.absoluteFill} />
+        <LinearGradient colors={["#070A14", "#100B22"]} style={StyleSheet.absoluteFill} />
         <ActivityIndicator size="large" color={T.purple} />
         <Text style={styles.loadingText}>Opening profile…</Text>
       </View>
@@ -330,14 +334,14 @@ export default function UserProfileScreen() {
           </Animated.View>
 
           <LinearGradient
-            colors={["rgba(15,23,42,0.45)", "transparent", "rgba(15,23,42,0.15)", "#F8F9FD"]}
+            colors={["rgba(7,10,20,0.55)", "transparent", "rgba(7,10,20,0.25)", "#070A14"]}
             locations={[0, 0.28, 0.72, 1]}
             style={styles.heroGrad}
           />
 
           {/* soft purple wash for depth */}
           <LinearGradient
-            colors={["transparent", "rgba(124,58,237,0.12)", "transparent"]}
+            colors={["transparent", "rgba(167,139,250,0.18)", "transparent"]}
             start={{ x: 0.2, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.heroWash}
@@ -408,6 +412,12 @@ export default function UserProfileScreen() {
         <Animated.View style={[styles.sheet, sheetAnim]}>
           {/* Match + proximity strip */}
           <Animated.View entering={FadeInDown.delay(80).duration(400)} style={styles.insightRow}>
+            <LinearGradient
+              colors={T.purpleGrad}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={styles.insightAccentBar}
+            />
             <MatchRing score={matchScore} />
             <View style={styles.insightCopy}>
               <Text style={styles.insightTitle}>Strong vibe match</Text>
@@ -415,14 +425,14 @@ export default function UserProfileScreen() {
                 You both seem free around here — perfect moment to say hi.
               </Text>
               <View style={styles.insightTags}>
-                <View style={styles.insightTag}>
+                <View style={[styles.insightTag, { backgroundColor: T.softGreen }]}>
                   <Ionicons name="flash" size={12} color={T.green} />
                   <Text style={[styles.insightTagText, { color: T.green }]}>
                     {profile?.isOnline ? "Free now" : "Nearby"}
                   </Text>
                 </View>
                 <View style={styles.insightTag}>
-                  <Ionicons name="navigate" size={12} color={T.purple} />
+                  <Ionicons name="navigate" size={12} color={T.purpleBright} />
                   <Text style={styles.insightTagText}>{distLabel}</Text>
                 </View>
               </View>
@@ -447,7 +457,10 @@ export default function UserProfileScreen() {
                     key={`${uri}-${idx}`}
                     activeOpacity={0.9}
                     onPress={() => setActivePhoto(idx)}
-                    style={[styles.photoThumbWrap, active && styles.photoThumbActive]}
+                    style={[
+                      styles.photoThumbWrap,
+                      active && { borderColor: idx % 2 === 0 ? T.purple : T.pink },
+                    ]}
                   >
                     <Image source={{ uri }} style={styles.photoThumb} />
                   </TouchableOpacity>
@@ -474,7 +487,7 @@ export default function UserProfileScreen() {
                   entering={FadeIn.delay(280 + idx * 40).duration(280)}
                   style={styles.tag}
                 >
-                  <Ionicons name={tag.icon || "sparkles"} size={13} color={T.purple} />
+                  <Ionicons name={tag.icon || "sparkles"} size={13} color={T.purpleBright} />
                   <Text style={styles.tagText}>{tag.name}</Text>
                 </Animated.View>
               ))}
@@ -483,9 +496,14 @@ export default function UserProfileScreen() {
 
           {/* Soft invite prompt */}
           <Animated.View entering={FadeInDown.delay(320).duration(400)} style={styles.prompt}>
-            <LinearGradient colors={["#F5F3FF", "#ECFDF5"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.promptGrad}>
+            <LinearGradient
+              colors={["rgba(139,92,246,0.22)", "rgba(167,139,250,0.14)", "rgba(244,114,182,0.18)"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.promptGrad}
+            >
               <View style={styles.promptIcon}>
-                <Ionicons name="sparkles" size={18} color={T.purple} />
+                <Ionicons name="sparkles" size={18} color={T.purpleBright} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.promptTitle}>Make the first move</Text>
@@ -518,7 +536,7 @@ export default function UserProfileScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.likeBtn} onPress={handleLike} activeOpacity={0.9}>
-          <LinearGradient colors={liked ? ["#94A3B8", "#64748B"] : T.purpleGrad} style={styles.likeGrad}>
+          <LinearGradient colors={liked ? ["#4B5164", "#33384A"] : T.purpleGrad} style={styles.likeGrad}>
             <Ionicons name={liked ? "heart" : "heart-outline"} size={17} color="#FFF" />
             <Text style={styles.likeText}>{liked ? "Liked" : "Like"}</Text>
           </LinearGradient>
@@ -578,9 +596,9 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 15,
-    backgroundColor: "rgba(15,23,42,0.28)",
+    backgroundColor: "rgba(22,26,46,0.55)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.22)",
+    borderColor: "rgba(196,181,253,0.28)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -670,9 +688,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    backgroundColor: "rgba(15,23,42,0.32)",
+    backgroundColor: "rgba(22,26,46,0.58)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
+    borderColor: "rgba(196,181,253,0.24)",
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
@@ -701,8 +719,17 @@ const styles = StyleSheet.create({
     backgroundColor: T.card,
     borderRadius: 22,
     padding: 14,
+    paddingLeft: 17,
     borderWidth: 1,
     borderColor: T.border,
+    overflow: "hidden",
+  },
+  insightAccentBar: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
   },
   matchRing: {
     width: 78,
@@ -734,14 +761,16 @@ const styles = StyleSheet.create({
     width: 58,
     height: 58,
     borderRadius: 29,
-    backgroundColor: "#FFF",
+    backgroundColor: T.cardElevated,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: T.border,
   },
   matchScore: {
     fontSize: 18,
     fontFamily: VibeFonts.extraBold,
-    color: T.purple,
+    color: T.purpleBright,
     letterSpacing: -0.4,
   },
   matchLabel: {
@@ -808,7 +837,7 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     lineHeight: 22,
     fontFamily: VibeFonts.medium,
-    color: "#334155",
+    color: T.muted,
   },
   photoStrip: {
     gap: 10,
@@ -820,10 +849,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: "hidden",
     borderWidth: 2,
-    borderColor: "transparent",
-  },
-  photoThumbActive: {
-    borderColor: T.purple,
+    borderColor: "rgba(160,170,200,0.16)",
   },
   photoThumb: {
     width: "100%",
@@ -866,7 +892,9 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.85)",
+    backgroundColor: "rgba(22,26,46,0.7)",
+    borderWidth: 1,
+    borderColor: "rgba(196,181,253,0.3)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -893,7 +921,7 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingHorizontal: 16,
     paddingTop: 12,
-    backgroundColor: "#F8F9FD",
+    backgroundColor: "rgba(15,22,38,0.96)",
     borderTopWidth: 1,
     borderTopColor: T.border,
   },
@@ -901,7 +929,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 17,
-    backgroundColor: T.card,
+    backgroundColor: T.cardElevated,
     borderWidth: 1,
     borderColor: T.border,
     alignItems: "center",

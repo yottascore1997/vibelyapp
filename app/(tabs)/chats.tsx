@@ -14,32 +14,33 @@ import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeInDown, FadeInRight } from "react-native-reanimated";
 import AppHeader from "../../components/vibe/AppHeader";
+import HangoutCinematicBackground from "../../components/vibe/HangoutCinematicBackground";
 import MatchStrip from "../../components/chats/MatchStrip";
 import ChatLogItem from "../../components/chats/ChatLogItem";
 import { useMatches } from "../../context/MatchesContext";
 import { MatchProfile } from "../../constants/matches";
 import { VibeFonts } from "../../constants/vibeTheme";
 
-/** Light clean minimal aesthetic matching Hangout screen */
+/** Match Hangout — dark navy + premium multi-accent */
 const T = {
-  bg: "#F8F9FD",
-  card: "#FFFFFF",
-  cardElevated: "#FFFFFF",
-  ink: "#18181B",
-  muted: "#64748B",
-  faint: "#94A3B8",
-  border: "#E2E8F0",
-  purple: "#7C3AED",
-  purpleDeep: "#6D28D9",
-  purpleBright: "#8B5CF6",
-  softPurple: "#F3E8FF",
-  pink: "#EC4899",
-  green: "#10B981",
-  yellow: "#F59E0B",
-  red: "#EF4444",
-  blue: "#2563EB",
-  cta: ["#7C3AED", "#8B5CF6"] as const,
-  promo: ["#7C3AED", "#8B5CF6", "#EC4899"] as const,
+  bg: "#070A14",
+  card: "rgba(22, 26, 46, 0.94)",
+  cardElevated: "rgba(28, 32, 54, 0.96)",
+  ink: "#F4F6FB",
+  muted: "#A7B0C4",
+  faint: "#7C869C",
+  border: "rgba(160, 170, 200, 0.16)",
+  purple: "#A78BFA",
+  purpleDeep: "#8B5CF6",
+  purpleBright: "#C4B5FD",
+  softPurple: "rgba(139, 92, 246, 0.18)",
+  pink: "#F472B6",
+  green: "#34D399",
+  yellow: "#FBBF24",
+  red: "#F87171",
+  blue: "#60A5FA",
+  cta: ["#7C3AED", "#A78BFA"] as const,
+  promo: ["#6D28D9", "#8B5CF6", "#EC4899"] as const,
 };
 
 export default function ChatsScreen() {
@@ -76,313 +77,251 @@ export default function ChatsScreen() {
   const emptyAll = matches.length === 0 && conversations.length === 0;
 
   return (
-    <View style={{ flex: 1, backgroundColor: T.bg }}>
-      <StatusBar barStyle="dark-content" backgroundColor={T.bg} />
-      <AppHeader
-        variant="light"
-        tagline="Conversations & Hangout DMs · Real Vibe"
-        badgeCount={totalUnread}
-      />
+    <View style={styles.root}>
+      <HangoutCinematicBackground />
+      <StatusBar barStyle="light-content" backgroundColor="#070A14" />
+      <View style={styles.foreground}>
+        <AppHeader
+          variant="dark"
+          tagline="Conversations & Hangout DMs · Real Vibe"
+          badgeCount={totalUnread}
+        />
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[
-          styles.scroll,
-          { paddingBottom: 120 + insets.bottom },
-        ]}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Search Section */}
-        <Animated.View
-          entering={FadeInDown.delay(40).duration(380)}
-          style={styles.searchSection}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.scroll,
+            { paddingBottom: 120 + insets.bottom },
+          ]}
+          keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.searchBarWrapper}>
-            <Ionicons
-              name="search"
-              size={18}
-              color={T.muted}
-              style={{ marginRight: 8 }}
-            />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search name or message…"
-              placeholderTextColor={T.faint}
-              value={query}
-              onChangeText={setQuery}
-            />
-            {query.length > 0 ? (
-              <Pressable onPress={() => setQuery("")}>
-                <Ionicons name="close-circle" size={19} color={T.faint} />
-              </Pressable>
-            ) : (
-              <View style={styles.searchHint}>
-                <Text style={styles.searchHintText}>
-                  {filteredThreads.length}
-                </Text>
-              </View>
-            )}
-          </View>
-          <Pressable
-            style={styles.likesQuickBtn}
-            onPress={() => router.push("/my-matches")}
-          >
-            <LinearGradient
-              colors={[...T.cta]}
-              style={StyleSheet.absoluteFill}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            />
-            <Ionicons name="heart" size={18} color="#fff" />
-            {likesCount > 0 && (
-              <View style={styles.likesBadge}>
-                <Text style={styles.likesBadgeText}>
-                  {likesCount > 9 ? "9+" : likesCount}
-                </Text>
-              </View>
-            )}
-          </Pressable>
-        </Animated.View>
-
-        {/* 2-Tab Segmented Switcher matching Hangout screen */}
-        <Animated.View
-          entering={FadeInDown.delay(70).duration(380)}
-          style={styles.modeSwitcherTrack}
-        >
-          <Pressable
-            onPress={() => setActiveTab("chats")}
-            style={[
-              styles.modeSwitcherBtn,
-              activeTab === "chats" && styles.modeSwitcherBtnActive,
-            ]}
-          >
-            <Ionicons
-              name="chatbubble-ellipses"
-              size={15}
-              color={activeTab === "chats" ? T.purple : T.muted}
-            />
-            <Text
-              style={[
-                styles.modeSwitcherText,
-                activeTab === "chats" && styles.modeSwitcherTextActive,
-              ]}
-            >
-              Direct DMs
-            </Text>
-            {directUnread > 0 ? (
-              <View style={styles.segBadge}>
-                <Text style={styles.segBadgeText}>{directUnread}</Text>
-              </View>
-            ) : null}
-          </Pressable>
-
-          <Pressable
-            onPress={() => setActiveTab("hangouts")}
-            style={[
-              styles.modeSwitcherBtn,
-              activeTab === "hangouts" && styles.modeSwitcherBtnActive,
-            ]}
-          >
-            <Ionicons
-              name="people"
-              size={15}
-              color={activeTab === "hangouts" ? T.pink : T.muted}
-            />
-            <Text
-              style={[
-                styles.modeSwitcherText,
-                activeTab === "hangouts" && {
-                  color: T.pink,
-                  fontFamily: VibeFonts.extraBold,
-                },
-              ]}
-            >
-              Hangout Groups
-            </Text>
-            {hangoutUnread > 0 ? (
-              <View style={[styles.segBadge, { backgroundColor: T.pink }]}>
-                <Text style={styles.segBadgeText}>{hangoutUnread}</Text>
-              </View>
-            ) : null}
-          </Pressable>
-        </Animated.View>
-
-        {emptyAll ? (
           <Animated.View
-            entering={FadeInDown.delay(100).duration(400)}
-            style={styles.emptyCard}
+            entering={FadeInDown.delay(40).duration(380)}
+            style={styles.searchSection}
           >
-            <LinearGradient colors={[...T.cta]} style={styles.emptyIcon}>
-              <Ionicons name="chatbubble-ellipses" size={28} color="#fff" />
-            </LinearGradient>
-            <Text style={styles.emptyTitle}>No chats yet</Text>
-            <Text style={styles.emptySub}>
-              Swipe on Discover for a match, or join a hangout — then your threads show up here.
-            </Text>
-            <Pressable onPress={() => router.push("/(tabs)/discover")}>
-              <LinearGradient
-                colors={[...T.cta]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.ctaBtn}
-              >
-                <Ionicons name="compass" size={19} color="#fff" />
-                <Text style={styles.ctaText}>Go to Discover</Text>
-              </LinearGradient>
-            </Pressable>
-          </Animated.View>
-        ) : (
-          <>
-            {matches.length > 0 && activeTab === "chats" ? (
-              <Animated.View entering={FadeInRight.delay(100).duration(400)}>
-                <MatchStrip
-                  matches={matches}
-                  onPressMatch={openMatch}
-                  onDiscover={() => router.push("/(tabs)/discover")}
-                />
-              </Animated.View>
-            ) : null}
-
-            <View style={styles.sectionHeaderRow}>
-              <View
-                style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
-              >
-                <Text style={styles.sectionTitle}>
-                  {activeTab === "chats"
-                    ? "Direct Messages 💬"
-                    : "Hangout Groups 👥"}
-                </Text>
-                <View style={styles.countPill}>
-                  <Text style={styles.countText}>{filteredThreads.length}</Text>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.listCard}>
-              {filteredThreads.length > 0 ? (
-                filteredThreads.map((thread, i) => (
-                  <Animated.View
-                    key={thread.matchId}
-                    entering={FadeInDown.delay(120 + i * 35).duration(300)}
-                  >
-                    <ChatLogItem
-                      thread={thread}
-                      onPress={() => openChat(thread.matchId)}
-                      isLast={i === filteredThreads.length - 1}
-                    />
-                  </Animated.View>
-                ))
+            <View style={styles.searchBarWrapper}>
+              <Ionicons
+                name="search"
+                size={18}
+                color={T.muted}
+                style={{ marginRight: 8 }}
+              />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search name or message…"
+                placeholderTextColor={T.faint}
+                value={query}
+                onChangeText={setQuery}
+              />
+              {query.length > 0 ? (
+                <Pressable onPress={() => setQuery("")}>
+                  <Ionicons name="close-circle" size={19} color={T.faint} />
+                </Pressable>
               ) : (
-                <View style={styles.emptyList}>
-                  <View style={styles.emptyListIcon}>
-                    <Ionicons
-                      name={
-                        activeTab === "chats"
-                          ? "chatbubbles-outline"
-                          : "calendar-outline"
-                      }
-                      size={30}
-                      color={T.purple}
-                    />
-                  </View>
-                  <Text style={styles.emptyListText}>
-                    {query
-                      ? "No chats match your search"
-                      : activeTab === "chats"
-                      ? "No DMs yet — open a match above to say hello"
-                      : "Join a hangout plan to unlock group chat"}
+                <View style={styles.searchHint}>
+                  <Text style={styles.searchHintText}>
+                    {filteredThreads.length}
                   </Text>
                 </View>
               )}
             </View>
-
-            <View style={styles.tipRow}>
+            <Pressable
+              style={styles.likesQuickBtn}
+              onPress={() => router.push("/my-matches")}
+            >
               <LinearGradient
-                colors={["#0F172A", "#1E293B"]}
-                style={styles.tipGrad}
-              >
-                <View style={styles.tipIcon}>
-                  <Ionicons name="sparkles" size={14} color="#F59E0B" />
+                colors={[...T.cta]}
+                style={StyleSheet.absoluteFill}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              />
+              <Ionicons name="heart" size={18} color="#fff" />
+              {likesCount > 0 && (
+                <View style={styles.likesBadge}>
+                  <Text style={styles.likesBadgeText}>
+                    {likesCount > 9 ? "9+" : likesCount}
+                  </Text>
                 </View>
-                <Text style={styles.tipText}>
-                  After a match: send hello · reply in 48h to unlock chat
-                  permanently
-                </Text>
+              )}
+            </Pressable>
+          </Animated.View>
+
+          <Animated.View
+            entering={FadeInDown.delay(70).duration(380)}
+            style={styles.modeSwitcherTrack}
+          >
+            <Pressable
+              onPress={() => setActiveTab("chats")}
+              style={[
+                styles.modeSwitcherBtn,
+                activeTab === "chats" && styles.modeSwitcherBtnActive,
+              ]}
+            >
+              <Ionicons
+                name="chatbubble-ellipses"
+                size={15}
+                color={activeTab === "chats" ? "#FFFFFF" : T.muted}
+              />
+              <Text
+                style={[
+                  styles.modeSwitcherText,
+                  activeTab === "chats" && styles.modeSwitcherTextActive,
+                ]}
+              >
+                Direct DMs
+              </Text>
+              {directUnread > 0 ? (
+                <View style={styles.segBadge}>
+                  <Text style={styles.segBadgeText}>{directUnread}</Text>
+                </View>
+              ) : null}
+            </Pressable>
+
+            <Pressable
+              onPress={() => setActiveTab("hangouts")}
+              style={[
+                styles.modeSwitcherBtn,
+                activeTab === "hangouts" && styles.modeSwitcherBtnActivePink,
+              ]}
+            >
+              <Ionicons
+                name="people"
+                size={15}
+                color={activeTab === "hangouts" ? "#FFFFFF" : T.muted}
+              />
+              <Text
+                style={[
+                  styles.modeSwitcherText,
+                  activeTab === "hangouts" && styles.modeSwitcherTextActiveWhite,
+                ]}
+              >
+                Hangout Groups
+              </Text>
+              {hangoutUnread > 0 ? (
+                <View style={[styles.segBadge, { backgroundColor: T.pink }]}>
+                  <Text style={styles.segBadgeText}>{hangoutUnread}</Text>
+                </View>
+              ) : null}
+            </Pressable>
+          </Animated.View>
+
+          {emptyAll ? (
+            <Animated.View
+              entering={FadeInDown.delay(100).duration(400)}
+              style={styles.emptyCard}
+            >
+              <LinearGradient colors={[...T.cta]} style={styles.emptyIcon}>
+                <Ionicons name="chatbubble-ellipses" size={28} color="#fff" />
               </LinearGradient>
-            </View>
-          </>
-        )}
-      </ScrollView>
+              <Text style={styles.emptyTitle}>No chats yet</Text>
+              <Text style={styles.emptySub}>
+                Swipe on Discover for a match, or join a hangout — then your threads show up here.
+              </Text>
+              <Pressable onPress={() => router.push("/(tabs)/discover")}>
+                <LinearGradient
+                  colors={[...T.cta]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.ctaBtn}
+                >
+                  <Ionicons name="compass" size={19} color="#fff" />
+                  <Text style={styles.ctaText}>Go to Discover</Text>
+                </LinearGradient>
+              </Pressable>
+            </Animated.View>
+          ) : (
+            <>
+              {matches.length > 0 && activeTab === "chats" ? (
+                <Animated.View entering={FadeInRight.delay(100).duration(400)}>
+                  <MatchStrip
+                    matches={matches}
+                    onPressMatch={openMatch}
+                    onDiscover={() => router.push("/(tabs)/discover")}
+                  />
+                </Animated.View>
+              ) : null}
+
+              <View style={styles.sectionHeaderRow}>
+                <View
+                  style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
+                >
+                  <Text style={styles.sectionTitle}>
+                    {activeTab === "chats"
+                      ? "Direct Messages 💬"
+                      : "Hangout Groups 👥"}
+                  </Text>
+                  <View style={styles.countPill}>
+                    <Text style={styles.countText}>{filteredThreads.length}</Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.listCard}>
+                {filteredThreads.length > 0 ? (
+                  filteredThreads.map((thread, i) => (
+                    <Animated.View
+                      key={thread.matchId}
+                      entering={FadeInDown.delay(120 + i * 35).duration(300)}
+                    >
+                      <ChatLogItem
+                        thread={thread}
+                        onPress={() => openChat(thread.matchId)}
+                        isLast={i === filteredThreads.length - 1}
+                      />
+                    </Animated.View>
+                  ))
+                ) : (
+                  <View style={styles.emptyList}>
+                    <View style={styles.emptyListIcon}>
+                      <Ionicons
+                        name={
+                          activeTab === "chats"
+                            ? "chatbubbles-outline"
+                            : "calendar-outline"
+                        }
+                        size={30}
+                        color={T.purple}
+                      />
+                    </View>
+                    <Text style={styles.emptyListText}>
+                      {query
+                        ? "No chats match your search"
+                        : activeTab === "chats"
+                        ? "No DMs yet — open a match above to say hello"
+                        : "Join a hangout plan to unlock group chat"}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.tipRow}>
+                <LinearGradient
+                  colors={["#1A1530", "#151B2E"]}
+                  style={styles.tipGrad}
+                >
+                  <View style={styles.tipIcon}>
+                    <Ionicons name="sparkles" size={14} color="#FBBF24" />
+                  </View>
+                  <Text style={styles.tipText}>
+                    After a match: send hello · reply in 48h to unlock chat
+                    permanently
+                  </Text>
+                </LinearGradient>
+              </View>
+            </>
+          )}
+        </ScrollView>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: "#070A14" },
+  foreground: { flex: 1, zIndex: 1, backgroundColor: "transparent" },
   scroll: {
     paddingTop: 4,
   },
-  sloganHeaderWrap: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 16,
-  },
-  doodleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 8,
-  },
-  doodlePill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "#F3E8FF",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  doodleText: {
-    fontSize: 11,
-    fontFamily: VibeFonts.bold,
-    color: "#7C3AED",
-  },
-  liveNowBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "#DCFCE7",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#16A34A",
-  },
-  liveNowText: {
-    fontSize: 11,
-    fontFamily: VibeFonts.bold,
-    color: "#15803D",
-  },
-  sloganTitle: {
-    fontSize: 28,
-    fontFamily: VibeFonts.extraBold,
-    color: "#18181B",
-    lineHeight: 34,
-    letterSpacing: -0.8,
-  },
-  sloganHighlight: {
-    color: "#7C3AED",
-  },
-  sloganUnderline: {
-    height: 4,
-    borderRadius: 2,
-    marginTop: 8,
-    width: 80,
-  },
-
   searchSection: {
     flexDirection: "row",
     alignItems: "center",
@@ -394,30 +333,25 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: T.card,
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
+    borderColor: T.border,
   },
   searchInput: {
     flex: 1,
     fontSize: 14,
     fontFamily: VibeFonts.medium,
-    color: "#18181B",
+    color: T.ink,
     padding: 0,
   },
   searchHint: {
     minWidth: 24,
     height: 22,
     borderRadius: 11,
-    backgroundColor: "#F3E8FF",
+    backgroundColor: T.softPurple,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 6,
@@ -425,7 +359,7 @@ const styles = StyleSheet.create({
   searchHintText: {
     fontSize: 11,
     fontFamily: VibeFonts.bold,
-    color: "#7C3AED",
+    color: T.purpleBright,
   },
   likesQuickBtn: {
     width: 44,
@@ -434,9 +368,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
-    shadowColor: "#7C3AED",
+    shadowColor: "#8B5CF6",
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 3,
   },
@@ -447,7 +381,7 @@ const styles = StyleSheet.create({
     minWidth: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: "#18181B",
+    backgroundColor: "#F472B6",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 3,
@@ -460,18 +394,13 @@ const styles = StyleSheet.create({
 
   modeSwitcherTrack: {
     flexDirection: "row",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "rgba(15, 22, 38, 0.9)",
     borderRadius: 16,
     padding: 4,
     marginHorizontal: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
+    borderColor: T.border,
   },
   modeSwitcherBtn: {
     flex: 1,
@@ -483,22 +412,29 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   modeSwitcherBtnActive: {
-    backgroundColor: "#F3E8FF",
+    backgroundColor: "#7C3AED",
+  },
+  modeSwitcherBtnActivePink: {
+    backgroundColor: "#DB2777",
   },
   modeSwitcherText: {
     fontSize: 13,
     fontFamily: VibeFonts.bold,
-    color: "#64748B",
+    color: T.muted,
   },
   modeSwitcherTextActive: {
-    color: "#7C3AED",
+    color: "#FFFFFF",
+    fontFamily: VibeFonts.extraBold,
+  },
+  modeSwitcherTextActiveWhite: {
+    color: "#FFFFFF",
     fontFamily: VibeFonts.extraBold,
   },
   segBadge: {
     minWidth: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: "#7C3AED",
+    backgroundColor: "rgba(255,255,255,0.25)",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 4,
@@ -510,19 +446,14 @@ const styles = StyleSheet.create({
   },
 
   emptyCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: T.card,
     borderRadius: 28,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: T.border,
     padding: 28,
     alignItems: "center",
     marginHorizontal: 16,
     marginTop: 4,
-    shadowColor: "#7C3AED",
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
   },
   emptyIcon: {
     width: 68,
@@ -531,21 +462,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,
-    shadowColor: "#EC4899",
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
   },
   emptyTitle: {
     fontSize: 21,
     fontFamily: VibeFonts.extraBold,
-    color: "#18181B",
+    color: T.ink,
   },
   emptySub: {
     fontSize: 13,
     fontFamily: VibeFonts.medium,
-    color: "#64748B",
+    color: T.muted,
     textAlign: "center",
     marginTop: 8,
     lineHeight: 20,
@@ -558,11 +484,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 14,
     borderRadius: 16,
-    shadowColor: "#8B5CF6",
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
   },
   ctaText: { color: "#fff", fontFamily: VibeFonts.bold, fontSize: 14 },
 
@@ -577,10 +498,10 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontFamily: VibeFonts.extraBold,
-    color: "#18181B",
+    color: T.ink,
   },
   countPill: {
-    backgroundColor: "#F3E8FF",
+    backgroundColor: T.softPurple,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 999,
@@ -588,22 +509,17 @@ const styles = StyleSheet.create({
   countText: {
     fontSize: 11,
     fontFamily: VibeFonts.bold,
-    color: "#7C3AED",
+    color: T.purpleBright,
   },
 
   listCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: T.card,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: T.border,
     overflow: "hidden",
     marginHorizontal: 16,
     marginBottom: 16,
-    shadowColor: "#7C3AED",
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
   },
   emptyList: {
     paddingVertical: 44,
@@ -615,14 +531,14 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 22,
-    backgroundColor: "#F3E8FF",
+    backgroundColor: T.softPurple,
     alignItems: "center",
     justifyContent: "center",
   },
   emptyListText: {
     fontSize: 13,
     fontFamily: VibeFonts.medium,
-    color: "#64748B",
+    color: T.muted,
     textAlign: "center",
     lineHeight: 20,
   },
@@ -633,7 +549,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: "#1E293B",
+    borderColor: "rgba(167, 139, 250, 0.28)",
   },
   tipGrad: {
     flexDirection: "row",
@@ -646,7 +562,7 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 11,
-    backgroundColor: "rgba(245, 158, 11, 0.2)",
+    backgroundColor: "rgba(251, 191, 36, 0.18)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -654,8 +570,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 11,
     fontFamily: VibeFonts.semiBold,
-    color: "#FFFFFF",
+    color: "#E2E8F0",
     lineHeight: 16,
   },
 });
-

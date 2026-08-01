@@ -26,36 +26,49 @@ import Animated, {
   withSequence,
   withDelay,
 } from "react-native-reanimated";
+import * as ImagePicker from "expo-image-picker";
 import PulseDot from "../../components/home/PulseDot";
 import GlassCard from "../../components/vibe/GlassCard";
+import HangoutCinematicBackground from "../../components/vibe/HangoutCinematicBackground";
 import VibeSplitModal from "../../components/vibe/VibeSplitModal";
 import { useMatches } from "../../context/MatchesContext";
 import { usePlans } from "../../context/PlansContext";
-import { formatMessageTime } from "../../constants/chats";
+import { useAuth } from "../../context/AuthContext";
+import { api } from "../../services/api";
+import {
+  formatMessageTime,
+  formatLastSeen,
+  formatDayLabel,
+  sameCalendarDay,
+  parsePhotoUrl,
+  encodeReplyMessage,
+  formatChatPreview,
+  type ChatMessage,
+} from "../../constants/chats";
 import { VibeColors, VibeFonts } from "../../constants/vibeTheme";
 import { Radius, Spacing, API_URL } from "../../constants/theme";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 const T = {
-  bg: "#F8F9FD",
-  card: "#FFFFFF",
-  cardElevated: "#FFFFFF",
-  ink: "#18181B",
-  muted: "#64748B",
-  faint: "#94A3B8",
-  border: "#E2E8F0",
-  softPurple: "#F3E8FF",
-  softPink: "#FDF2F8",
-  purple: "#7C3AED",
-  purpleDeep: "#6D28D9",
-  purpleBright: "#8B5CF6",
-  pink: "#EC4899",
-  green: "#10B981",
-  greenSoft: "rgba(16, 185, 129, 0.15)",
-  red: "#EF4444",
-  glass: "rgba(255, 255, 255, 0.94)",
-  cta: ["#7C3AED", "#8B5CF6"] as const,
+  bg: "#070A14",
+  card: "rgba(22, 26, 46, 0.94)",
+  cardElevated: "rgba(28, 32, 54, 0.96)",
+  ink: "#F4F6FB",
+  muted: "#A7B0C4",
+  faint: "#7C869C",
+  border: "rgba(160, 170, 200, 0.16)",
+  softPurple: "rgba(139, 92, 246, 0.18)",
+  softPink: "rgba(244, 114, 182, 0.16)",
+  purple: "#A78BFA",
+  purpleDeep: "#8B5CF6",
+  purpleBright: "#C4B5FD",
+  pink: "#F472B6",
+  green: "#34D399",
+  greenSoft: "rgba(52, 211, 153, 0.18)",
+  red: "#F87171",
+  glass: "rgba(15, 22, 38, 0.92)",
+  cta: ["#7C3AED", "#A78BFA"] as const,
 };
 
 const MEMBER_COLORS = ["#A855F7", "#EC4899", "#3B82F6", "#10B981", "#F59E0B", "#06B6D4"];
@@ -208,11 +221,15 @@ export default function ChatScreen() {
     typingUsers,
     sendTypingStatus,
     updateMessageContent,
+    deleteMessage,
     getChatGate,
     unmatch,
   } = useMatches();
-  const { myPlans, nearbyPlans } = usePlans();
+  const { myPlans, nearbyPlans, refresh: refreshPlans } = usePlans();
+  const { token } = useAuth();
   const [text, setText] = useState("");
+  const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [showSplitModal, setShowSplitModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
@@ -270,10 +287,138 @@ export default function ChatScreen() {
     await sendMessage(id, inviteText);
   };
 
-  const handleInviteAction = (messageId: string, activityName: string, emoji: string, status: "accepted" | "rejected") => {
+  const handleInviteAction = async (
+    messageId: string,
+    activityName: string,
+    emoji: string,
+    status: "accepted" | "rejected"
+  ) => {
     if (!id) return;
-    const newContent = `[INVITE:${activityName}:${emoji}:${status}]`;
-    updateMessageContent(messageId, newContent, id, thread?.isGroup);
+    const currentThread = getConversation(id);
+
+    if (status === "rejected") {
+      updateMessageContent(
+        messageId,
+        `[INVITE:${activityName}:${emoji}:rejected]`,
+        id,
+        currentThread?.isGroup
+      );
+      return;
+    }
+
+    try {
+      const scheduledAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+      const plan = await api.createPlan({
+        title: `${emoji} ${activityName}`,
+        activity: activityName,
+        scheduledAt,
+        maxParticipants: 2,
+        isPrivate: true,
+        visibility: "FRIENDS",
+        location: "TBD",
+        inviteeId: currentThread?.isGroup ? undefined : id,
+      });
+
+      if (!plan?.id) {
+        Alert.alert(
+          "Could not create plan",
+          "Invite accepted in chat, but plan creation failed. Try again."
+        );
+        updateMessageContent(
+          messageId,
+          `[INVITE:${activityName}:${emoji}:accepted]`,
+          id,
+          currentThread?.isGroup
+        );
+        return;
+      }
+
+      updateMessageContent(
+        messageId,
+        `[INVITE:${activityName}:${emoji}:accepted:${plan.id}]`,
+        id,
+        currentThread?.isGroup
+      );
+      triggerConfetti();
+      await refreshPlans();
+      Alert.alert("Plan ready!", `${activityName} plan created — check My Plans.`);
+    } catch (err) {
+      console.error("Invite accept failed:", err);
+      Alert.alert("Error", "Could not create hangout plan. Try again.");
+    }
+  };
+
+  const handlePickPhoto = async () => {
+    if (!id || !token) return;
+    const gate = getChatGate(id);
+    if (gate && !gate.canSend) {
+      Alert.alert("Chat locked", gate.reason || "Wait for their reply before sending photos.");
+      return;
+    }
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Permission needed", "Gallery access is required to send photos.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+      allowsEditing: true,
+    });
+    if (result.canceled || !result.assets?.[0]?.uri) return;
+
+    setShowAttachPanel(false);
+    setUploadingPhoto(true);
+    try {
+      const uploaded = await api.uploadImage(result.assets[0].uri, token);
+      if (!uploaded?.url) {
+        Alert.alert("Upload failed", "Could not upload photo. Try again.");
+        return;
+      }
+      const url = uploaded.url.startsWith("/")
+        ? `${API_URL.replace("/api", "")}${uploaded.url}`
+        : uploaded.url;
+      const body = `[PHOTO:${url}]`;
+      const payload = replyTo
+        ? encodeReplyMessage(replyTo.id, formatChatPreview(replyTo.text), body)
+        : body;
+      setReplyTo(null);
+      await sendMessage(id, payload);
+    } catch (err) {
+      console.error("Photo send failed:", err);
+      Alert.alert("Error", "Could not send photo.");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const handleMessageLongPress = (msg: ChatMessage) => {
+    if (msg.text === "[DELETED]") return;
+    const currentThread = id ? getConversation(id) : undefined;
+    const buttons: {
+      text: string;
+      style?: "cancel" | "destructive" | "default";
+      onPress?: () => void;
+    }[] = [
+      {
+        text: "Reply",
+        onPress: () => setReplyTo(msg),
+      },
+    ];
+    if (msg.fromMe && !msg.id.startsWith("temp-")) {
+      buttons.push({
+        text: "Delete",
+        style: "destructive",
+        onPress: () => {
+          if (!id) return;
+          deleteMessage(msg.id, id, currentThread?.isGroup);
+        },
+      });
+    }
+    buttons.push({ text: "Cancel", style: "cancel" });
+    Alert.alert("Message", undefined, buttons);
   };
 
   const handleEmojiSelect = (emoji: string) => {
@@ -284,15 +429,44 @@ export default function ChatScreen() {
     });
   };
 
-  const renderMessageContent = (msg: any) => {
-    const inviteRegex = /^\[INVITE:([^:]+):([^:]+):([^:]+)\]$/;
-    const matchInvite = msg.text.match(inviteRegex);
+  const renderMessageContent = (msg: ChatMessage) => {
+    if (msg.text === "[DELETED]") {
+      return (
+        <View style={{ paddingHorizontal: 14, paddingVertical: 10 }}>
+          <Text style={[styles.bubbleTextThem, { fontStyle: "italic", color: T.faint }]}>
+            Message deleted
+          </Text>
+        </View>
+      );
+    }
+
+    const replyParsed = msg.replyToText
+      ? { replyToText: msg.replyToText, body: msg.text.replace(/^\[REPLY:[^\]]+\]/, "") }
+      : (() => {
+          const m = msg.text.match(/^\[REPLY:([^|]+)\|([^\]]*)\]([\s\S]*)$/);
+          if (!m) return null;
+          return {
+            replyToText: decodeURIComponent(m[2] || ""),
+            body: m[3] || "",
+          };
+        })();
+
+    const contentText = replyParsed ? replyParsed.body : msg.text;
+    const replyPreview = replyParsed?.replyToText;
+
+    const inviteRegex = /^\[INVITE:([^:]+):([^:]+):([^:\]]+)(?::([^\]]+))?\]$/;
+    const matchInvite = contentText.match(inviteRegex);
 
     if (matchInvite) {
-      const [_, activityName, emoji, status] = matchInvite;
-      
+      const [, activityName, emoji, status, hangoutId] = matchInvite;
+
       return (
         <View style={styles.inviteCard}>
+          {replyPreview ? (
+            <Text style={styles.replyQuote} numberOfLines={1}>
+              ↪ {replyPreview}
+            </Text>
+          ) : null}
           <View style={styles.inviteHeader}>
             <View style={styles.inviteIconCircle}>
               <Text style={styles.inviteIconText}>{emoji}</Text>
@@ -302,9 +476,9 @@ export default function ChatScreen() {
               <Text style={styles.inviteSub}>Hangout Proposal</Text>
             </View>
           </View>
-          
+
           <View style={styles.inviteDivider} />
-          
+
           {status === "pending" ? (
             msg.fromMe ? (
               <View style={styles.inviteStatusContainer}>
@@ -313,16 +487,16 @@ export default function ChatScreen() {
               </View>
             ) : (
               <View style={styles.inviteActions}>
-                <TouchableOpacity 
-                  style={[styles.inviteActionBtn, styles.inviteAcceptBtn]} 
+                <TouchableOpacity
+                  style={[styles.inviteActionBtn, styles.inviteAcceptBtn]}
                   onPress={() => handleInviteAction(msg.id, activityName, emoji, "accepted")}
                   activeOpacity={0.8}
                 >
                   <Ionicons name="checkmark-circle-outline" size={15} color="#fff" />
                   <Text style={styles.inviteActionBtnText}>Accept</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.inviteActionBtn, styles.inviteDeclineBtn]} 
+                <TouchableOpacity
+                  style={[styles.inviteActionBtn, styles.inviteDeclineBtn]}
                   onPress={() => handleInviteAction(msg.id, activityName, emoji, "rejected")}
                   activeOpacity={0.8}
                 >
@@ -332,9 +506,23 @@ export default function ChatScreen() {
               </View>
             )
           ) : status === "accepted" ? (
-            <View style={styles.inviteStatusContainerAccepted}>
-              <Ionicons name="checkmark-done-circle" size={16} color={T.green} />
-              <Text style={styles.inviteStatusTextAccepted}>Proposal Accepted! 🎉</Text>
+            <View style={{ gap: 8 }}>
+              <View style={styles.inviteStatusContainerAccepted}>
+                <Ionicons name="checkmark-done-circle" size={16} color={T.green} />
+                <Text style={styles.inviteStatusTextAccepted}>Proposal Accepted!</Text>
+              </View>
+              {hangoutId ? (
+                <TouchableOpacity
+                  style={[styles.inviteActionBtn, styles.inviteAcceptBtn]}
+                  onPress={() =>
+                    router.push({ pathname: "/plan-details", params: { id: hangoutId } })
+                  }
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="calendar-outline" size={15} color="#fff" />
+                  <Text style={styles.inviteActionBtnText}>Open plan</Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
           ) : (
             <View style={styles.inviteStatusContainerDeclined}>
@@ -346,9 +534,23 @@ export default function ChatScreen() {
       );
     }
 
-    if (msg.text && msg.text.includes("[VibeSplit]")) {
-      const isSettlement = msg.text.includes("settled");
-      const cleanText = msg.text.replace(/^[💳🤝]\s*\[VibeSplit\]\s*/, "");
+    const photoUrl = parsePhotoUrl(contentText);
+    if (photoUrl) {
+      return (
+        <View style={styles.photoWrap}>
+          {replyPreview ? (
+            <Text style={[styles.replyQuote, { marginBottom: 6 }]} numberOfLines={1}>
+              ↪ {replyPreview}
+            </Text>
+          ) : null}
+          <Image source={{ uri: photoUrl }} style={styles.photoMsg} resizeMode="cover" />
+        </View>
+      );
+    }
+
+    if (contentText && contentText.includes("[VibeSplit]")) {
+      const isSettlement = contentText.includes("settled");
+      const cleanText = contentText.replace(/^[💳🤝]\s*\[VibeSplit\]\s*/, "");
 
       return (
         <TouchableOpacity
@@ -380,9 +582,16 @@ export default function ChatScreen() {
       );
     }
 
+    const displayBody = contentText;
+
     return msg.fromMe ? (
       <LinearGradient colors={[...T.cta]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.bubbleGrad}>
-        <Text style={styles.bubbleTextMe}>{msg.text}</Text>
+        {replyPreview ? (
+          <Text style={styles.replyQuoteMe} numberOfLines={2}>
+            ↪ {replyPreview}
+          </Text>
+        ) : null}
+        <Text style={styles.bubbleTextMe}>{displayBody}</Text>
       </LinearGradient>
     ) : (
       <View style={{ paddingHorizontal: 14, paddingVertical: 10 }}>
@@ -391,7 +600,12 @@ export default function ChatScreen() {
             {msg.senderName}
           </Text>
         ) : null}
-        <Text style={styles.bubbleTextThem}>{msg.text}</Text>
+        {replyPreview ? (
+          <Text style={styles.replyQuote} numberOfLines={2}>
+            ↪ {replyPreview}
+          </Text>
+        ) : null}
+        <Text style={styles.bubbleTextThem}>{displayBody}</Text>
       </View>
     );
   };
@@ -506,8 +720,11 @@ export default function ChatScreen() {
       Alert.alert("Chat locked", chatGate?.reason || "Wait for their reply.");
       return;
     }
-    const msg = text;
+    const msg = replyTo
+      ? encodeReplyMessage(replyTo.id, formatChatPreview(replyTo.text), text.trim())
+      : text;
     setText("");
+    setReplyTo(null);
 
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     isTypingRef.current = false;
@@ -520,7 +737,8 @@ export default function ChatScreen() {
   if (!thread) {
     return (
       <View style={styles.root}>
-        <StatusBar style="dark" />
+        <HangoutCinematicBackground />
+        <StatusBar style="light" />
         <SafeAreaView style={styles.safe}>
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={22} color={T.ink} />
@@ -533,9 +751,11 @@ export default function ChatScreen() {
 
   return (
     <View style={styles.root}>
-      <StatusBar style="dark" />
+      <HangoutCinematicBackground />
+      <StatusBar style="light" />
+      <View style={styles.foreground}>
       <LinearGradient
-        colors={["rgba(139,92,246,0.16)", "rgba(236,72,153,0.08)", "transparent"]}
+        colors={[T.softPurple, T.softPink, "transparent"]}
         style={styles.topGlow}
         pointerEvents="none"
       />
@@ -567,7 +787,9 @@ export default function ChatScreen() {
                   <>
                     {thread.isOnline ? <PulseDot size={5} color="#22C55E" /> : null}
                     <Text style={styles.headerStatus}>
-                      {thread.isOnline ? "Online now" : "Match unlocked"}
+                      {thread.isOnline
+                        ? "Online now"
+                        : formatLastSeen(thread.lastSeenAt || match?.lastSeenAt)}
                     </Text>
                   </>
                 )}
@@ -619,7 +841,7 @@ export default function ChatScreen() {
                 ? "Hangout group chat — coordinate & split bills"
                 : chatGate?.unlocked
                   ? "Chat unlocked — ab freely baat karo"
-                  : chatGate?.reason || "You matched — send one hello to start"}
+                  : chatGate?.reason || "Send one hello to start the chat"}
             </Text>
             {thread.isGroup && (
               <TouchableOpacity
@@ -647,38 +869,79 @@ export default function ChatScreen() {
           showsVerticalScrollIndicator={false}
           onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
         >
-          {thread.messages.map((msg) => (
-            <View key={msg.id} style={[styles.bubbleWrap, msg.fromMe ? styles.bubbleWrapMe : styles.bubbleWrapThem]}>
-              {!msg.fromMe ? (
-                <Image
-                  source={{
-                    uri: thread.isGroup
-                      ? resolveMemberAvatar(msg.senderAvatar)
-                      : thread.avatarUrl,
-                  }}
-                  style={styles.msgAvatar}
-                />
-              ) : null}
-              <View
-                style={[
-                  styles.bubble,
-                  msg.text.match(/^\[INVITE:([^:]+):([^:]+):([^:]+)\]$/)
-                    ? styles.bubbleInvite
-                    : msg.fromMe
-                      ? styles.bubbleMe
-                      : styles.bubbleThem,
-                ]}
-              >
-                {renderMessageContent(msg)}
+          {thread.messages.map((msg, index) => {
+            const prev = thread.messages[index - 1];
+            const showDay = !prev || !sameCalendarDay(prev.sentAt, msg.sentAt);
+            const isInvite = /\[INVITE:/.test(msg.text);
+            const isPhoto = !!parsePhotoUrl(msg.text.replace(/^\[REPLY:[^\]]+\]/, ""));
+            return (
+              <View key={msg.id}>
+                {showDay ? (
+                  <View style={styles.daySep}>
+                    <Text style={styles.daySepText}>{formatDayLabel(msg.sentAt)}</Text>
+                  </View>
+                ) : null}
+                <Pressable
+                  onLongPress={() => handleMessageLongPress(msg)}
+                  delayLongPress={280}
+                  style={[styles.bubbleWrap, msg.fromMe ? styles.bubbleWrapMe : styles.bubbleWrapThem]}
+                >
+                  {!msg.fromMe ? (
+                    <Image
+                      source={{
+                        uri: thread.isGroup
+                          ? resolveMemberAvatar(msg.senderAvatar)
+                          : thread.avatarUrl,
+                      }}
+                      style={styles.msgAvatar}
+                    />
+                  ) : null}
+                  <View
+                    style={[
+                      styles.bubble,
+                      isInvite || isPhoto
+                        ? styles.bubbleInvite
+                        : msg.fromMe
+                          ? styles.bubbleMe
+                          : styles.bubbleThem,
+                    ]}
+                  >
+                    {renderMessageContent(msg)}
+                  </View>
+                  <View style={[styles.msgMeta, msg.fromMe && styles.msgMetaMe]}>
+                    <Text style={[styles.msgTime, msg.fromMe && styles.msgTimeMe]}>
+                      {formatMessageTime(msg.sentAt)}
+                    </Text>
+                    {msg.fromMe && !thread.isGroup ? (
+                      <Ionicons
+                        name={msg.isRead ? "checkmark-done" : "checkmark"}
+                        size={14}
+                        color={msg.isRead ? T.purple : T.faint}
+                        style={{ marginLeft: 2 }}
+                      />
+                    ) : null}
+                  </View>
+                </Pressable>
               </View>
-              <Text style={[styles.msgTime, msg.fromMe && styles.msgTimeMe]}>
-                {formatMessageTime(msg.sentAt)}
-              </Text>
-            </View>
-          ))}
+            );
+          })}
         </ScrollView>
 
         <SafeAreaView edges={["bottom"]} style={styles.inputBar}>
+          {replyTo ? (
+            <View style={styles.replyBar}>
+              <View style={styles.replyBarAccent} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.replyBarLabel}>Replying</Text>
+                <Text style={styles.replyBarText} numberOfLines={1}>
+                  {formatChatPreview(replyTo.text)}
+                </Text>
+              </View>
+              <Pressable onPress={() => setReplyTo(null)} hitSlop={10}>
+                <Ionicons name="close" size={18} color={T.muted} />
+              </Pressable>
+            </View>
+          ) : null}
           <View style={styles.inputRow}>
             <Pressable style={styles.attachBtn} onPress={toggleAttachPanel}>
               <Ionicons name={showAttachPanel ? "close" : "add"} size={22} color={T.purple} />
@@ -750,11 +1013,24 @@ export default function ChatScreen() {
 
           {showAttachPanel && (
             <View style={styles.attachPanel}>
-              <Text style={styles.attachPanelTitle}>Group Quick Options</Text>
+              <Text style={styles.attachPanelTitle}>Quick actions</Text>
               <Text style={styles.attachPanelSub}>
-                Split bills, send hangout invites, or react!
+                Photo, hangout invite, or react
               </Text>
               <View style={styles.attachOptionsRow}>
+                <TouchableOpacity
+                  style={styles.attachOptionCard}
+                  activeOpacity={0.85}
+                  disabled={uploadingPhoto || !canSend}
+                  onPress={handlePickPhoto}
+                >
+                  <LinearGradient colors={["#EC4899", "#DB2777"]} style={styles.attachOptionIconBg}>
+                    <Ionicons name={uploadingPhoto ? "cloud-upload" : "image"} size={20} color="#FFF" />
+                  </LinearGradient>
+                  <Text style={styles.attachOptionLabel}>{uploadingPhoto ? "Uploading…" : "Photo"}</Text>
+                  <Text style={styles.attachOptionSub}>Gallery</Text>
+                </TouchableOpacity>
+
                 {thread.isGroup && (
                   <TouchableOpacity
                     style={styles.attachOptionCard}
@@ -768,7 +1044,7 @@ export default function ChatScreen() {
                       <Ionicons name="card" size={20} color="#FFF" />
                     </LinearGradient>
                     <Text style={styles.attachOptionLabel}>Split Bills</Text>
-                    <Text style={styles.attachOptionSub}>VibeSplit 💳</Text>
+                    <Text style={styles.attachOptionSub}>VibeSplit</Text>
                   </TouchableOpacity>
                 )}
 
@@ -784,7 +1060,7 @@ export default function ChatScreen() {
                     <Ionicons name="cafe" size={20} color="#FFF" />
                   </LinearGradient>
                   <Text style={styles.attachOptionLabel}>Hangout</Text>
-                  <Text style={styles.attachOptionSub}>Proposal ☕</Text>
+                  <Text style={styles.attachOptionSub}>Proposal</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -799,7 +1075,7 @@ export default function ChatScreen() {
                     <Ionicons name="happy" size={20} color="#FFF" />
                   </LinearGradient>
                   <Text style={styles.attachOptionLabel}>Emojis</Text>
-                  <Text style={styles.attachOptionSub}>Reactions 😊</Text>
+                  <Text style={styles.attachOptionSub}>React</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -861,7 +1137,7 @@ export default function ChatScreen() {
       {/* Details modal overlay */}
       {showDetailsModal && (
         <View style={styles.modalOverlay}>
-          <GlassCard style={styles.modalCard} lightMode>
+          <GlassCard style={styles.modalCard}>
             <TouchableOpacity
               style={styles.modalCloseIcon}
               onPress={() => setShowDetailsModal(false)}
@@ -1020,12 +1296,14 @@ export default function ChatScreen() {
           titleName={thread.matchName || "Hangout"}
         />
       )}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: T.bg },
+  foreground: { flex: 1, zIndex: 1, backgroundColor: "transparent" },
   topGlow: { position: "absolute", top: 0, left: 0, right: 0, height: 220 },
   safe: { backgroundColor: "transparent" },
   flex: { flex: 1 },
@@ -1044,9 +1322,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#FFFFFF",
-    shadowColor: "#0F172A",
-    shadowOpacity: 0.06,
+    borderColor: T.border,
+    shadowColor: "#000000",
+    shadowOpacity: 0.2,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 3 },
     elevation: 3,
@@ -1070,7 +1348,7 @@ const styles = StyleSheet.create({
     height: 43,
     borderRadius: 15,
     borderWidth: 2,
-    borderColor: "#FFFFFF",
+    borderColor: T.bg,
   },
   headerName: {
     fontSize: 17,
@@ -1088,9 +1366,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#FFFFFF",
-    shadowColor: "#0F172A",
-    shadowOpacity: 0.06,
+    borderColor: T.border,
+    shadowColor: "#000000",
+    shadowOpacity: 0.2,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 3 },
     elevation: 3,
@@ -1142,9 +1420,9 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: "#FFFFFF",
+    borderColor: T.bg,
     shadowColor: "#000",
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 2,
   },
@@ -1158,12 +1436,12 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   bubbleThem: {
-    backgroundColor: T.card,
+    backgroundColor: T.cardElevated,
     borderWidth: 1,
-    borderColor: "rgba(226, 232, 240, 0.9)",
+    borderColor: T.border,
     borderBottomLeftRadius: 6,
-    shadowColor: "#0F172A",
-    shadowOpacity: 0.05,
+    shadowColor: "#000000",
+    shadowOpacity: 0.2,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
     elevation: 2,
@@ -1189,6 +1467,80 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   msgTimeMe: { marginRight: 4, marginLeft: 0 },
+  msgMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 2,
+    marginLeft: 4,
+  },
+  msgMetaMe: {
+    marginLeft: 0,
+    marginRight: 4,
+    alignSelf: "flex-end",
+  },
+  daySep: {
+    alignItems: "center",
+    marginVertical: 12,
+  },
+  daySepText: {
+    fontSize: 11,
+    fontFamily: VibeFonts.semiBold,
+    color: T.muted,
+    backgroundColor: T.card,
+    borderWidth: 1,
+    borderColor: T.border,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 10,
+    overflow: "hidden",
+  },
+  replyBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 4,
+  },
+  replyBarAccent: {
+    width: 3,
+    alignSelf: "stretch",
+    borderRadius: 2,
+    backgroundColor: T.purple,
+  },
+  replyBarLabel: {
+    fontSize: 11,
+    fontFamily: VibeFonts.bold,
+    color: T.purple,
+  },
+  replyBarText: {
+    fontSize: 12,
+    fontFamily: VibeFonts.regular,
+    color: T.muted,
+    marginTop: 1,
+  },
+  replyQuote: {
+    fontSize: 11,
+    fontFamily: VibeFonts.medium,
+    color: T.muted,
+    marginBottom: 4,
+    opacity: 0.9,
+  },
+  replyQuoteMe: {
+    fontSize: 11,
+    fontFamily: VibeFonts.medium,
+    color: "rgba(255,255,255,0.75)",
+    marginBottom: 4,
+  },
+  photoWrap: {
+    padding: 4,
+  },
+  photoMsg: {
+    width: Math.min(SCREEN_WIDTH * 0.62, 240),
+    height: Math.min(SCREEN_WIDTH * 0.62, 240),
+    borderRadius: 14,
+    backgroundColor: T.cardElevated,
+  },
   inputBar: {
     borderTopWidth: 1,
     borderTopColor: T.border,
@@ -1213,7 +1565,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#DDD6FE",
+    borderColor: "rgba(167, 139, 250, 0.35)",
   },
   input: {
     flex: 1,
@@ -1262,7 +1614,7 @@ const styles = StyleSheet.create({
 
   modalOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(15, 11, 26, 0.55)",
+    backgroundColor: "rgba(3, 5, 12, 0.75)",
     zIndex: 99,
     justifyContent: "center",
     padding: Spacing.xl,
@@ -1292,7 +1644,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     zIndex: 10,
     borderWidth: 1,
-    borderColor: "#DDD6FE",
+    borderColor: "rgba(167, 139, 250, 0.35)",
   },
   modalContent: {
     width: "100%",
@@ -1312,7 +1664,7 @@ const styles = StyleSheet.create({
     height: 104,
     borderRadius: 52,
     borderWidth: 3.5,
-    borderColor: "#FFFFFF",
+    borderColor: T.bg,
   },
   modalTitle: {
     fontSize: 22,
@@ -1340,7 +1692,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: "#DDD6FE",
+    borderColor: "rgba(167, 139, 250, 0.35)",
   },
   infoTextInline: {
     color: T.ink,
@@ -1422,7 +1774,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#DDD6FE",
+    borderColor: "rgba(167, 139, 250, 0.35)",
   },
   emojiPanel: {
     height: 250,
@@ -1454,7 +1806,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#DDD6FE",
+    borderColor: "rgba(167, 139, 250, 0.35)",
   },
   hangoutPanel: {
     paddingVertical: 16,
@@ -1484,14 +1836,14 @@ const styles = StyleSheet.create({
   },
   hangoutOptionCard: {
     flex: 1,
-    backgroundColor: T.bg,
+    backgroundColor: T.cardElevated,
     borderWidth: 1,
     borderColor: T.border,
     borderRadius: Radius.md,
     paddingVertical: 14,
     alignItems: "center",
-    shadowColor: "#0F172A",
-    shadowOpacity: 0.04,
+    shadowColor: "#000000",
+    shadowOpacity: 0.2,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
@@ -1517,9 +1869,9 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   bubbleInvite: {
-    backgroundColor: T.card,
+    backgroundColor: T.cardElevated,
     borderWidth: 1,
-    borderColor: "rgba(226, 232, 240, 0.9)",
+    borderColor: T.border,
     borderRadius: 22,
     overflow: "hidden",
     width: 260,
@@ -1543,7 +1895,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#DDD6FE",
+    borderColor: "rgba(167, 139, 250, 0.35)",
   },
   inviteIconText: { fontSize: 22 },
   inviteTitle: {
@@ -1633,12 +1985,12 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   vibeSplitCardExpense: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: T.cardElevated,
     borderColor: "rgba(139, 92, 246, 0.3)",
   },
   vibeSplitCardSettled: {
-    backgroundColor: "#F0FDF4",
-    borderColor: "rgba(16, 185, 129, 0.3)",
+    backgroundColor: T.greenSoft,
+    borderColor: "rgba(52, 211, 153, 0.3)",
   },
   vibeSplitHeaderRow: {
     flexDirection: "row",
@@ -1658,7 +2010,7 @@ const styles = StyleSheet.create({
   vibeSplitTapText: {
     fontSize: 10,
     fontFamily: VibeFonts.bold,
-    color: "#7C3AED",
+    color: T.purpleBright,
   },
   vibeSplitBadge: {
     flexDirection: "row",
@@ -1701,7 +2053,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: T.cardElevated,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 10,
@@ -1711,7 +2063,7 @@ const styles = StyleSheet.create({
   bannerSplitPillText: {
     fontSize: 10,
     fontFamily: VibeFonts.bold,
-    color: "#7C3AED",
+    color: T.purpleBright,
   },
   splitToggleBtn: {
     borderRadius: 12,

@@ -6,17 +6,15 @@ import { MatchProfile } from "../../constants/matches";
 import { VibeFonts } from "../../constants/vibeTheme";
 
 const T = {
-  card: "#FFFFFF",
-  ink: "#0F172A",
-  muted: "#64748B",
-  faint: "#94A3B8",
-  border: "#E2E8F0",
-  softPurple: "#F1F0FE",
-  softPink: "#FDF2F8",
-  purple: "#8B5CF6",
-  pink: "#EC4899",
+  card: "rgba(22, 26, 46, 0.94)",
+  ink: "#F4F6FB",
+  muted: "#A7B0C4",
+  faint: "#7C869C",
+  border: "rgba(160, 170, 200, 0.16)",
+  softPurple: "rgba(139, 92, 246, 0.18)",
+  purple: "#A78BFA",
+  pink: "#F472B6",
   cta: ["#8B5CF6", "#EC4899"] as const,
-  ctaGold: ["#F59E0B", "#EF4444"] as const,
 };
 
 interface Props {
@@ -32,13 +30,21 @@ export default function MatchStrip({ matches, onPressMatch, onDiscover }: Props)
     <View style={styles.wrap}>
       <View style={styles.header}>
         <View style={styles.titleRow}>
-          <LinearGradient colors={[...T.cta]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.sparkle}>
+          <LinearGradient
+            colors={[...T.cta]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.sparkle}
+          >
             <Ionicons name="sparkles" size={12} color="#fff" />
           </LinearGradient>
           <Text style={styles.title}>New Matches</Text>
         </View>
         <View style={styles.countPill}>
-          <LinearGradient colors={["#EC48991A", "#8B5CF61A"]} style={styles.countPillGrad}>
+          <LinearGradient
+            colors={["rgba(236,72,153,0.2)", "rgba(139,92,246,0.2)"]}
+            style={styles.countPillGrad}
+          >
             <Text style={styles.countText}>{matches.length} NEW</Text>
           </LinearGradient>
         </View>
@@ -57,7 +63,7 @@ export default function MatchStrip({ matches, onPressMatch, onDiscover }: Props)
           >
             <View style={styles.avatarContainer}>
               <LinearGradient
-                colors={m.isOnline ? [...T.cta] : ["#C4B5FD", "#F472B6"]}
+                colors={m.isOnline ? [...T.cta] : ["#7C3AED", "#DB2777"]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.ring}
@@ -84,20 +90,22 @@ export default function MatchStrip({ matches, onPressMatch, onDiscover }: Props)
           </Pressable>
         ))}
 
-        <Pressable
-          style={({ pressed }) => [styles.newCell, pressed && styles.cellPressed]}
-          onPress={onDiscover}
-        >
-          <View style={styles.newRing}>
-            <LinearGradient
-              colors={["#8B5CF615", "#EC489915"]}
-              style={styles.newRingGrad}
-            >
-              <Ionicons name="add" size={26} color={T.purple} />
-            </LinearGradient>
-          </View>
-          <Text style={styles.newLabel}>Discover</Text>
-        </Pressable>
+        {onDiscover ? (
+          <Pressable
+            style={({ pressed }) => [styles.newCell, pressed && styles.cellPressed]}
+            onPress={onDiscover}
+          >
+            <View style={styles.newRing}>
+              <LinearGradient
+                colors={["rgba(139,92,246,0.15)", "rgba(236,72,153,0.15)"]}
+                style={styles.newRingGrad}
+              >
+                <Ionicons name="add" size={26} color={T.purple} />
+              </LinearGradient>
+            </View>
+            <Text style={styles.newLabel}>Discover</Text>
+          </Pressable>
+        ) : null}
       </ScrollView>
     </View>
   );
@@ -110,13 +118,8 @@ const styles = StyleSheet.create({
     backgroundColor: T.card,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: "rgba(226, 232, 240, 0.8)",
+    borderColor: T.border,
     paddingVertical: 14,
-    shadowColor: "#7C3AED",
-    shadowOpacity: 0.07,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
   },
   header: {
     flexDirection: "row",
@@ -148,7 +151,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(236, 72, 153, 0.3)",
+    borderColor: "rgba(236, 72, 153, 0.35)",
   },
   countText: {
     fontSize: 10,
@@ -167,32 +170,23 @@ const styles = StyleSheet.create({
     padding: 2.5,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#8B5CF6",
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
   },
   avatar: {
     width: 61,
     height: 61,
     borderRadius: 21,
     borderWidth: 2,
-    borderColor: "#FFFFFF",
+    borderColor: "#1A2238",
   },
   online: {
     position: "absolute",
     top: 1,
     right: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#12182C",
     borderRadius: 10,
     padding: 2.5,
     borderWidth: 1.5,
-    borderColor: "#FFFFFF",
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    borderColor: "#1A2238",
   },
   verifiedBadge: {
     position: "absolute",
@@ -205,7 +199,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: "#FFFFFF",
+    borderColor: "#1A2238",
   },
   name: {
     fontSize: 12,
@@ -219,7 +213,7 @@ const styles = StyleSheet.create({
     height: 68,
     borderRadius: 24,
     borderWidth: 1.5,
-    borderColor: "#C4B5FD",
+    borderColor: "rgba(167, 139, 250, 0.5)",
     borderStyle: "dashed",
     overflow: "hidden",
     marginBottom: 6,
@@ -236,4 +230,3 @@ const styles = StyleSheet.create({
     color: T.muted,
   },
 });
-

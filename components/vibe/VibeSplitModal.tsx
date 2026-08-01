@@ -10,6 +10,7 @@ import {
   Alert,
   Modal,
   ActivityIndicator,
+  Linking,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -124,6 +125,57 @@ export default function VibeSplitModal({
     }
   };
 
+  const handleSendWhatsAppBill = async (member: {
+    name: string;
+    phone?: string | null;
+    netBalance: number;
+    owedTotal: number;
+    pendingSplits?: { expenseTitle: string; amount: number }[];
+  }) => {
+    const oweAmount = Math.abs(Math.min(0, member.netBalance)) || member.owedTotal || 0;
+    if (oweAmount <= 0) {
+      Alert.alert("Nothing due", `${member.name} doesn't owe anything right now.`);
+      return;
+    }
+
+    const lines = (member.pendingSplits || [])
+      .map((s) => `• ${s.expenseTitle}: ₹${Math.round(s.amount)}`)
+      .join("\n");
+
+    const hostName = user?.name?.split(" ")[0] || "Host";
+    const summary =
+      `Hey ${member.name.split(" ")[0]}! 👋\n\n` +
+      `Bill summary from Hangora (${titleName})\n` +
+      `Your share: ₹${Math.round(oweAmount).toLocaleString("en-IN")}\n` +
+      (lines ? `\nDetails:\n${lines}\n` : "\n") +
+      `\nPlease pay ${hostName} when you can. Thanks! 🙏`;
+
+    const digits = (member.phone || "").replace(/\D/g, "");
+    // Prefer Indian numbers: if 10 digits, prefix 91
+    const waPhone =
+      digits.length === 10
+        ? `91${digits}`
+        : digits.length > 10
+          ? digits.replace(/^0+/, "")
+          : digits;
+
+    try {
+      if (waPhone.length >= 10) {
+        const url = `https://wa.me/${waPhone}?text=${encodeURIComponent(summary)}`;
+        const can = await Linking.canOpenURL(url);
+        if (can) {
+          await Linking.openURL(url);
+          return;
+        }
+      }
+      // Fallback: open WhatsApp with text only (host picks contact)
+      const fallback = `https://wa.me/?text=${encodeURIComponent(summary)}`;
+      await Linking.openURL(fallback);
+    } catch {
+      Alert.alert("WhatsApp", "Could not open WhatsApp. Copy this summary:\n\n" + summary);
+    }
+  };
+
   const myBalanceObj = balances.find((b) => b.userId === user?.id);
   const myNet = myBalanceObj?.netBalance || 0;
 
@@ -223,19 +275,26 @@ export default function VibeSplitModal({
                       const isMe = b.userId === user?.id;
                       const isOwed = b.netBalance > 0;
                       const owes = b.netBalance < 0;
+                      const isWaGuest = Boolean(b.isWhatsAppGuest);
                       const firstPendingSplit = b.pendingSplits && b.pendingSplits.length > 0 ? b.pendingSplits[0].splitId : null;
 
                       return (
                         <View key={b.userId} style={styles.memberCard}>
                           <Image source={{ uri: b.avatarUrl }} style={styles.memberAvatar} />
                           <View style={{ flex: 1 }}>
-                            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                               <Text style={styles.memberName}>{b.name}</Text>
                               {isMe && (
                                 <View style={styles.youBadge}>
                                   <Text style={styles.youBadgeText}>YOU</Text>
                                 </View>
                               )}
+                              {isWaGuest ? (
+                                <View style={styles.waBadge}>
+                                  <Ionicons name="logo-whatsapp" size={10} color="#fff" />
+                                  <Text style={styles.waBadgeText}>WA</Text>
+                                </View>
+                              ) : null}
                             </View>
                             <Text style={styles.memberSub}>
                               Paid ₹{b.paidTotal} · Owes ₹{b.owedTotal}
@@ -257,20 +316,37 @@ export default function VibeSplitModal({
                             </Text>
 
                             {owes && !isMe ? (
-                              <Pressable
-                                onPress={() => handleSettle(firstPendingSplit || b.userId, b.name)}
-                                style={styles.settleBtn}
-                              >
-                                <LinearGradient
-                                  colors={["#10B981", "#059669"]}
-                                  start={{ x: 0, y: 0 }}
-                                  end={{ x: 1, y: 0 }}
-                                  style={styles.settleBtnGrad}
+                              <View style={{ gap: 4, alignItems: "flex-end" }}>
+                                {(isWaGuest || b.phone) ? (
+                                  <Pressable
+                                    onPress={() => handleSendWhatsAppBill(b)}
+                                    style={styles.waBillBtn}
+                                  >
+                                    <Ionicons name="logo-whatsapp" size={13} color="#fff" />
+                                    <Text style={styles.settleBtnText}>WhatsApp bill</Text>
+                                  </Pressable>
+                                ) : null}
+                                <Pressable
+                                  onPress={() => handleSettle(firstPendingSplit || b.userId, b.name)}
+                                  style={styles.settleBtn}
                                 >
-                                  <Ionicons name="checkmark-circle" size={13} color="#FFF" />
-                                  <Text style={styles.settleBtnText}>Settle Up</Text>
-                                </LinearGradient>
-                              </Pressable>
+                                  <LinearGradient
+                                    colors={["#10B981", "#059669"]}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 0 }}
+                                    style={styles.settleBtnGrad}
+                                  >
+                                    <Ionicons name="checkmark-circle" size={13} color="#FFF" />
+                                    <Text style={styles.settleBtnText}>Settle Up</Text>
+                                  </LinearGradient>
+                                </Pressable>
+                              </View>
+                            ) : null}
+
+                            {!owes && !isMe && isWaGuest && b.owedTotal === 0 && b.paidTotal === 0 ? (
+                              <View style={styles.waGuestHint}>
+                                <Text style={styles.waGuestHintText}>In split · add expense</Text>
+                              </View>
                             ) : null}
                           </View>
                         </View>
@@ -588,6 +664,40 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontFamily: VibeFonts.bold,
     color: "#C4B5FD",
+  },
+  waBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: "#16A34A",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  waBadgeText: {
+    fontSize: 9,
+    fontFamily: VibeFonts.bold,
+    color: "#fff",
+  },
+  waBillBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#16A34A",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  waGuestHint: {
+    backgroundColor: "rgba(22, 163, 74, 0.15)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  waGuestHintText: {
+    fontSize: 10,
+    fontFamily: VibeFonts.medium,
+    color: "#86EFAC",
   },
   memberSub: {
     fontSize: 11,

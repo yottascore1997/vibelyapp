@@ -5,7 +5,7 @@ import { api } from "../services/api";
 import { useAuth } from "./AuthContext";
 import { usePlans } from "./PlansContext";
 import { DiscoverProfile, MatchProfile, SwipeAction } from "../constants/matches";
-import { ChatThread, buildStarterThread } from "../constants/chats";
+import { ChatThread, buildEmptyThread, formatChatPreview, parseReplyPayload } from "../constants/chats";
 import { ChatGate, evaluateLocalChatGate } from "../constants/chatGate";
 import { API_URL } from "../constants/theme";
 import { Alert } from "react-native";
@@ -21,9 +21,18 @@ interface MatchesContextType {
   likesCount: number;
   likesList: any[];
   loading: boolean;
+  hasGps: boolean;
+  canRewind: boolean;
   chatGates: Record<string, ChatGate>;
   refresh: (mode?: "friends" | "dating" | "everyone") => Promise<void>;
   swipe: (receiverId: string, action: SwipeAction) => Promise<{ isMatch: boolean; profile?: DiscoverProfile }>;
+  rewind: () => Promise<boolean>;
+  updateDiscoverPrefs: (prefs: {
+    maxDistance?: number;
+    minAge?: number;
+    maxAge?: number;
+    genderPreference?: string;
+  }) => Promise<boolean>;
   isMatched: (userId: string) => boolean;
   getConversation: (matchId: string) => ChatThread | undefined;
   getChatGate: (matchId: string) => ChatGate | null;
@@ -33,6 +42,7 @@ interface MatchesContextType {
   typingUsers: Record<string, { userId: string; name: string }[]>;
   sendTypingStatus: (matchId: string, isTyping: boolean) => void;
   updateMessageContent: (messageId: string, newContent: string, matchId: string, isGroup?: boolean) => void;
+  deleteMessage: (messageId: string, matchId: string, isGroup?: boolean) => void;
 }
 
 const MatchesContext = createContext<MatchesContextType | null>(null);
@@ -43,9 +53,10 @@ function syncThreads(matches: MatchProfile[], stored: ChatThread[]): ChatThread[
   for (const m of matches) {
     if (!threads.some((t) => t.matchId === m.id)) {
       threads.push(
-        buildStarterThread(m.id, m.name, m.avatarUrl, {
+        buildEmptyThread(m.id, m.name, m.avatarUrl, {
           isOnline: m.isOnline,
           isVerified: m.isVerified,
+          lastSeenAt: m.lastSeenAt,
         })
       );
     } else {
@@ -55,6 +66,7 @@ function syncThreads(matches: MatchProfile[], stored: ChatThread[]): ChatThread[
         matchName: m.name,
         avatarUrl: m.avatarUrl,
         isOnline: m.isOnline,
+        lastSeenAt: m.lastSeenAt ?? threads[idx].lastSeenAt,
         isVerified: m.isVerified,
       };
     }
@@ -76,6 +88,11 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [swipedIds, setSwipedIds] = useState<string[]>([]);
   const [chatGates, setChatGates] = useState<Record<string, ChatGate>>({});
+  const [hasGps, setHasGps] = useState(true);
+  const [lastSwipe, setLastSwipe] = useState<{
+    profile: DiscoverProfile;
+    action: SwipeAction;
+  } | null>(null);
 
   const [typingUsers, setTypingUsers] = useState<Record<string, { userId: string; name: string }[]>>({});
 
@@ -114,16 +131,24 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
 
       const soft = <T,>(p: Promise<T>) => p.catch(() => null as T | null);
 
-      let discoverCity = "Nagpur";
+      let discoverCity: string | undefined;
+      let viewerHasGps = false;
       try {
         const token = await AsyncStorage.getItem("token");
         if (token) {
           const me: any = await api.getProfile(token);
-          if (me?.city) discoverCity = me.city;
+          const profile = me?.profile || me;
+          if (profile?.city) discoverCity = profile.city;
+          viewerHasGps =
+            profile?.latitude != null &&
+            profile?.longitude != null &&
+            Number.isFinite(Number(profile.latitude)) &&
+            Number.isFinite(Number(profile.longitude));
         }
       } catch {
-        // keep default
+        // keep defaults
       }
+      setHasGps(viewerHasGps);
 
       const [profiles, matchList, likes] = await Promise.all([
         soft(api.getDiscoverProfiles(user.id, mode, discoverCity)),
@@ -132,7 +157,7 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
         soft(refreshPlans()),
       ]);
 
-      const resolveAvatar = (url?: string | null) => {
+      const resolveAvatar = (url?: string | null, name?: string) => {
         if (url) {
           if (url.startsWith("/")) {
             const { API_URL } = require("../constants/theme");
@@ -141,12 +166,23 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
           }
           return url;
         }
-        return "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop";
+        const label = encodeURIComponent((name || "User").split(" ")[0]);
+        return `https://ui-avatars.com/api/?name=${label}&background=7C3AED&color=fff&size=400`;
+      };
+
+      const resolvePhotoList = (photos?: string[], avatar?: string, name?: string) => {
+        const list = (photos || [])
+          .filter(Boolean)
+          .map((u) => resolveAvatar(u, name));
+        if (list.length === 0 && avatar) list.push(resolveAvatar(avatar, name));
+        if (list.length === 0) list.push(resolveAvatar(null, name));
+        return list;
       };
 
       const apiMatches = ((matchList as MatchProfile[]) || []).map((m) => ({
         ...m,
-        avatarUrl: resolveAvatar(m.avatarUrl),
+        avatarUrl: resolveAvatar(m.avatarUrl, m.name),
+        photos: resolvePhotoList(m.photos, m.avatarUrl, m.name),
       }));
 
       const mergedMatches = [
@@ -158,7 +194,7 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
 
       const apiLikes = ((likes?.likes as any[]) || []).map((l) => ({
         ...l,
-        avatarUrl: resolveAvatar(l.avatarUrl),
+        avatarUrl: resolveAvatar(l.avatarUrl, l.name),
       }));
       setLikesList(apiLikes);
 
@@ -176,23 +212,30 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
             if (t.isGroup) {
               const serverMsgs = await api.getGroupChatMessages(t.matchId);
               if (serverMsgs) {
-                const messages = serverMsgs.map((m: any) => ({
-                  id: m.id,
-                  text: m.text,
-                  sentAt: m.sentAt,
-                  fromMe: m.senderId === user.id,
-                  senderName: m.senderName,
-                  senderAvatar: m.senderAvatar,
-                }));
+                const messages = serverMsgs.map((m: any) => {
+                  const parsed = parseReplyPayload(m.text || "");
+                  return {
+                    id: m.id,
+                    text: m.text,
+                    sentAt: m.sentAt,
+                    fromMe: m.senderId === user.id,
+                    senderName: m.senderName,
+                    senderAvatar: m.senderAvatar,
+                    replyToId: parsed.replyToId,
+                    replyToText: parsed.replyToText,
+                  };
+                });
 
-                const lastMsgText = messages[messages.length - 1]?.text || t.lastMessage;
-                const lastMsgTime = messages[messages.length - 1]?.sentAt || t.lastMessageAt;
-
+                const lastRaw = messages[messages.length - 1]?.text || "";
                 return {
                   ...t,
-                  messages: messages.length > 0 ? messages : t.messages,
-                  lastMessage: lastMsgText,
-                  lastMessageAt: lastMsgTime,
+                  messages,
+                  lastMessage: lastRaw
+                    ? formatChatPreview(lastRaw)
+                    : "Say hi to the group",
+                  lastMessageAt:
+                    messages[messages.length - 1]?.sentAt || t.lastMessageAt,
+                  unread: 0,
                 };
               }
               return t;
@@ -209,21 +252,28 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
             }
 
             const list = res.messages || [];
-            const messages = list.map((m: any) => ({
-              id: m.id,
-              text: m.text,
-              sentAt: m.sentAt,
-              fromMe: m.senderId === user.id,
-            }));
+            const messages = list.map((m: any) => {
+              const parsed = parseReplyPayload(m.text || "");
+              return {
+                id: m.id,
+                text: m.text,
+                sentAt: m.sentAt,
+                fromMe: m.senderId === user.id,
+                isRead: !!m.isRead,
+                replyToId: parsed.replyToId,
+                replyToText: parsed.replyToText,
+              };
+            });
 
-            const lastMsgText = messages[messages.length - 1]?.text || t.lastMessage;
-            const lastMsgTime = messages[messages.length - 1]?.sentAt || t.lastMessageAt;
+            const lastRaw = messages[messages.length - 1]?.text || "";
+            const unreadCount = messages.filter((m) => !m.fromMe && !m.isRead).length;
 
             return {
               ...t,
               messages,
-              lastMessage: lastMsgText,
-              lastMessageAt: lastMsgTime,
+              lastMessage: lastRaw ? formatChatPreview(lastRaw) : "Say hi to start chatting",
+              lastMessageAt: messages[messages.length - 1]?.sentAt || t.lastMessageAt,
+              unread: unreadCount,
             };
           } catch {
             return t;
@@ -247,13 +297,18 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
       setConversations(aliveThreads);
       await persistChats(aliveThreads);
 
-      let nextDeck = ((profiles as DiscoverProfile[]) || []).map((p) => ({
-        ...p,
-        avatarUrl: resolveAvatar(p.avatarUrl),
-      }));
+      let nextDeck = ((profiles as DiscoverProfile[]) || []).map((p) => {
+        const photos = resolvePhotoList(p.photos, p.avatarUrl, p.name);
+        return {
+          ...p,
+          avatarUrl: photos[0],
+          photos,
+        };
+      });
       nextDeck = nextDeck.filter((p) => !swiped.includes(p.id) && !keptMatches.some((m) => m.id === p.id));
 
       setDeck(nextDeck);
+      setLastSwipe(null);
     } catch (err) {
       console.error("Matches refresh failed:", err);
     } finally {
@@ -307,17 +362,10 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
             matchName: groupName,
             avatarUrl: groupAvatar,
             isGroup: true,
-            unread: 1,
-            lastMessage: `Group chat activated for: ${plan.title}! 🎉`,
+            unread: 0,
+            lastMessage: "Say hi to the group",
             lastMessageAt: now,
-            messages: [
-              {
-                id: `group-${plan.id}-starter`,
-                text: `Welcome! Plan is created. Members can now coordinate here 🍿`,
-                sentAt: new Date(Date.now() - 60000).toISOString(),
-                fromMe: false,
-              }
-            ],
+            messages: [],
           });
         }
       }
@@ -345,9 +393,10 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
     setMatches(updated);
     await AsyncStorage.setItem(STORAGE_MATCHES, JSON.stringify(updated));
 
-    const thread = buildStarterThread(matchProfile.id, matchProfile.name, matchProfile.avatarUrl, {
+    const thread = buildEmptyThread(matchProfile.id, matchProfile.name, matchProfile.avatarUrl, {
       isOnline: matchProfile.isOnline,
       isVerified: matchProfile.isVerified,
+      lastSeenAt: matchProfile.lastSeenAt,
     });
     const nextThreads = syncThreads(updated, [...conversations.filter((t) => t.matchId !== matchProfile.id), thread]);
     setConversations(nextThreads);
@@ -361,9 +410,14 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
 
   const swipe = async (receiverId: string, action: SwipeAction) => {
     const profile = deck.find((p) => p.id === receiverId);
+    if (!profile) return { isMatch: false };
+
+    const prevDeck = deck;
+    const prevSwiped = swipedIds;
     const newSwiped = [...swipedIds, receiverId];
     setSwipedIds(newSwiped);
     setDeck((d) => d.filter((p) => p.id !== receiverId));
+    setLastSwipe({ profile, action });
     await AsyncStorage.setItem(STORAGE_SWIPED, JSON.stringify(newSwiped));
 
     let isMatch = false;
@@ -371,7 +425,6 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
     if (user) {
       try {
         const res = await api.swipe({ receiverId, action });
-        // Never invent matches — ignore demo / failed responses
         isMatch = !!res?.isMatch && !res?.demo;
 
         if (isMatch && profile) {
@@ -381,11 +434,78 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
         }
       } catch (err) {
         console.error("Swipe failed:", err);
+        // Roll back optimistic swipe so the card isn't lost forever
+        setSwipedIds(prevSwiped);
+        setDeck(prevDeck);
+        setLastSwipe(null);
+        await AsyncStorage.setItem(STORAGE_SWIPED, JSON.stringify(prevSwiped));
+        Alert.alert("Swipe failed", "Check your connection and try again.");
+        return { isMatch: false, profile };
       }
     }
 
     return { isMatch: false, profile };
   };
+
+  const rewind = useCallback(async () => {
+    if (!lastSwipe || !user) return false;
+    const { profile } = lastSwipe;
+    try {
+      const res = await api.undoSwipe(profile.id);
+      if (!res?.undone) {
+        Alert.alert("Rewind failed", "Could not undo that swipe.");
+        return false;
+      }
+
+      const nextSwiped = swipedIds.filter((id) => id !== profile.id);
+      setSwipedIds(nextSwiped);
+      await AsyncStorage.setItem(STORAGE_SWIPED, JSON.stringify(nextSwiped));
+      setDeck((d) => [profile, ...d.filter((p) => p.id !== profile.id)]);
+      setLastSwipe(null);
+
+      if (res.matchRemoved) {
+        setMatches((prev) => {
+          const next = prev.filter((m) => m.id !== profile.id);
+          AsyncStorage.setItem(STORAGE_MATCHES, JSON.stringify(next));
+          return next;
+        });
+        setConversations((prev) => {
+          const next = prev.filter((t) => t.matchId !== profile.id);
+          persistChats(next);
+          return next;
+        });
+      }
+      return true;
+    } catch (err) {
+      console.error("Rewind failed:", err);
+      Alert.alert("Rewind failed", "Please try again.");
+      return false;
+    }
+  }, [lastSwipe, user, swipedIds]);
+
+  const updateDiscoverPrefs = useCallback(
+    async (prefs: {
+      maxDistance?: number;
+      minAge?: number;
+      maxAge?: number;
+      genderPreference?: string;
+    }) => {
+      if (!token) {
+        Alert.alert("Login required", "Please log in again.");
+        return false;
+      }
+      try {
+        await api.updateProfile(prefs, token);
+        await refresh();
+        return true;
+      } catch (err) {
+        console.error("updateDiscoverPrefs failed:", err);
+        Alert.alert("Could not save filters", "Try again.");
+        return false;
+      }
+    },
+    [token, refresh]
+  );
 
   // Manage real-time socket connection lifecycle
   useEffect(() => {
@@ -454,11 +574,22 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    socket.on("new_message", (payload: { id: string; text: string; sentAt: string; senderId: string; matchId: string; senderName?: string; senderAvatar?: string }) => {
+    socket.on("new_message", (payload: {
+      id: string;
+      text: string;
+      sentAt: string;
+      senderId: string;
+      matchId: string;
+      senderName?: string;
+      senderAvatar?: string;
+      isRead?: boolean;
+    }) => {
       console.log("[MatchesContext] Socket received new_message:", payload);
-      const { matchId, id, text, sentAt, senderId, senderName, senderAvatar } = payload;
+      const { matchId, id, text, sentAt, senderId, senderName, senderAvatar, isRead } = payload;
       const fromMe = senderId === user.id;
       const threadKey = fromMe ? matchId : senderId;
+      const parsed = parseReplyPayload(text || "");
+      const preview = formatChatPreview(text);
 
       setConversations((prev) => {
         const next = prev.map((t) => {
@@ -477,11 +608,14 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
                   ...updated[tempIdx],
                   id,
                   sentAt,
+                  isRead: !!isRead,
+                  replyToId: parsed.replyToId,
+                  replyToText: parsed.replyToText,
                 };
                 return {
                   ...t,
                   messages: updated,
-                  lastMessage: text,
+                  lastMessage: preview,
                   lastMessageAt: sentAt,
                   unread: fromMe ? 0 : (t.unread + 1),
                 };
@@ -496,9 +630,10 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
                   ...t,
                   messages: t.messages.map((m) =>
                     m.text === text && Math.abs(new Date(m.sentAt).getTime() - new Date(sentAt).getTime()) < 5000
-                      ? { ...m, id }
+                      ? { ...m, id, isRead: !!isRead }
                       : m
                   ),
+                  lastMessage: preview,
                 };
               }
 
@@ -509,12 +644,15 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
                 fromMe,
                 senderName,
                 senderAvatar,
+                isRead: !!isRead,
+                replyToId: parsed.replyToId,
+                replyToText: parsed.replyToText,
               };
 
               return {
                 ...t,
                 messages: [...t.messages, msg],
-                lastMessage: text,
+                lastMessage: preview,
                 lastMessageAt: sentAt,
                 unread: fromMe ? 0 : (t.unread + 1),
               };
@@ -524,6 +662,89 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
 
         persistChats(next);
         return next.sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime());
+      });
+    });
+
+    socket.on("presence_update", (payload: { userId: string; isOnline: boolean; lastSeenAt?: string | null }) => {
+      const { userId: otherId, isOnline, lastSeenAt } = payload;
+      setMatches((prev) =>
+        prev.map((m) =>
+          m.id === otherId ? { ...m, isOnline, lastSeenAt: lastSeenAt ?? m.lastSeenAt } : m
+        )
+      );
+      setDeck((prev) =>
+        prev.map((p) =>
+          p.id === otherId ? { ...p, isOnline, lastSeenAt: lastSeenAt ?? p.lastSeenAt } : p
+        )
+      );
+      setConversations((prev) => {
+        const next = prev.map((t) =>
+          !t.isGroup && t.matchId === otherId
+            ? { ...t, isOnline, lastSeenAt: lastSeenAt ?? t.lastSeenAt }
+            : t
+        );
+        persistChats(next);
+        return next;
+      });
+    });
+
+    socket.on("messages_read", (payload: { matchId: string; readerId: string; messageIds: string[] }) => {
+      const { matchId, readerId, messageIds } = payload;
+      if (!messageIds?.length) return;
+
+      setConversations((prev) => {
+        const next = prev.map((t) => {
+          if (t.isGroup) return t;
+
+          // I opened the chat — clear unread
+          if (readerId === user.id && t.matchId === matchId) {
+            return {
+              ...t,
+              unread: 0,
+              messages: t.messages.map((m) =>
+                !m.fromMe ? { ...m, isRead: true } : m
+              ),
+            };
+          }
+
+          // They read my messages — show double-check
+          if (readerId !== user.id && t.matchId === readerId) {
+            return {
+              ...t,
+              messages: t.messages.map((m) =>
+                messageIds.includes(m.id) ? { ...m, isRead: true } : m
+              ),
+            };
+          }
+
+          return t;
+        });
+        persistChats(next);
+        return next;
+      });
+    });
+
+    socket.on("message_deleted", (payload: { id: string; matchId: string; senderId: string; isGroup?: boolean }) => {
+      const { id, matchId, senderId, isGroup } = payload;
+      const fromMe = senderId === user.id;
+      setConversations((prev) => {
+        const next = prev.map((t) => {
+          const isThreadMatch = isGroup
+            ? t.matchId === matchId
+            : t.matchId === (fromMe ? matchId : senderId);
+          if (!isThreadMatch) return t;
+          const messages = t.messages.map((m) =>
+            m.id === id ? { ...m, text: "[DELETED]" } : m
+          );
+          const last = messages[messages.length - 1];
+          return {
+            ...t,
+            messages,
+            lastMessage: last ? formatChatPreview(last.text) : t.lastMessage,
+          };
+        });
+        persistChats(next);
+        return next;
       });
     });
 
@@ -575,7 +796,7 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
                 }
                 return m;
               }),
-              lastMessage: t.messages[t.messages.length - 1]?.id === id ? text : t.lastMessage
+              lastMessage: t.messages[t.messages.length - 1]?.id === id ? formatChatPreview(text) : t.lastMessage
             };
           }
           return t;
@@ -670,13 +891,23 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
 
     const now = new Date().toISOString();
     const tempId = `temp-${Date.now()}`;
-    const msg = { id: tempId, text: trimmed, sentAt: now, fromMe: true };
+    const parsed = parseReplyPayload(trimmed);
+    const msg = {
+      id: tempId,
+      text: trimmed,
+      sentAt: now,
+      fromMe: true,
+      isRead: false,
+      replyToId: parsed.replyToId,
+      replyToText: parsed.replyToText,
+    };
+    const preview = formatChatPreview(trimmed);
 
     // Optimistically update local thread state
     setConversations((prev) => {
       const next = prev.map((t) =>
         t.matchId === matchId
-          ? { ...t, messages: [...t.messages, msg], lastMessage: trimmed, lastMessageAt: now, unread: 0 }
+          ? { ...t, messages: [...t.messages, msg], lastMessage: preview, lastMessageAt: now, unread: 0 }
           : t
       );
       persistChats(next);
@@ -725,13 +956,48 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
   const markRead = useCallback(async (matchId: string) => {
     setConversations((prev) => {
       const thread = prev.find((t) => t.matchId === matchId);
-      if (!thread || thread.unread === 0) return prev;
+      if (!thread) return prev;
 
-      const next = prev.map((t) => (t.matchId === matchId ? { ...t, unread: 0 } : t));
+      if (socketRef.current && !thread.isGroup) {
+        socketRef.current.emit("mark_read", { matchId, isGroup: false });
+      }
+
+      const next = prev.map((t) =>
+        t.matchId === matchId
+          ? {
+              ...t,
+              unread: 0,
+              messages: t.messages.map((m) =>
+                !m.fromMe ? { ...m, isRead: true } : m
+              ),
+            }
+          : t
+      );
       persistChats(next);
       return next;
     });
   }, []);
+
+  const deleteMessage = useCallback((messageId: string, matchId: string, isGroup?: boolean) => {
+    if (!socketRef.current || !user) return;
+    socketRef.current.emit("delete_message", { messageId, matchId, isGroup });
+    setConversations((prev) => {
+      const next = prev.map((t) => {
+        if (t.matchId !== matchId) return t;
+        const messages = t.messages.map((m) =>
+          m.id === messageId ? { ...m, text: "[DELETED]" } : m
+        );
+        const last = messages[messages.length - 1];
+        return {
+          ...t,
+          messages,
+          lastMessage: last ? formatChatPreview(last.text) : t.lastMessage,
+        };
+      });
+      persistChats(next);
+      return next;
+    });
+  }, [user]);
 
   const isMatched = (userId: string) => matches.some((m) => m.id === userId);
 
@@ -765,7 +1031,7 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
               }
               return m;
             }),
-            lastMessage: t.messages[t.messages.length - 1]?.id === messageId ? newContent : t.lastMessage
+            lastMessage: t.messages[t.messages.length - 1]?.id === messageId ? formatChatPreview(newContent) : t.lastMessage
           };
         }
         return t;
@@ -784,9 +1050,13 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
         likesCount,
         likesList,
         loading,
+        hasGps,
+        canRewind: !!lastSwipe,
         chatGates,
         refresh,
         swipe,
+        rewind,
+        updateDiscoverPrefs,
         isMatched,
         getConversation,
         getChatGate,
@@ -796,6 +1066,7 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
         typingUsers,
         sendTypingStatus,
         updateMessageContent,
+        deleteMessage,
       }}
     >
       {children}

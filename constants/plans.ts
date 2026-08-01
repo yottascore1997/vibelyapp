@@ -15,7 +15,7 @@ export interface Plan {
   title: string;
   description?: string | null;
   location?: string | null;
-  distance?: number;
+  distance?: number | null;
   scheduledAt?: string;
   time?: string;
   timeLabel?: string;
@@ -29,6 +29,8 @@ export interface Plan {
   creatorId: string;
   creatorName?: string;
   creatorAvatar?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   visibility?: "PUBLIC" | "FRIENDS" | string;
   isPrivate?: boolean;
   participants?: PlanParticipant[];

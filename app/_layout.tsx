@@ -99,6 +99,20 @@ export default function RootLayout() {
               }}
             />
             <Stack.Screen name="explore-events" options={{ animation: "slide_from_right" }} />
+            <Stack.Screen
+              name="spot-radar"
+              options={{
+                animation: "slide_from_bottom",
+                contentStyle: { backgroundColor: "#F8F9FD" },
+              }}
+            />
+            <Stack.Screen
+              name="spot-broadcast"
+              options={{
+                animation: "slide_from_right",
+                contentStyle: { backgroundColor: "#F8F9FD" },
+              }}
+            />
           </Stack>
           <Sidebar />
                 </TabBarVisibilityProvider>

@@ -2,17 +2,17 @@ import { View, Text, StyleSheet, Pressable, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import PulseDot from "../home/PulseDot";
-import { ChatThread, formatChatTime } from "../../constants/chats";
+import { ChatThread, formatChatTime, formatChatPreview } from "../../constants/chats";
 import { VibeFonts } from "../../constants/vibeTheme";
 
 const T = {
-  ink: "#0F172A",
-  muted: "#64748B",
-  faint: "#94A3B8",
-  border: "#E2E8F0",
-  purple: "#8B5CF6",
-  pink: "#EC4899",
-  card: "#FFFFFF",
+  ink: "#F4F6FB",
+  muted: "#A7B0C4",
+  faint: "#7C869C",
+  border: "rgba(160, 170, 200, 0.14)",
+  purple: "#A78BFA",
+  pink: "#F472B6",
+  card: "transparent",
   cta: ["#8B5CF6", "#EC4899"] as const,
 };
 
@@ -93,7 +93,7 @@ export default function ChatLogItem({ thread, onPress, isLast }: Props) {
             numberOfLines={1}
           >
             {isFromMe ? <Text style={styles.youPrefix}>You: </Text> : null}
-            {thread.lastMessage}
+            {formatChatPreview(thread.lastMessage)}
           </Text>
 
           {hasUnread ? (
@@ -119,16 +119,16 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(226, 232, 240, 0.7)",
+    borderBottomColor: T.border,
     position: "relative",
     backgroundColor: T.card,
   },
   wrapLast: { borderBottomWidth: 0 },
   wrapUnread: {
-    backgroundColor: "rgba(244, 242, 255, 0.7)",
+    backgroundColor: "rgba(139, 92, 246, 0.12)",
   },
   wrapPressed: {
-    backgroundColor: "rgba(238, 233, 248, 0.9)",
+    backgroundColor: "rgba(139, 92, 246, 0.18)",
   },
   accent: {
     position: "absolute",
@@ -147,32 +147,23 @@ const styles = StyleSheet.create({
     padding: 2.5,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#8B5CF6",
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
   },
   avatar: {
     width: 52,
     height: 52,
     borderRadius: 18,
     borderWidth: 2,
-    borderColor: "#FFFFFF",
+    borderColor: "#1A2238",
   },
   online: {
     position: "absolute",
     bottom: 0,
     right: 0,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#12182C",
     borderRadius: 10,
     padding: 2,
     borderWidth: 1.5,
-    borderColor: "#FFFFFF",
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 2,
+    borderColor: "#1A2238",
   },
   groupBadge: {
     position: "absolute",
@@ -184,7 +175,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: "#FFFFFF",
+    borderColor: "#1A2238",
   },
   body: { flex: 1, minWidth: 0 },
   topRow: {
@@ -201,7 +192,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     letterSpacing: -0.2,
   },
-  nameUnread: { fontFamily: VibeFonts.extraBold, color: "#0F172A" },
+  nameUnread: { fontFamily: VibeFonts.extraBold, color: "#FFFFFF" },
   time: {
     fontSize: 11,
     fontFamily: VibeFonts.medium,
@@ -222,7 +213,7 @@ const styles = StyleSheet.create({
     color: T.muted,
   },
   previewUnread: {
-    color: T.ink,
+    color: "#E2E8F0",
     fontFamily: VibeFonts.semiBold,
   },
   youPrefix: { color: T.purple, fontFamily: VibeFonts.bold },
@@ -233,11 +224,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 7,
-    shadowColor: "#EC4899",
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
   },
   unreadText: { fontSize: 10, fontFamily: VibeFonts.extraBold, color: "#FFFFFF" },
 });

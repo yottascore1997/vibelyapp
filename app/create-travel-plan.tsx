@@ -74,6 +74,7 @@ function mapCategory(styleId: string, dates: string): string {
 export default function CreateTravelPlanScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const tabBarHeight = 72 + Math.max(insets.bottom, 12);
   const { user } = useAuth();
 
   const [dest, setDest] = useState("");
@@ -162,7 +163,7 @@ export default function CreateTravelPlanScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scroll, { paddingBottom: 180 + insets.bottom }]}
+        contentContainerStyle={[styles.scroll, { paddingBottom: tabBarHeight + 100 }]}
         keyboardShouldPersistTaps="handled"
       >
         {/* Hero */}
@@ -365,8 +366,8 @@ export default function CreateTravelPlanScreen() {
         </Animated.View>
       </ScrollView>
 
-      {/* Footer CTA + TabBar */}
-      <View style={styles.footer}>
+      {/* Sticky CTA above TabBar */}
+      <View style={[styles.footer, { bottom: tabBarHeight }]}>
         <LinearGradient colors={["transparent", T.bg]} style={styles.footerFade} />
         <View style={styles.ctaWrap}>
           <Pressable onPress={handlePublish} disabled={saving} style={styles.ctaPress}>
@@ -378,8 +379,8 @@ export default function CreateTravelPlanScreen() {
             </LinearGradient>
           </Pressable>
         </View>
-        <TabBar dark={false} />
       </View>
+      <TabBar dark={false} />
     </View>
   );
 }

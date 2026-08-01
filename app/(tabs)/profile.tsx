@@ -18,6 +18,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import AppHeader from "../../components/vibe/AppHeader";
+import HangoutCinematicBackground from "../../components/vibe/HangoutCinematicBackground";
 import { useAuth } from "../../context/AuthContext";
 import { useMatches } from "../../context/MatchesContext";
 import { usePlans } from "../../context/PlansContext";
@@ -30,20 +31,20 @@ const { width: SCREEN_W } = Dimensions.get("window");
 const HERO_H = Math.min(SCREEN_W * 0.72, 300);
 
 const T = {
-  bg: "#F8F9FD",
-  card: "#FFFFFF",
-  ink: "#18181B",
-  muted: "#64748B",
-  soft: "#94A3B8",
-  border: "#EDE7FF",
-  purple: "#7C3AED",
-  purpleBright: "#8B5CF6",
-  softPurple: "#F3E8FF",
-  green: "#22C55E",
-  softGreen: "#ECFDF5",
-  yellow: "#F59E0B",
-  red: "#EF4444",
-  purpleGrad: ["#7C3AED", "#8B5CF6"] as [string, string],
+  bg: "#070A14",
+  card: "rgba(22, 26, 46, 0.94)",
+  ink: "#F4F6FB",
+  muted: "#A7B0C4",
+  soft: "#7C869C",
+  border: "rgba(160, 170, 200, 0.16)",
+  purple: "#A78BFA",
+  purpleBright: "#C4B5FD",
+  softPurple: "rgba(139, 92, 246, 0.18)",
+  green: "#34D399",
+  softGreen: "rgba(52, 211, 153, 0.16)",
+  yellow: "#FBBF24",
+  red: "#F87171",
+  purpleGrad: ["#7C3AED", "#A78BFA"] as [string, string],
 };
 
 const MENU = [
@@ -84,7 +85,7 @@ const MENU = [
     label: "Preferences",
     sub: "Age, distance & looking for",
     color: T.muted,
-    soft: "#F1F5F9",
+    soft: "rgba(160, 170, 200, 0.14)",
     route: "/edit-profile",
   },
   {
@@ -216,15 +217,17 @@ export default function ProfileScreen() {
     myEnergy === "LESSGO"
       ? { label: "Lessgo", color: T.green, soft: T.softGreen, icon: "flash" as const }
       : myEnergy === "OFF_GRID"
-        ? { label: "Off grid", color: T.red, soft: "#FEF2F2", icon: "moon" as const }
-        : { label: "Maybe", color: T.yellow, soft: "#FFFBEB", icon: "ellipse" as const };
+        ? { label: "Off grid", color: T.red, soft: "rgba(248, 113, 113, 0.16)", icon: "moon" as const }
+        : { label: "Maybe", color: T.yellow, soft: "rgba(251, 191, 36, 0.16)", icon: "ellipse" as const };
 
   const avatarUri = getAvatarUri();
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={T.bg} />
-      <AppHeader variant="light" tagline="Your vibe · Your world" badgeCount={likesCount} />
+      <HangoutCinematicBackground />
+      <StatusBar barStyle="light-content" backgroundColor={T.bg} />
+      <View style={styles.foreground}>
+      <AppHeader variant="dark" tagline="Your vibe · Your world" badgeCount={likesCount} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -241,7 +244,7 @@ export default function ProfileScreen() {
             <Animated.View entering={FadeInDown.duration(400)} style={styles.hero}>
               <Image source={{ uri: avatarUri }} style={styles.heroImage} blurRadius={18} />
               <LinearGradient
-                colors={["rgba(15,23,42,0.55)", "rgba(76,29,149,0.35)", "#F8F9FD"]}
+                colors={["rgba(7,10,20,0.55)", "rgba(76,29,149,0.35)", T.bg]}
                 locations={[0, 0.45, 1]}
                 style={styles.heroGrad}
               />
@@ -426,7 +429,7 @@ export default function ProfileScreen() {
             </Animated.View>
 
             <Pressable onPress={handleLogout} style={styles.logoutBtn}>
-              <Ionicons name="log-out-outline" size={17} color="#EF4444" />
+              <Ionicons name="log-out-outline" size={17} color={T.red} />
               <Text style={styles.logoutText}>Log Out</Text>
             </Pressable>
 
@@ -436,10 +439,10 @@ export default function ProfileScreen() {
               style={[styles.deleteBtn, deleting && { opacity: 0.6 }]}
             >
               {deleting ? (
-                <ActivityIndicator size="small" color="#DC2626" />
+                <ActivityIndicator size="small" color={T.red} />
               ) : (
                 <>
-                  <Ionicons name="trash-outline" size={17} color="#DC2626" />
+                  <Ionicons name="trash-outline" size={17} color={T.red} />
                   <Text style={styles.deleteText}>Delete Account</Text>
                 </>
               )}
@@ -449,12 +452,14 @@ export default function ProfileScreen() {
           </>
         )}
       </ScrollView>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: T.bg },
+  foreground: { flex: 1, zIndex: 1, backgroundColor: "transparent" },
   scroll: {
     paddingBottom: 120,
   },
@@ -574,7 +579,7 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     lineHeight: 20,
     fontFamily: VibeFonts.medium,
-    color: "#475569",
+    color: T.muted,
     textAlign: "center",
     paddingHorizontal: 8,
   },
@@ -612,7 +617,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: T.softPurple,
     borderWidth: 1,
-    borderColor: "#DDD6FE",
+    borderColor: "rgba(167, 139, 250, 0.35)",
   },
   secondaryText: {
     color: T.purple,
@@ -777,7 +782,7 @@ const styles = StyleSheet.create({
   },
   menuBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
+    borderBottomColor: T.border,
   },
   menuIcon: {
     width: 38,
@@ -807,15 +812,15 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 13,
     borderRadius: 14,
-    backgroundColor: "#FEF2F2",
+    backgroundColor: "rgba(248, 113, 113, 0.12)",
     borderWidth: 1,
-    borderColor: "#FECACA",
+    borderColor: "rgba(248, 113, 113, 0.32)",
     marginBottom: 12,
   },
   logoutText: {
     fontSize: 14,
     fontFamily: VibeFonts.bold,
-    color: "#EF4444",
+    color: T.red,
   },
   deleteBtn: {
     marginHorizontal: 16,
@@ -825,15 +830,15 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 13,
     borderRadius: 14,
-    backgroundColor: "#FEF2F2",
+    backgroundColor: "rgba(248, 113, 113, 0.12)",
     borderWidth: 1,
-    borderColor: "#FCA5A5",
+    borderColor: "rgba(248, 113, 113, 0.4)",
     marginBottom: 16,
   },
   deleteText: {
     fontSize: 14,
     fontFamily: VibeFonts.bold,
-    color: "#DC2626",
+    color: T.red,
   },
   version: {
     textAlign: "center",

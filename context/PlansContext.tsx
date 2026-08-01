@@ -133,7 +133,6 @@ export function PlansProvider({ children }: { children: ReactNode }) {
       maxParticipants: input.maxParticipants || 8,
       activity: input.activityName,
       imageUrl: input.imageUrl,
-      distance: 1.2,
       kind: input.kind || "HANGOUT",
       latitude: input.latitude,
       longitude: input.longitude,

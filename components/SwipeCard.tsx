@@ -67,7 +67,7 @@ function LivePulse() {
 
 interface Props {
   name: string;
-  age: number;
+  age?: number;
   bio?: string;
   jobTitle?: string;
   company?: string;
@@ -75,12 +75,15 @@ interface Props {
   city?: string;
   distance: number;
   avatarUrl: string;
+  photos?: string[];
   isVerified?: boolean;
   isOnline?: boolean;
+  freeNow?: boolean;
+  lastSeenAt?: string | null;
   vibeMatch?: number;
+  sharedInterestCount?: number;
+  energy?: string;
   interests?: { name: string; color: string }[];
-  photoIndex?: number;
-  totalPhotos?: number;
   dark?: boolean;
   onPass?: () => void;
   onSuperLike?: () => void;
@@ -97,12 +100,15 @@ export default function SwipeCard({
   city,
   distance,
   avatarUrl,
+  photos,
   isVerified,
   isOnline,
+  freeNow,
+  lastSeenAt,
   vibeMatch,
+  sharedInterestCount = 0,
+  energy,
   interests = [],
-  photoIndex = 1,
-  totalPhotos = 12,
   dark = false,
   onPass,
   onSuperLike,
@@ -110,15 +116,23 @@ export default function SwipeCard({
 }: Props) {
   const insets = useSafeAreaInsets();
   const [showDetails, setShowDetails] = useState(false);
+  const photoList = (photos && photos.length > 0 ? photos : [avatarUrl]).filter(Boolean);
+  const [photoIdx, setPhotoIdx] = useState(0);
   const position = useRef(new RNAnimated.ValueXY()).current;
   const onLikeRef = useRef(onLike);
   const onPassRef = useRef(onPass);
+  const onSuperLikeRef = useRef(onSuperLike);
   const showDetailsRef = useRef(showDetails);
+
+  useEffect(() => {
+    setPhotoIdx(0);
+  }, [avatarUrl, photos?.join("|")]);
 
   useEffect(() => {
     onLikeRef.current = onLike;
     onPassRef.current = onPass;
-  }, [onLike, onPass]);
+    onSuperLikeRef.current = onSuperLike;
+  }, [onLike, onPass, onSuperLike]);
 
   useEffect(() => {
     showDetailsRef.current = showDetails;
@@ -127,6 +141,39 @@ export default function SwipeCard({
   const closeDetails = () => {
     setShowDetails(false);
   };
+
+  const goPhoto = (dir: 1 | -1) => {
+    setPhotoIdx((i) => {
+      const next = i + dir;
+      if (next < 0) return 0;
+      if (next >= photoList.length) return photoList.length - 1;
+      return next;
+    });
+  };
+
+  const formatLastSeenShort = (iso?: string | null) => {
+    if (!iso) return "Offline";
+    const diffMin = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+    if (diffMin < 1) return "Just now";
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const hr = Math.floor(diffMin / 60);
+    if (hr < 24) return `${hr}h ago`;
+    return "Recently";
+  };
+
+  const insightTitle =
+    sharedInterestCount > 0
+      ? `${sharedInterestCount} shared interest${sharedInterestCount > 1 ? "s" : ""}`
+      : vibeMatch && vibeMatch >= 80
+        ? "Strong nearby vibe"
+        : "Worth a hello";
+
+  const insightSub =
+    sharedInterestCount > 0
+      ? "You both like similar things — great hangout chemistry."
+      : freeNow
+        ? "They're free now — perfect moment to say hi."
+        : "Nearby and open to meeting — send a hello.";
   
   const panResponder = useRef(
     PanResponder.create({
@@ -139,6 +186,18 @@ export default function SwipeCard({
         position.setValue({ x: gestureState.dx, y: gestureState.dy * 0.35 });
       },
       onPanResponderRelease: (_event, gestureState) => {
+        // Up swipe → Super Like
+        if (gestureState.dy < -110 && Math.abs(gestureState.dx) < 90) {
+          RNAnimated.timing(position, {
+            toValue: { x: 0, y: -(SCREEN_H + 80) },
+            duration: 220,
+            useNativeDriver: true,
+          }).start(() => {
+            onSuperLikeRef.current?.();
+            position.setValue({ x: 0, y: 0 });
+          });
+          return;
+        }
         if (gestureState.dx > 110) {
           RNAnimated.timing(position, {
             toValue: { x: SCREEN_W + 80, y: gestureState.dy * 0.35 },
@@ -232,8 +291,36 @@ export default function SwipeCard({
         )}
         
         <View style={[styles.card, dark && styles.cardDark, !dark && styles.cardLight]}>
-          <Pressable style={styles.pressableCard} onPress={() => setShowDetails(true)}>
-            <Image source={{ uri: avatarUrl }} style={styles.image} />
+          <Pressable
+            style={styles.pressableCard}
+            onPress={(e) => {
+              if (photoList.length > 1) {
+                const x = e.nativeEvent.locationX;
+                const w = SCREEN_W - 32;
+                if (x < w * 0.33) {
+                  goPhoto(-1);
+                  return;
+                }
+                if (x > w * 0.67) {
+                  goPhoto(1);
+                  return;
+                }
+              }
+              setShowDetails(true);
+            }}
+          >
+            <Image source={{ uri: photoList[photoIdx] || avatarUrl }} style={styles.image} />
+
+            {photoList.length > 1 ? (
+              <View style={styles.photoBars} pointerEvents="none">
+                {photoList.map((_, i) => (
+                  <View
+                    key={`bar-${i}`}
+                    style={[styles.photoBar, i === photoIdx && styles.photoBarActive]}
+                  />
+                ))}
+              </View>
+            ) : null}
 
             {/* DYNAMIC SWIPE DIRECTIONAL BADGE STAMPS */}
             <RNAnimated.View style={[styles.stampContainer, styles.likeStamp, { opacity: likeOpacity }]}>
@@ -245,14 +332,21 @@ export default function SwipeCard({
               <Text style={[styles.stampText, { color: "#64748B" }]}>PASS</Text>
             </RNAnimated.View>
 
-            <View style={styles.topRow}>
-              {isOnline ? (
+            <View style={styles.topRow} pointerEvents="none">
+              {freeNow ? (
+                <View style={[styles.onlineBadge, { backgroundColor: "rgba(16,185,129,0.92)" }]}>
+                  <View style={styles.greenPulseDot} />
+                  <Text style={styles.onlineText}>Free now</Text>
+                </View>
+              ) : isOnline ? (
                 <View style={styles.onlineBadge}>
                   <View style={styles.greenPulseDot} />
                   <Text style={styles.onlineText}>Online</Text>
                 </View>
               ) : (
-                <View />
+                <View style={[styles.onlineBadge, { backgroundColor: "rgba(15,23,42,0.45)" }]}>
+                  <Text style={styles.onlineText}>{formatLastSeenShort(lastSeenAt)}</Text>
+                </View>
               )}
               <View style={styles.topRight}>
                 {vibeMatch ? (
@@ -262,14 +356,18 @@ export default function SwipeCard({
                 ) : null}
                 <View style={styles.photoCount}>
                   <Ionicons name="camera-outline" size={11} color="#fff" />
-                  <Text style={styles.photoCountText}>{photoIndex}/{totalPhotos}</Text>
+                  <Text style={styles.photoCountText}>
+                    {photoIdx + 1}/{photoList.length}
+                  </Text>
                 </View>
               </View>
             </View>
 
             <LinearGradient colors={["transparent", "rgba(5,5,8,0.92)"]} style={styles.overlay}>
               <View style={styles.nameRow}>
-                <Text style={styles.name} numberOfLines={1}>{name}, {age}</Text>
+                <Text style={styles.name} numberOfLines={1}>
+                  {name}{age ? `, ${age}` : ""}
+                </Text>
                 {isVerified ? <Ionicons name="checkmark-circle" size={18} color="#3B82F6" /> : null}
               </View>
 
@@ -326,7 +424,7 @@ export default function SwipeCard({
                 >
                   {/* Cinematic hero */}
                   <View style={styles.modalHero}>
-                    <Image source={{ uri: avatarUrl }} style={styles.modalImage} />
+                    <Image source={{ uri: photoList[photoIdx] || avatarUrl }} style={styles.modalImage} />
                     <LinearGradient
                       colors={["rgba(15,23,42,0.48)", "transparent", "rgba(15,23,42,0.2)", "#F8F9FD"]}
                       locations={[0, 0.3, 0.7, 1]}
@@ -357,14 +455,21 @@ export default function SwipeCard({
                     </View>
 
                     <Animated.View entering={FadeInUp.delay(80).duration(380)} style={styles.modalHeroInfo}>
-                      {isOnline ? (
+                      {freeNow ? (
+                        <View style={styles.modalLivePill}>
+                          <LivePulse />
+                          <Text style={styles.modalLiveText}>Free now</Text>
+                        </View>
+                      ) : isOnline ? (
                         <View style={styles.modalLivePill}>
                           <LivePulse />
                           <Text style={styles.modalLiveText}>Online now</Text>
                         </View>
                       ) : (
                         <View style={[styles.modalLivePill, styles.modalAwayPill]}>
-                          <Text style={styles.modalLiveText}>Recently active</Text>
+                          <Text style={styles.modalLiveText}>
+                            {formatLastSeenShort(lastSeenAt)}
+                          </Text>
                         </View>
                       )}
 
@@ -389,7 +494,7 @@ export default function SwipeCard({
                         <View style={styles.modalMetaChip}>
                           <Ionicons name="location" size={12} color="#FFF" />
                           <Text style={styles.modalMetaChipText}>
-                            {city || "Nagpur"} · {distance} km
+                            {city ? `${city} · ` : ""}{distance} km
                           </Text>
                         </View>
                         {education ? (
@@ -410,25 +515,38 @@ export default function SwipeCard({
                     <Animated.View entering={FadeInDown.delay(60).duration(360)} style={styles.insightCard}>
                       <LinearGradient colors={["#F5F3FF", "#FFFFFF"]} style={styles.insightGrad}>
                         <View style={styles.insightScoreWrap}>
-                          <Text style={styles.insightScore}>{vibeMatch || 90}</Text>
+                          <Text style={styles.insightScore}>{vibeMatch ?? "—"}</Text>
                           <Text style={styles.insightScoreLabel}>match</Text>
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.insightTitle}>Strong connection vibe</Text>
-                          <Text style={styles.insightSub}>
-                            Nearby, active, and ready to hang — say hi while the moment’s hot.
-                          </Text>
+                          <Text style={styles.insightTitle}>{insightTitle}</Text>
+                          <Text style={styles.insightSub}>{insightSub}</Text>
                           <View style={styles.insightTags}>
                             <View style={styles.insightTag}>
-                              <Ionicons name="flash" size={11} color="#22C55E" />
-                              <Text style={[styles.insightTagText, { color: "#22C55E" }]}>
-                                {isOnline ? "Free now" : "Nearby"}
+                              <Ionicons
+                                name={freeNow ? "flash" : isOnline ? "radio" : "time"}
+                                size={11}
+                                color={freeNow || isOnline ? "#22C55E" : "#64748B"}
+                              />
+                              <Text
+                                style={[
+                                  styles.insightTagText,
+                                  { color: freeNow || isOnline ? "#22C55E" : "#64748B" },
+                                ]}
+                              >
+                                {freeNow ? "Free now" : isOnline ? "Online" : formatLastSeenShort(lastSeenAt)}
                               </Text>
                             </View>
                             <View style={styles.insightTag}>
                               <Ionicons name="navigate" size={11} color="#7C3AED" />
                               <Text style={styles.insightTagText}>{distance} km away</Text>
                             </View>
+                            {energy ? (
+                              <View style={styles.insightTag}>
+                                <Ionicons name="battery-half" size={11} color="#F59E0B" />
+                                <Text style={styles.insightTagText}>{energy}</Text>
+                              </View>
+                            ) : null}
                           </View>
                         </View>
                       </LinearGradient>
@@ -566,7 +684,7 @@ export default function SwipeCard({
           <Ionicons name="close" size={28} color="#64748B" />
         </Pressable>
         <Pressable onPress={onSuperLike} style={[styles.actionBtn, styles.starBtn]}>
-          <Ionicons name="star" size={18} color="#8A56FF" />
+          <Ionicons name="star" size={18} color="#F59E0B" />
         </Pressable>
         <Pressable style={[styles.actionBtn, styles.likeBtn]} onPress={onLike}>
           <Ionicons name="heart" size={28} color="#FF4B81" />
@@ -605,6 +723,30 @@ const styles = StyleSheet.create({
     backgroundColor: "#1A1F36",
   },
   image: { width: "100%", height: "100%", resizeMode: "cover" },
+  photoTapRow: {
+    ...StyleSheet.absoluteFillObject,
+    flexDirection: "row",
+    zIndex: 4,
+  },
+  photoTapZone: { flex: 1 },
+  photoBars: {
+    position: "absolute",
+    top: 8,
+    left: 10,
+    right: 10,
+    flexDirection: "row",
+    gap: 4,
+    zIndex: 5,
+  },
+  photoBar: {
+    flex: 1,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: "rgba(255,255,255,0.35)",
+  },
+  photoBarActive: {
+    backgroundColor: "#FFFFFF",
+  },
   
   // DYNAMIC BADGE STAMPS
   stampContainer: { 
