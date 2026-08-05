@@ -9,6 +9,9 @@ import {
   Alert,
   Image,
   StatusBar,
+  Modal,
+  TextInput,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -22,12 +25,49 @@ import { useAuth } from "../context/AuthContext";
 import { useMatches } from "../context/MatchesContext";
 import { VibeFonts } from "../constants/vibeTheme";
 import { Spacing } from "../constants/theme";
+import { formatFriendlyPlanWhen } from "../constants/plans";
+import { clustersForCity, planMatchesCluster, AreaCluster } from "../constants/areaClusters";
+import { resolveCityId } from "../constants/mapEvents";
 import { api } from "../services/api";
 import TabBar from "../components/TabBar";
-import CreatePlanFab from "../components/CreatePlanFab";
 import { ReelsContent } from "./reels";
 
-const friendsHangout3d = require("../assets/friends_hangout_3d.png");
+function isLiveSpotPlan(p: any): boolean {
+  if (!p || p.status === "CANCELLED" || p.status === "COMPLETED") return false;
+  const title = String(p.title || "").toLowerCase();
+  const isSpotTitle = title.includes("live spot");
+  const end = p.endDate ? new Date(p.endDate).getTime() : 0;
+  const now = Date.now();
+  if (end && end > now) return true;
+  if (!isSpotTitle) return false;
+  const scheduled = p.scheduledAt ? new Date(p.scheduledAt).getTime() : 0;
+  return scheduled > 0 && now - scheduled < 3 * 60 * 60 * 1000;
+}
+
+function formatDistanceLabel(plan: any): string | null {
+  const d = plan.distanceKm ?? plan.distance;
+  if (typeof d === "number" && Number.isFinite(d)) {
+    if (d < 1) return `${Math.max(50, Math.round(d * 1000))}m`;
+    return `${d.toFixed(1)} km`;
+  }
+  if (typeof d === "string" && d.trim()) return d;
+  return null;
+}
+
+function formatUrgency(plan: any): string | null {
+  const end = plan.endDate ? new Date(plan.endDate).getTime() : 0;
+  if (end) {
+    const mins = Math.round((end - Date.now()) / 60000);
+    if (mins > 0 && mins <= 120) return `${mins}m left`;
+  }
+  const when = plan.scheduledAt ? new Date(plan.scheduledAt).getTime() : 0;
+  if (when) {
+    const mins = Math.round((when - Date.now()) / 60000);
+    if (mins >= 0 && mins <= 90) return `in ${mins}m`;
+    if (mins < 0 && mins > -60) return "happening now";
+  }
+  return null;
+}
 
 /** Premium dark hangout — multi-accent (purple / mint / gold), not mono-green */
 const T = {
@@ -58,37 +98,6 @@ const MOCK_AVATARS = [
   "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=100&h=100&fit=crop",
 ];
 
-const VENUE_FALLBACK = [
-  {
-    id: "v1",
-    name: "Cafe Mocha",
-    plans: 4,
-    distance: "500 m",
-    image: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=600&h=400&fit=crop",
-  },
-  {
-    id: "v2",
-    name: "Central Park",
-    plans: 7,
-    distance: "1.2 km",
-    image: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=600&h=400&fit=crop",
-  },
-  {
-    id: "v3",
-    name: "City Cinema",
-    plans: 3,
-    distance: "2.0 km",
-    image: "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&h=400&fit=crop",
-  },
-  {
-    id: "v4",
-    name: "Sports Arena",
-    plans: 5,
-    distance: "3.1 km",
-    image: "https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=600&h=400&fit=crop",
-  },
-];
-
 const VIBE_ACT_ITEMS = [
   { id: "beer", name: "Beer & Drinks", emoji: "🍺", color: "#EAB308" },
   { id: "coffee", name: "Coffee", emoji: "☕", color: "#8B5E3C" },
@@ -108,13 +117,6 @@ const VIBE_TIME_CHIPS = [
   { id: "tomorrow", label: "TOMORROW ☀️" },
 ];
 
-const activitiesFallback = [
-  { id: "act-1", name: "Coffee", icon: "cafe", peopleCount: 12 },
-  { id: "act-2", name: "Food", icon: "pizza", peopleCount: 9 },
-  { id: "act-3", name: "Movie", icon: "film", peopleCount: 15 },
-  { id: "act-4", name: "Sports", icon: "tennisball", peopleCount: 8 },
-];
-
 export default function HangoutScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -124,13 +126,19 @@ export default function HangoutScreen() {
 
   const [hangoutMode, setHangoutMode] = useState<"FRIENDS_PLANS" | "MY_PLANS">("FRIENDS_PLANS");
   const [planVisibility, setPlanVisibility] = useState<"PUBLIC" | "FRIENDS_ONLY">("PUBLIC");
-  const [dynamicActivities, setDynamicActivities] = useState<any[]>(activitiesFallback);
   const [selectedFriend, setSelectedFriend] = useState<any>(null);
   const [selectedVibeAct, setSelectedVibeAct] = useState("beer");
   const [selectedTimeChip, setSelectedTimeChip] = useState("now");
   const [pinging, setPinging] = useState(false);
   const [invites, setInvites] = useState<any[]>([]);
   const [myEnergy, setMyEnergy] = useState<"LESSGO" | "MAYBE" | "OFF_GRID">("LESSGO");
+  const [joinTargetId, setJoinTargetId] = useState<string | null>(null);
+  const [joinRemark, setJoinRemark] = useState("");
+  const [joinSending, setJoinSending] = useState(false);
+  const [selectedClusterId, setSelectedClusterId] = useState<string | null>(null);
+
+  const cityId = resolveCityId((user as any)?.city) || "nagpur";
+  const areaClusters = useMemo(() => clustersForCity(cityId), [cityId]);
 
   const displayFriends = useMemo(() => {
     if (matches && matches.length > 0) return matches;
@@ -146,7 +154,7 @@ export default function HangoutScreen() {
     if (displayFriends.length > 0 && !selectedFriend) {
       setSelectedFriend(displayFriends[0]);
     }
-  }, [displayFriends]);
+  }, [displayFriends, selectedFriend]);
 
   const loadInvites = useCallback(async () => {
     if (!user) return;
@@ -167,8 +175,11 @@ export default function HangoutScreen() {
   const handleUpdateEnergy = async (energy: "LESSGO" | "MAYBE" | "OFF_GRID") => {
     setMyEnergy(energy);
     try {
-      await api.updateSocialStatus({ energy, freeNow: energy === "LESSGO" });
-      Alert.alert("Energy Updated! ⚡", `Your status is now set to ${energy}.`);
+      await api.updateSocialStatus({
+        energy,
+        freeNow: energy === "LESSGO",
+        notifyMatches: energy === "LESSGO",
+      });
     } catch {
       // ignore
     }
@@ -186,6 +197,10 @@ export default function HangoutScreen() {
 
   const handleInstantPing = async (actName?: string, actEmoji?: string, timeText?: string) => {
     if (!user || !selectedFriend || pinging) return;
+    if (String(selectedFriend.id).startsWith("demo-")) {
+      Alert.alert("Add matches first", "Match with people to send real instant pings.");
+      return;
+    }
     const finalActObj = VIBE_ACT_ITEMS.find((a) => a.id === selectedVibeAct) || VIBE_ACT_ITEMS[0];
     const finalActName = actName || finalActObj.name;
     const finalActEmoji = actEmoji || finalActObj.emoji;
@@ -201,69 +216,45 @@ export default function HangoutScreen() {
       });
       if (res) {
         Alert.alert(
-          "🎉 VIBE MOVE DISPATCHED! 🚀",
-          `Ping sent to ${selectedFriend.name.split(" ")[0]} for ${finalActEmoji} ${finalActName} (${finalTimeText})!\nAchievement Unlocked: Vibe Master 🏆`
+          "Vibe ping sent!",
+          `Ping sent to ${selectedFriend.name.split(" ")[0]} for ${finalActEmoji} ${finalActName} (${finalTimeText})!`
         );
       } else {
         Alert.alert(
-          "🎉 Vibe Ping Sent! 🚀",
-          `Demo ping sent to ${selectedFriend.name.split(" ")[0]} for ${finalActEmoji} ${finalActName} (${finalTimeText})!`
+          "Vibe ping sent!",
+          `Ping sent to ${selectedFriend.name.split(" ")[0]} for ${finalActEmoji} ${finalActName} (${finalTimeText})!`
         );
       }
     } catch {
       Alert.alert(
-        "🎉 Vibe Ping Sent! 🚀",
-        `Vibe ping sent to ${selectedFriend.name.split(" ")[0]} for ${finalActEmoji} ${finalActName}!`
+        "Could not send",
+        `Try again — ping to ${selectedFriend.name.split(" ")[0]} failed.`
       );
     } finally {
       setPinging(false);
     }
   };
 
-  useEffect(() => {
-    api
-      .getActivities()
-      .then((res: any) => {
-        if (res && Array.isArray(res) && res.length > 0) {
-          setDynamicActivities(res);
-        } else {
-          setDynamicActivities(activitiesFallback);
-        }
-      })
-      .catch(() => setDynamicActivities(activitiesFallback));
-  }, []);
-
-  const getEmojiForActivity = (name: string) => {
-    const n = name.toLowerCase();
-    if (n.includes("coffee") || n.includes("cafe")) return "☕";
-    if (n.includes("food") || n.includes("pizza") || n.includes("burger")) return "🍔";
-    if (n.includes("movie") || n.includes("film") || n.includes("cinema")) return "🍿";
-    if (n.includes("sport") || n.includes("cricket") || n.includes("badminton") || n.includes("tennis")) return "🏋️";
-    if (n.includes("bike") || n.includes("ride") || n.includes("bicycle")) return "🏍️";
-    return "🎯";
+  const openJoinRequest = (planId: string) => {
+    setJoinTargetId(planId);
+    setJoinRemark("");
   };
 
-  const getBgColorForActivity = (name: string) => {
-    const n = name.toLowerCase();
-    if (n.includes("coffee") || n.includes("cafe")) return "#F5EDE3";
-    if (n.includes("food") || n.includes("pizza") || n.includes("burger")) return "#FFE8D6";
-    if (n.includes("movie") || n.includes("film") || n.includes("cinema")) return "#EDE7FF";
-    if (n.includes("sport") || n.includes("cricket") || n.includes("badminton") || n.includes("tennis")) return "#E3F7E8";
-    if (n.includes("bike") || n.includes("ride") || n.includes("bicycle")) return "#FFE4EC";
-    return "#F0E9FF";
-  };
-
-  const handleRequestJoin = async (planId: string) => {
+  const submitJoinRequest = async () => {
+    if (!joinTargetId || joinSending) return;
+    setJoinSending(true);
     try {
-      await joinPlan(planId);
-      Alert.alert(
-        "Request Sent ✉️",
-        "Aapki join request owner ke paas chali gayi hai. Approval ka wait karein."
-      );
+      await joinPlan(joinTargetId, joinRemark.trim() || undefined);
+      setJoinTargetId(null);
+      setJoinRemark("");
     } catch (e) {
       Alert.alert("Error", e instanceof Error ? e.message : "Request failed");
+    } finally {
+      setJoinSending(false);
     }
   };
+
+  const handleRequestJoin = (planId: string) => openJoinRequest(planId);
 
   const filteredPlans = useMemo(() => {
     if (planVisibility === "FRIENDS_ONLY") {
@@ -274,33 +265,28 @@ export default function HangoutScreen() {
 
   const othersPlans = useMemo(() => {
     const mineIds = new Set(myPlans.map((p) => p.id));
-    return filteredPlans.filter(
+    let list = filteredPlans.filter(
       (p) => !mineIds.has(p.id) && p.creatorId !== user?.id
     );
-  }, [filteredPlans, myPlans, user?.id]);
+    if (selectedClusterId) {
+      const cluster = areaClusters.find((c) => c.id === selectedClusterId);
+      if (cluster) list = list.filter((p) => planMatchesCluster(p, cluster));
+    }
+    return list;
+  }, [filteredPlans, myPlans, user?.id, selectedClusterId, areaClusters]);
 
-  const venueCards = useMemo(() => {
-    const fromPlans = filteredPlans
-      .filter((p) => p.location)
-      .slice(0, 6)
-      .map((p, idx) => ({
-        id: `venue-${p.id}`,
-        name: p.location as string,
-        plans: Math.max(1, Math.round((p.going || 1) + idx)),
-        distance:
-          typeof p.distance === "number"
-            ? p.distance < 1
-              ? `${Math.round(p.distance * 1000)} m`
-              : `${p.distance.toFixed(1)} km`
-            : `${500 + idx * 400} m`,
-        image:
-          p.imageUrl ||
-          VENUE_FALLBACK[idx % VENUE_FALLBACK.length].image,
-      }));
+  const liveSpots = useMemo(() => {
+    const all = [...nearbyPlans, ...myPlans].filter(
+      (p, i, arr) => arr.findIndex((x) => x.id === p.id) === i
+    );
+    return all.filter(isLiveSpotPlan).slice(0, 12);
+  }, [nearbyPlans, myPlans]);
 
-    if (fromPlans.length >= 2) return fromPlans;
-    return VENUE_FALLBACK;
-  }, [filteredPlans]);
+  const lessgoNearbyCount = useMemo(() => {
+    return displayFriends.filter(
+      (f: any) => f.energy === "LESSGO" || f.freeNow
+    ).length;
+  }, [displayFriends]);
 
   return (
     <View style={styles.screenRoot}>
@@ -319,32 +305,15 @@ export default function HangoutScreen() {
       >
         <View style={{ height: insets.top + 4 }} />
 
-        {/* Enhanced Playful Header Slogan with Floating Emoji Stickers */}
+        {/* Clear top: one headline + energy + create */}
         <View style={styles.sloganHeaderWrap}>
-          <View style={styles.doodleRow}>
-            <View style={styles.doodlePill}>
-              <Text style={styles.doodleText}>Post & join plans</Text>
-              <Ionicons name="return-down-forward" size={14} color="#A78BFA" />
-            </View>
-            <View style={styles.liveNowBadge}>
-              <View style={styles.liveDot} />
-              <Text style={styles.liveNowText}>12 Plans Live</Text>
-            </View>
-          </View>
-          <Text style={styles.sloganTitle} numberOfLines={1} adjustsFontSizeToFit>
-            Swipe plans, <Text style={styles.sloganHighlight}>not profiles! ✨</Text>
-          </Text>
-          <LinearGradient
-            colors={["#8B5CF6", "#F472B6", "#FBBF24"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.sloganUnderline}
-          />
+          <Text style={styles.sloganTitle}>Who&apos;s down?</Text>
+          <Text style={styles.hangSubline}>Pick energy · join a plan · or start one</Text>
         </View>
 
         {/* Social Energy Selector */}
         <View style={styles.socialEnergyCard}>
-          <Text style={styles.socialEnergyTitle}>What's your social energy today?</Text>
+          <Text style={styles.socialEnergyTitle}>Your energy</Text>
           <View style={styles.orbsContainer}>
             {/* Lessgo */}
             <TouchableOpacity
@@ -404,6 +373,147 @@ export default function HangoutScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Instant Ping — high-intent path */}
+        <View style={styles.instantPingCard}>
+          <View style={styles.instantPingHead}>
+            <Text style={styles.instantPingTitle}>Instant ping</Text>
+            <Text style={styles.instantPingSub}>Pick a friend · vibe · send</Text>
+          </View>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.friendScroll}>
+            {displayFriends.map((f: any) => {
+              const active = selectedFriend?.id === f.id;
+              return (
+                <TouchableOpacity
+                  key={f.id}
+                  style={[styles.friendChip, active && styles.friendChipActive]}
+                  onPress={() => setSelectedFriend(f)}
+                  activeOpacity={0.88}
+                >
+                  <Image
+                    source={{
+                      uri:
+                        f.avatarUrl ||
+                        "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&fit=crop",
+                    }}
+                    style={styles.friendAvatar}
+                  />
+                  <Text style={[styles.friendName, active && styles.friendNameActive]} numberOfLines={1}>
+                    {String(f.name || "Friend").split(" ")[0]}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.vibeActScroll}>
+            {VIBE_ACT_ITEMS.map((act) => {
+              const active = selectedVibeAct === act.id;
+              return (
+                <TouchableOpacity
+                  key={act.id}
+                  style={[styles.vibeActChip, active && { borderColor: act.color, backgroundColor: `${act.color}22` }]}
+                  onPress={() => setSelectedVibeAct(act.id)}
+                >
+                  <Text style={styles.vibeActEmoji}>{act.emoji}</Text>
+                  <Text style={[styles.vibeActName, active && { color: act.color }]} numberOfLines={1}>
+                    {act.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.timeChipScroll}>
+            {VIBE_TIME_CHIPS.map((t) => {
+              const active = selectedTimeChip === t.id;
+              return (
+                <TouchableOpacity
+                  key={t.id}
+                  style={[styles.timeChipMini, active && styles.timeChipMiniActive]}
+                  onPress={() => setSelectedTimeChip(t.id)}
+                >
+                  <Text style={[styles.timeChipMiniText, active && styles.timeChipMiniTextActive]}>
+                    {t.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          <TouchableOpacity
+            style={styles.pingSendBtn}
+            onPress={() => handleInstantPing()}
+            disabled={pinging || !selectedFriend}
+            activeOpacity={0.9}
+          >
+            <LinearGradient colors={[...T.cta]} style={styles.pingSendGrad}>
+              {pinging ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="flash" size={16} color="#fff" />
+                  <Text style={styles.pingSendText}>
+                    Ping {selectedFriend ? String(selectedFriend.name).split(" ")[0] : "friend"}
+                  </Text>
+                </>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+
+        {/* Live Spots nearby */}
+        {liveSpots.length > 0 ? (
+          <View style={styles.liveSpotsSection}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Live Spots nearby</Text>
+              <Pressable onPress={() => router.push("/live-map")} style={styles.refreshRow}>
+                <Ionicons name="map" size={14} color={T.purple} />
+                <Text style={styles.seeAllText}>Map</Text>
+              </Pressable>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}>
+              {liveSpots.map((spot) => {
+                const left = formatUrgency(spot);
+                return (
+                  <TouchableOpacity
+                    key={spot.id}
+                    style={styles.liveSpotCard}
+                    onPress={() =>
+                      router.push({ pathname: "/plan-details", params: { id: spot.id } })
+                    }
+                    activeOpacity={0.88}
+                  >
+                    <View style={styles.liveSpotDot} />
+                    <Text style={styles.liveSpotTitle} numberOfLines={1}>
+                      {spot.title}
+                    </Text>
+                    <Text style={styles.liveSpotMeta} numberOfLines={1}>
+                      {spot.location || "Nearby"}
+                      {left ? ` · ${left}` : ""}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        ) : null}
+
+        <Pressable
+          onPress={() => router.push("/create-plan")}
+          style={styles.createPlanCtaWrap}
+        >
+          <LinearGradient
+            colors={[...T.cta]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.createPlanCta}
+          >
+            <Ionicons name="add-circle" size={18} color="#fff" />
+            <Text style={styles.createPlanCtaText}>Create a plan</Text>
+          </LinearGradient>
+        </Pressable>
 
         {/* 2-Tab: Friends Plans | My Plans */}
         <View style={styles.modeSwitcherTrack}>
@@ -506,132 +616,7 @@ export default function HangoutScreen() {
               </View>
             ) : (
               <View>
-            {/* Hero */}
-            <View style={styles.heroCardContainer}>
-              <LinearGradient
-                colors={["#1A1530", "#151B2E", "#0E1424"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.heroCard}
-              >
-                <View style={styles.heroDecorBlob} />
-                <Text style={styles.heroStar1}>✦</Text>
-                <Text style={styles.heroStar2}>✧</Text>
-                <Text style={styles.heroStar3}>✦</Text>
-
-                <View style={styles.heroCardLeft}>
-                  <View style={styles.luxePill}>
-                    <Ionicons name="diamond" size={10} color="#FBBF24" />
-                    <Text style={styles.luxePillText}>PREMIUM</Text>
-                  </View>
-                  <Text style={styles.heroCardTitle}>What's the plan{"\n"}today?</Text>
-                  <Text style={styles.heroCardSubtitle} numberOfLines={2}>
-                    Create a plan or join others who are up for something fun!
-                  </Text>
-                  <Pressable onPress={() => router.push("/create-plan")}>
-                    <LinearGradient
-                      colors={[...T.cta]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.heroCardBtn}
-                    >
-                      <Ionicons name="add" size={16} color="#fff" />
-                      <Text style={styles.heroCardBtnText}>Create a Plan</Text>
-                    </LinearGradient>
-                  </Pressable>
-                </View>
-                <View style={styles.heroCardRight} pointerEvents="none">
-                  <Image
-                    source={friendsHangout3d}
-                    style={styles.heroCardImage}
-                    resizeMode="contain"
-                  />
-                </View>
-              </LinearGradient>
-            </View>
-
-            {/* Popular Right Now 🔥 */}
-            <View style={styles.sectionHeaderRow}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                <Text style={styles.sectionTitle}>Popular Right Now 🔥</Text>
-                <View style={styles.liveVibeTag}>
-                  <Text style={styles.liveVibeTagText}>LIVE</Text>
-                </View>
-              </View>
-              <Pressable>
-                <Text style={styles.seeAllText}>See All ›</Text>
-              </Pressable>
-            </View>
-
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.hScroll}
-              contentContainerStyle={{ paddingLeft: 16, paddingRight: 24, paddingTop: 4, paddingBottom: 8 }}
-            >
-              {dynamicActivities.map((act) => {
-                const theme = getActivityCardTheme(act.name);
-                const people = act.peopleCount || Math.floor(Math.random() * 8) + 4;
-                return (
-                  <Pressable
-                    key={act.id}
-                    style={styles.popCardWrap}
-                  >
-                    <LinearGradient
-                      colors={theme.bgGrad as any}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.popCardInner}
-                    >
-                      {/* Top Tag */}
-                      <View style={styles.popTagPill}>
-                        <Text style={[styles.popTagText, { color: theme.accent }]}>{theme.tag}</Text>
-                      </View>
-
-                      {/* 3D Glowing Emoji Icon Sphere */}
-                      <LinearGradient
-                        colors={theme.iconGrad as any}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.popIconSphere}
-                      >
-                        <Text style={styles.popEmojiText}>{getEmojiForActivity(act.name)}</Text>
-                      </LinearGradient>
-
-                      <Text style={styles.popActivityTitle} numberOfLines={1}>
-                        {act.name}
-                      </Text>
-
-                      <View style={styles.popCountRow}>
-                        <Ionicons name="flame" size={12} color={theme.accent} />
-                        <Text style={[styles.popCountText, { color: theme.accent }]}>
-                          {people} going
-                        </Text>
-                      </View>
-
-                      {/* Overlapping Avatar Stack */}
-                      <View style={styles.popAvatarRow}>
-                        {MOCK_AVATARS.slice(0, 3).map((uri, idx) => (
-                          <Image
-                            key={idx}
-                            source={{ uri }}
-                            style={[styles.popAvatar, { marginLeft: idx === 0 ? 0 : -7 }]}
-                          />
-                        ))}
-                        <LinearGradient
-                          colors={theme.iconGrad as any}
-                          style={[styles.popAvatarMore, { marginLeft: -7 }]}
-                        >
-                          <Text style={styles.popAvatarMoreText}>+{people > 3 ? people - 3 : 2}</Text>
-                        </LinearGradient>
-                      </View>
-                    </LinearGradient>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-
-            {/* Others' plans to join — not your own */}
+            {/* Plans near you — primary list, no competing layers */}
             <View style={styles.sectionHeaderRow}>
               <Text style={styles.sectionTitle}>Plans near you</Text>
               <Pressable onPress={refresh} style={styles.refreshRow}>
@@ -639,6 +624,41 @@ export default function HangoutScreen() {
                 <Text style={styles.seeAllText}>Refresh</Text>
               </Pressable>
             </View>
+
+            {lessgoNearbyCount > 0 ? (
+              <Text style={styles.lessgoHint}>
+                {lessgoNearbyCount} friend{lessgoNearbyCount === 1 ? "" : "s"} Lessgo nearby
+              </Text>
+            ) : null}
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.clusterRow}
+            >
+              <TouchableOpacity
+                style={[styles.clusterChip, !selectedClusterId && styles.clusterChipActive]}
+                onPress={() => setSelectedClusterId(null)}
+              >
+                <Text style={[styles.clusterChipText, !selectedClusterId && styles.clusterChipTextActive]}>
+                  All areas
+                </Text>
+              </TouchableOpacity>
+              {areaClusters.map((c: AreaCluster) => {
+                const active = selectedClusterId === c.id;
+                return (
+                  <TouchableOpacity
+                    key={c.id}
+                    style={[styles.clusterChip, active && styles.clusterChipActive]}
+                    onPress={() => setSelectedClusterId(active ? null : c.id)}
+                  >
+                    <Text style={[styles.clusterChipText, active && styles.clusterChipTextActive]}>
+                      {c.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
 
             <View style={styles.plansListContainer}>
               {othersPlans.length === 0 ? (
@@ -660,67 +680,6 @@ export default function HangoutScreen() {
                   />
                 ))
               )}
-            </View>
-
-            {/* Hangouts Near You — horizontal venue cards */}
-            <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionTitle}>Hangouts Near You 📍</Text>
-              <Pressable>
-                <Text style={styles.seeAllText}>See All ›</Text>
-              </Pressable>
-            </View>
-
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.hScroll}
-              contentContainerStyle={{ paddingLeft: 16, paddingRight: 24, paddingBottom: 4 }}
-            >
-              {venueCards.map((venue) => (
-                <Pressable
-                  key={venue.id}
-                  style={styles.venueCard}
-                >
-                  <Image source={{ uri: venue.image }} style={styles.venueImage} />
-                  <LinearGradient
-                    colors={["transparent", "rgba(15,10,30,0.75)"]}
-                    style={styles.venueOverlay}
-                  />
-                  <View style={styles.venueDistance}>
-                    <Text style={styles.venueDistanceText}>{venue.distance}</Text>
-                  </View>
-                  <View style={styles.venueTextWrap}>
-                    <Text style={styles.venueName} numberOfLines={1}>
-                      {venue.name}
-                    </Text>
-                    <Text style={styles.venuePlans}>{venue.plans} plans happening</Text>
-                  </View>
-                </Pressable>
-              ))}
-            </ScrollView>
-
-            {/* Bottom CTA */}
-            <View style={styles.bottomPromoContainer}>
-              <LinearGradient
-                colors={[...T.promo]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.bottomPromo}
-              >
-                <View style={styles.bottomPromoIconWrap}>
-                  <Text style={styles.bottomPromoEmoji}>📅</Text>
-                  <Text style={styles.bottomPromoEmojiBadge}>😉</Text>
-                </View>
-                <Text style={styles.bottomPromoCopy}>
-                  Don't find a plan you like? Create your own and invite others!
-                </Text>
-                <Pressable
-                  style={styles.bottomPromoBtn}
-                  onPress={() => router.push("/create-plan")}
-                >
-                  <Text style={styles.bottomPromoBtnText}>+ Create New Plan</Text>
-                </Pressable>
-              </LinearGradient>
             </View>
               </View>
             )}
@@ -745,7 +704,7 @@ export default function HangoutScreen() {
                 <Ionicons name="calendar-outline" size={36} color={T.faint} />
                 <Text style={styles.myPlansEmptyTitle}>No plans yet</Text>
                 <Text style={styles.myPlansEmptySub}>
-                  Create a hangout with the green button, or join one from Friends Plans.
+                  Create a hangout above, or join one from Friends Plans.
                 </Text>
               </View>
             ) : (
@@ -766,7 +725,62 @@ export default function HangoutScreen() {
 
         <View style={{ height: 16 }} />
       </PremiumScreen>
-      <CreatePlanFab />
+
+      {/* Join request — remark sheet */}
+      <Modal
+        visible={!!joinTargetId}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !joinSending && setJoinTargetId(null)}
+      >
+        <Pressable
+          style={styles.joinModalOverlay}
+          onPress={() => !joinSending && setJoinTargetId(null)}
+        >
+          <Pressable style={styles.joinModalSheet} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.joinModalTitle}>Request to join</Text>
+            <Text style={styles.joinModalSub}>
+              Add a short note the host can read (optional)
+            </Text>
+            <TextInput
+              style={styles.joinModalInput}
+              value={joinRemark}
+              onChangeText={setJoinRemark}
+              placeholder="e.g. I can bring snacks · free after 7"
+              placeholderTextColor="rgba(255,255,255,0.35)"
+              multiline
+              maxLength={160}
+              editable={!joinSending}
+            />
+            <Pressable
+              style={[styles.joinModalBtn, joinSending && { opacity: 0.7 }]}
+              onPress={submitJoinRequest}
+              disabled={joinSending}
+            >
+              <LinearGradient
+                colors={[...T.cta]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.joinModalBtnGrad}
+              >
+                {joinSending ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.joinModalBtnText}>Send request</Text>
+                )}
+              </LinearGradient>
+            </Pressable>
+            <Pressable
+              onPress={() => setJoinTargetId(null)}
+              disabled={joinSending}
+              style={{ alignItems: "center", paddingTop: 8 }}
+            >
+              <Text style={styles.joinModalCancel}>Cancel</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       <TabBar dark={true} />
       </View>
     </View>
@@ -785,8 +799,19 @@ function MockupPlanCard({
   isMine: boolean;
 }) {
   const router = useRouter();
-  const spotsLeft = Math.max(1, (plan.maxParticipants || 4) - (plan.going || 1));
+  const spotsLeft = Math.max(0, (plan.maxParticipants || 4) - (plan.going || 1));
   const categoryTag = getCategoryTagForTitle(plan.title);
+  const whenText = formatFriendlyPlanWhen({
+    scheduledAt: plan.scheduledAt,
+    timeLabel: plan.timeLabel,
+    time: plan.time,
+  });
+  const distLabel = formatDistanceLabel(plan);
+  const urgency = formatUrgency(plan);
+  const realAvatars = (plan.participants || [])
+    .map((p: any) => p.avatarUrl)
+    .filter(Boolean)
+    .slice(0, 3);
 
   return (
     <Pressable
@@ -795,9 +820,7 @@ function MockupPlanCard({
       }
       style={styles.heroPlanCard}
     >
-      {/* Top Hero Image & Floating Reaction Badges */}
       <View style={styles.cardImageWrap}>
-
         <Image
           source={{
             uri:
@@ -807,64 +830,64 @@ function MockupPlanCard({
           style={styles.cardHeroImage}
         />
 
-        {/* Top Floating Badge Row */}
         <View style={styles.cardBadgeRow}>
           <View style={styles.categoryBadgePill}>
             <Text style={styles.categoryBadgeEmoji}>{categoryTag.emoji}</Text>
             <Text style={styles.categoryBadgeText}>{categoryTag.label}</Text>
           </View>
-
-          <TouchableOpacity style={styles.floatingHeartBtn} activeOpacity={0.8}>
-            <Ionicons name="heart" size={16} color="#EF4444" />
-          </TouchableOpacity>
+          {urgency ? (
+            <View style={styles.urgencyPill}>
+              <Text style={styles.urgencyPillText}>{urgency}</Text>
+            </View>
+          ) : null}
         </View>
 
-        {/* Floating Reactions overlay */}
-        <View style={styles.floatingClapBadge}>
-          <Text style={{ fontSize: 13, marginRight: 2 }}>👏</Text>
-          <Text style={{ fontSize: 10, fontFamily: VibeFonts.bold, color: "#1E1B4B" }}>14 joined</Text>
-        </View>
-
-        <View style={styles.floatingSparkleBadge}>
-          <Ionicons name="sparkles" size={13} color="#A78BFA" />
+        <View style={styles.cardWhenPill}>
+          <Ionicons name="time-outline" size={12} color="#FDE68A" />
+          <Text style={styles.cardWhenPillText}>{whenText}</Text>
         </View>
       </View>
 
-      {/* Bottom White Info Box Overlay */}
       <View style={styles.cardBottomInfo}>
         <View style={styles.cardHeaderLine}>
           <Text style={styles.cardTitleText} numberOfLines={1}>
             {plan.title}
           </Text>
-          <View style={styles.verifiedHostBadge}>
-            <Ionicons name="checkmark-circle" size={15} color="#2563EB" />
-            <Text style={styles.verifiedHostText}>Verified</Text>
-          </View>
+          {plan.creatorName ? (
+            <Text style={styles.verifiedHostText} numberOfLines={1}>
+              {String(plan.creatorName).split(" ")[0]}
+            </Text>
+          ) : null}
         </View>
 
         <View style={styles.cardMetaLine}>
           <View style={styles.spotsRow}>
             <LinearGradient
-              colors={["#8B5CF6", "#EC4899"]}
+              colors={spotsLeft <= 2 ? ["#F59E0B", "#EF4444"] : ["#8B5CF6", "#EC4899"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.spotsCountBadge}
             >
               <Text style={styles.spotsCountText}>{spotsLeft}</Text>
             </LinearGradient>
-            <Text style={styles.spotsLabelText}>spots left today!</Text>
+            <Text style={styles.spotsLabelText}>
+              {spotsLeft === 1 ? "spot left" : "spots left"}
+              {distLabel ? ` · ${distLabel}` : ""}
+            </Text>
           </View>
 
           <View style={styles.attendingRow}>
-            {MOCK_AVATARS.slice(0, 3).map((url, idx) => (
-              <Image
-                key={idx}
-                source={{ uri: url }}
-                style={[styles.attendingAvatar, { marginLeft: idx === 0 ? 0 : -8 }]}
-              />
-            ))}
+            {(realAvatars.length > 0 ? realAvatars : MOCK_AVATARS.slice(0, 2)).map(
+              (url: string, idx: number) => (
+                <Image
+                  key={`${url}-${idx}`}
+                  source={{ uri: url }}
+                  style={[styles.attendingAvatar, { marginLeft: idx === 0 ? 0 : -8 }]}
+                />
+              )
+            )}
             <View style={styles.moreAvatarBadge}>
-              <Text style={styles.moreAvatarText}>+{spotsLeft > 2 ? spotsLeft : 2}</Text>
+              <Text style={styles.moreAvatarText}>{plan.going || 1}</Text>
             </View>
           </View>
         </View>
@@ -873,13 +896,14 @@ function MockupPlanCard({
           <View style={{ flexDirection: "row", alignItems: "center", gap: 4, flex: 1 }}>
             <Ionicons name="location" size={12} color="#A78BFA" />
             <Text style={styles.cardTimeText} numberOfLines={1}>
-              {plan.timeLabel || plan.time || "Today"} · {plan.location || "Nearby"}
+              {whenText}
+              {plan.location ? ` · ${plan.location}` : ""}
             </Text>
           </View>
 
           {isMine ? (
             <View style={[styles.joinBtnPill, { backgroundColor: T.purple }]}>
-              <Text style={styles.joinBtnText}>Mine ✨</Text>
+              <Text style={styles.joinBtnText}>Mine</Text>
             </View>
           ) : requestStatus === "none" ? (
             <Pressable
@@ -894,16 +918,16 @@ function MockupPlanCard({
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               >
-                <Text style={styles.joinBtnText}>Request ✋</Text>
+                <Text style={styles.joinBtnText}>Request</Text>
               </LinearGradient>
             </Pressable>
           ) : requestStatus === "pending" ? (
             <View style={[styles.joinBtnPill, { backgroundColor: "#EAB308" }]}>
-              <Text style={styles.joinBtnText}>Pending ⏳</Text>
+              <Text style={styles.joinBtnText}>Pending</Text>
             </View>
           ) : (
             <View style={[styles.joinBtnPill, { backgroundColor: "#22C55E" }]}>
-              <Text style={styles.joinBtnText}>Joined 🎉</Text>
+              <Text style={styles.joinBtnText}>Joined</Text>
             </View>
           )}
         </View>
@@ -920,65 +944,6 @@ function getCategoryTagForTitle(title?: string) {
   if (n.includes("sport") || n.includes("gym") || n.includes("run")) return { emoji: "🏃", label: "Fitness Vibe" };
   if (n.includes("board") || n.includes("game")) return { emoji: "🎲", label: "Board Games" };
   return { emoji: "🎯", label: "Social Move" };
-}
-
-function getActivityCardTheme(name: string) {
-  const n = name.toLowerCase();
-  if (n.includes("coffee") || n.includes("cafe")) {
-    return {
-      bgGrad: ["#1F1A2E", "#1A1624"],
-      iconGrad: ["#F59E0B", "#D97706"],
-      accent: "#FBBF24",
-      tag: "POPULAR ☕",
-    };
-  }
-  if (n.includes("food") || n.includes("pizza") || n.includes("burger")) {
-    return {
-      bgGrad: ["#241A1E", "#1C1518"],
-      iconGrad: ["#F97316", "#EA580C"],
-      accent: "#FB923C",
-      tag: "TRENDING 🍕",
-    };
-  }
-  if (n.includes("movie") || n.includes("film") || n.includes("cinema")) {
-    return {
-      bgGrad: ["#1A1630", "#151228"],
-      iconGrad: ["#A78BFA", "#7C3AED"],
-      accent: "#C4B5FD",
-      tag: "HOT 🍿",
-    };
-  }
-  if (n.includes("sport") || n.includes("gym") || n.includes("run")) {
-    return {
-      bgGrad: ["#14241E", "#101C1A"],
-      iconGrad: ["#34D399", "#059669"],
-      accent: "#6EE7B7",
-      tag: "ACTIVE 🏃",
-    };
-  }
-  if (n.includes("drive") || n.includes("ride") || n.includes("bike")) {
-    return {
-      bgGrad: ["#221528", "#1A1220"],
-      iconGrad: ["#EC4899", "#DB2777"],
-      accent: "#F9A8D4",
-      tag: "VIBE 🏎️",
-    };
-  }
-  return {
-    bgGrad: ["#161E32", "#121828"],
-    iconGrad: ["#60A5FA", "#3B82F6"],
-    accent: "#93C5FD",
-    tag: "LIVE ✨",
-  };
-}
-
-function getEmojiForTitle(title?: string) {
-  const n = (title || "").toLowerCase();
-  if (n.includes("coffee") || n.includes("cafe")) return "☕";
-  if (n.includes("food") || n.includes("dinner") || n.includes("lunch")) return "🍔";
-  if (n.includes("movie") || n.includes("film")) return "🍿";
-  if (n.includes("sport") || n.includes("gym") || n.includes("run")) return "🏃";
-  return "✨";
 }
 
 const styles = StyleSheet.create({
@@ -1145,67 +1110,269 @@ const styles = StyleSheet.create({
   sloganHeaderWrap: {
     paddingHorizontal: 20,
     marginTop: 6,
-    marginBottom: 16,
+    marginBottom: 12,
   },
-  doodleRow: {
+  sloganTitle: {
+    fontSize: 26,
+    fontFamily: VibeFonts.extraBold,
+    color: "#F8FAFC",
+    lineHeight: 32,
+    letterSpacing: -0.6,
+  },
+  hangSubline: {
+    marginTop: 4,
+    fontSize: 13,
+    fontFamily: VibeFonts.medium,
+    color: T.muted,
+  },
+  createPlanCtaWrap: {
+    marginHorizontal: 16,
+    marginBottom: 14,
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  createPlanCta: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 6,
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
   },
-  doodlePill: {
+  createPlanCtaText: {
+    color: "#fff",
+    fontSize: 15,
+    fontFamily: VibeFonts.extraBold,
+  },
+  instantPingCard: {
+    marginHorizontal: 16,
+    marginBottom: 14,
+    backgroundColor: T.card,
+    borderRadius: 20,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: T.border,
+  },
+  instantPingHead: { marginBottom: 10 },
+  instantPingTitle: {
+    fontSize: 15,
+    fontFamily: VibeFonts.extraBold,
+    color: T.ink,
+  },
+  instantPingSub: {
+    fontSize: 11,
+    fontFamily: VibeFonts.medium,
+    color: T.muted,
+    marginTop: 2,
+  },
+  friendScroll: { marginBottom: 10 },
+  friendChip: {
+    alignItems: "center",
+    marginRight: 12,
+    width: 64,
+    opacity: 0.7,
+  },
+  friendChipActive: { opacity: 1 },
+  friendAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: T.purple,
+  },
+  friendName: {
+    marginTop: 4,
+    fontSize: 11,
+    fontFamily: VibeFonts.medium,
+    color: T.muted,
+    textAlign: "center",
+  },
+  friendNameActive: { color: T.purpleBright, fontFamily: VibeFonts.bold },
+  vibeActScroll: { marginBottom: 8 },
+  vibeActChip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    backgroundColor: "rgba(139, 92, 246, 0.18)",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: T.border,
+    marginRight: 8,
+    backgroundColor: "rgba(15,22,38,0.9)",
+    maxWidth: 140,
+  },
+  vibeActEmoji: { fontSize: 14 },
+  vibeActName: {
+    fontSize: 11,
+    fontFamily: VibeFonts.semiBold,
+    color: T.muted,
+  },
+  timeChipScroll: { marginBottom: 12 },
+  timeChipMini: {
     paddingHorizontal: 12,
-    paddingVertical: 5,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: "rgba(15,22,38,0.9)",
+    borderWidth: 1,
+    borderColor: T.border,
+    marginRight: 8,
+  },
+  timeChipMiniActive: {
+    backgroundColor: T.purpleDeep,
+    borderColor: T.purple,
+  },
+  timeChipMiniText: {
+    fontSize: 11,
+    fontFamily: VibeFonts.bold,
+    color: T.muted,
+  },
+  timeChipMiniTextActive: { color: "#fff" },
+  pingSendBtn: { borderRadius: 14, overflow: "hidden" },
+  pingSendGrad: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+  },
+  pingSendText: {
+    color: "#fff",
+    fontSize: 14,
+    fontFamily: VibeFonts.extraBold,
+  },
+  liveSpotsSection: { marginBottom: 12 },
+  liveSpotCard: {
+    width: 168,
+    backgroundColor: T.cardElevated,
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "rgba(52,211,153,0.35)",
+  },
+  liveSpotDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: T.green,
+    marginBottom: 8,
+  },
+  liveSpotTitle: {
+    color: T.ink,
+    fontSize: 13,
+    fontFamily: VibeFonts.extraBold,
+  },
+  liveSpotMeta: {
+    color: T.muted,
+    fontSize: 11,
+    fontFamily: VibeFonts.medium,
+    marginTop: 4,
+  },
+  lessgoHint: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    color: T.green,
+    fontSize: 12,
+    fontFamily: VibeFonts.semiBold,
+  },
+  clusterRow: {
+    paddingHorizontal: 16,
+    gap: 8,
+    paddingBottom: 10,
+  },
+  clusterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: "rgba(15,22,38,0.9)",
+    borderWidth: 1,
+    borderColor: T.border,
+  },
+  clusterChipActive: {
+    backgroundColor: T.softPurple,
+    borderColor: T.purple,
+  },
+  clusterChipText: {
+    fontSize: 12,
+    fontFamily: VibeFonts.semiBold,
+    color: T.muted,
+  },
+  clusterChipTextActive: { color: T.purpleBright },
+  joinModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(4,6,14,0.72)",
+    justifyContent: "center",
+    paddingHorizontal: 22,
+  },
+  joinModalSheet: {
+    backgroundColor: "#121826",
+    borderRadius: 22,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "rgba(167,139,250,0.25)",
+    gap: 10,
+  },
+  joinModalTitle: {
+    color: "#fff",
+    fontSize: 18,
+    fontFamily: VibeFonts.extraBold,
+  },
+  joinModalSub: {
+    color: T.muted,
+    fontSize: 13,
+    fontFamily: VibeFonts.medium,
+    marginBottom: 4,
+  },
+  joinModalInput: {
+    minHeight: 80,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "rgba(167, 139, 250, 0.35)",
+    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(255,255,255,0.04)",
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 12,
+    color: "#fff",
+    fontSize: 14,
+    fontFamily: VibeFonts.medium,
+    textAlignVertical: "top",
   },
-  doodleText: {
+  joinModalBtn: {
+    borderRadius: 14,
+    overflow: "hidden",
+    marginTop: 4,
+  },
+  joinModalBtnGrad: {
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  joinModalBtnText: {
+    color: "#fff",
+    fontSize: 15,
+    fontFamily: VibeFonts.extraBold,
+  },
+  joinModalCancel: {
+    color: "rgba(255,255,255,0.4)",
     fontSize: 13,
-    fontFamily: VibeFonts.bold,
-    color: "#C4B5FD",
+    fontFamily: VibeFonts.medium,
   },
-  liveNowBadge: {
+  cardWhenPill: {
+    position: "absolute",
+    left: 12,
+    bottom: 12,
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    backgroundColor: "rgba(16, 185, 129, 0.16)",
+    backgroundColor: "rgba(8,10,18,0.78)",
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(52, 211, 153, 0.32)",
+    borderColor: "rgba(251,191,36,0.35)",
   },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#34D399",
-  },
-  liveNowText: {
-    fontSize: 11,
-    fontFamily: VibeFonts.bold,
-    color: "#6EE7B7",
-  },
-  sloganTitle: {
-    fontSize: 22,
-    fontFamily: VibeFonts.extraBold,
-    color: "#F8FAFC",
-    lineHeight: 28,
-    letterSpacing: -0.5,
-  },
-  sloganHighlight: {
-    color: "#FBBF24",
-  },
-  sloganUnderline: {
-    width: 240,
-    height: 5,
-    borderRadius: 3,
-    marginTop: 6,
+  cardWhenPillText: {
+    color: "#FDE68A",
+    fontSize: 12,
+    fontFamily: VibeFonts.semiBold,
   },
 
   heroPlanCard: {
@@ -1263,6 +1430,17 @@ const styles = StyleSheet.create({
     color: "#1E1B4B",
     fontSize: 11,
     fontFamily: VibeFonts.bold,
+  },
+  urgencyPill: {
+    backgroundColor: "rgba(239,68,68,0.92)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+  },
+  urgencyPillText: {
+    color: "#FFF",
+    fontSize: 10,
+    fontFamily: VibeFonts.extraBold,
   },
   floatingHeartBtn: {
     width: 34,

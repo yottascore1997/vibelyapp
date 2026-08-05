@@ -13,6 +13,8 @@ import { PremiumProvider } from "../context/PremiumContext";
 import { TabBarVisibilityProvider } from "../context/TabBarVisibilityContext";
 import PaywallModal from "../components/paywall/PaywallModal";
 import LocationSync from "../components/LocationSync";
+import IncomingInviteWatcher from "../components/vibe/IncomingInviteWatcher";
+import InviteDeepLinkHandler from "../components/vibe/InviteDeepLinkHandler";
 import { useImmersiveNavigationBar } from "../hooks/useImmersiveNavigationBar";
 
 export default function RootLayout() {
@@ -38,6 +40,8 @@ export default function RootLayout() {
                 <TabBarVisibilityProvider>
                 <LocationSync />
                 <PaywallModal />
+                <IncomingInviteWatcher />
+                <InviteDeepLinkHandler />
                 {/* dark-content screens (Hangout/Travel/Profile) — avoid light icons on light bg */}
                 <StatusBar style="dark" />
           <Stack
@@ -111,6 +115,13 @@ export default function RootLayout() {
               options={{
                 animation: "slide_from_right",
                 contentStyle: { backgroundColor: "#F8F9FD" },
+              }}
+            />
+            <Stack.Screen
+              name="live-map"
+              options={{
+                animation: "slide_from_right",
+                contentStyle: { backgroundColor: "#070A14" },
               }}
             />
           </Stack>

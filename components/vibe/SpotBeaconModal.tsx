@@ -25,6 +25,7 @@ import Animated, {
 import { useRouter } from "expo-router";
 import { VibeFonts } from "../../constants/vibeTheme";
 import { api } from "../../services/api";
+import { broadcastLiveSpot } from "../../services/spotBroadcast";
 
 interface Props {
   visible: boolean;
@@ -128,31 +129,44 @@ export default function SpotBeaconModal({ visible, onClose }: Props) {
   const [duration, setDuration] = useState(30);
   const [loading, setLoading] = useState(false);
 
-  const handleBroadcastSpot = async () => {
-    const finalVenue = venueName.trim() || `${selectedPreset.emoji} ${selectedPreset.name}`;
-    setLoading(true);
+  const activityId = selectedPreset.id === "cafe" ? "coffee" : selectedPreset.id;
 
+  const handleBroadcastSpot = async () => {
+    setLoading(true);
     try {
-      await api.updateSocialStatus({
-        energy: "LESSGO",
-        freeNow: true,
-        activity: `${selectedPreset.emoji} at ${finalVenue}`,
+      const spot = await broadcastLiveSpot({
+        activityId,
+        activityName: selectedPreset.name,
+        emoji: selectedPreset.emoji,
+        venue: venueName.trim() || `${selectedPreset.emoji} ${selectedPreset.name}`,
+        durationMins: duration,
       });
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
       onClose();
       router.push({
         pathname: "/spot-radar",
         params: {
-          venue: finalVenue,
+          venue: spot.venue,
+          vibe: spot.vibe,
+          emoji: spot.emoji,
+          duration: String(spot.duration),
+          activityId: spot.activityId,
+          ...(spot.hangoutId ? { hangoutId: spot.hangoutId } : {}),
+        },
+      });
+    } catch {
+      onClose();
+      router.push({
+        pathname: "/spot-radar",
+        params: {
+          venue: venueName.trim() || `${selectedPreset.emoji} ${selectedPreset.name}`,
           vibe: selectedPreset.name,
           emoji: selectedPreset.emoji,
           duration: String(duration),
-          activityId: selectedPreset.id === "cafe" ? "coffee" : selectedPreset.id,
+          activityId,
         },
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -160,18 +174,26 @@ export default function SpotBeaconModal({ visible, onClose }: Props) {
     const finalVenue = venueName.trim() || selectedPreset.name;
     setLoading(true);
     try {
+      const spot = await broadcastLiveSpot({
+        activityId,
+        activityName: selectedPreset.name,
+        emoji: selectedPreset.emoji,
+        venue: finalVenue,
+        durationMins: duration,
+      });
       const res = await api.createPublicInvite({
         activityName: selectedPreset.name,
         activityEmoji: selectedPreset.emoji,
         timeLabel: `At ${finalVenue} for next ${duration} mins!`,
+        hangoutId: spot.hangoutId,
       });
 
       const shareMsg = `Hey! Sitting at ${finalVenue} (${selectedPreset.emoji}). Join my table: ${
-        res?.inviteUrl || "https://vibematch.app"
+        res?.inviteUrl || "https://www.hangora.app"
       }`;
       await Share.share({ message: shareMsg });
     } catch {
-      const shareMsg = `Sitting at ${finalVenue} (${selectedPreset.emoji}) right now! Join me: https://vibematch.app`;
+      const shareMsg = `Sitting at ${finalVenue} (${selectedPreset.emoji}) right now! Join me: https://www.hangora.app`;
       await Share.share({ message: shareMsg });
     } finally {
       setLoading(false);

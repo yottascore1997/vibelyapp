@@ -4,10 +4,75 @@ import { Plan } from "../constants/plans";
 
 let memoryToken: string | null = null;
 let activeBaseUrl = API_URL;
+const ACTIVE_BASE_KEY = "@hangora_active_api_base";
+const FETCH_TIMEOUT_MS = 20000;
+
+/** Mutations that are safe to retry once (idempotent upserts / deletes). */
+function isIdempotentMutation(endpoint: string, method: string) {
+  const m = method.toUpperCase();
+  if (m === "GET" || m === "HEAD") return false;
+  if (endpoint.startsWith("/swipe")) return true;
+  if (endpoint.startsWith("/social-status") && m === "POST") return true;
+  if (endpoint.startsWith("/auth/location") && m === "POST") return true;
+  return false;
+}
+
+function isNetworkishError(err: unknown): boolean {
+  if (err instanceof ApiError) return false;
+  if (!(err instanceof Error)) return false;
+  const msg = err.message.toLowerCase();
+  return (
+    err.name === "TypeError" ||
+    err.name === "AbortError" ||
+    msg.includes("network request failed") ||
+    msg.includes("aborted") ||
+    msg.includes("failed to fetch") ||
+    msg.includes("network error")
+  );
+}
 
 /** Call from AuthContext whenever token changes */
 export function setAuthToken(token: string | null) {
   memoryToken = token;
+}
+
+function isLanHost(url: string) {
+  return /localhost|127\.0\.0\.1|192\.168\.|10\.\d+\.|172\.(1[6-9]|2\d|3[0-1])\./i.test(
+    url
+  );
+}
+
+/** Prefer the host that successfully handled login/register — Hangora only */
+export function setActiveApiBase(baseUrl: string | null) {
+  if (!baseUrl) return;
+  let url = baseUrl.replace(/\/+$/, "");
+  if (!url.endsWith("/api")) url = `${url}/api`;
+  // Never persist Vibely / non-Hangora hosts
+  if (!/hangora\.app/i.test(url) && !isLanHost(url)) {
+    url = API_URL;
+  }
+  activeBaseUrl = url;
+  AsyncStorage.setItem(ACTIVE_BASE_KEY, url).catch(() => {});
+}
+
+export function getActiveApiBase() {
+  return activeBaseUrl;
+}
+
+/** Restore last working API host (call once on app start) — Hangora only */
+export async function hydrateActiveApiBase() {
+  try {
+    const saved = await AsyncStorage.getItem(ACTIVE_BASE_KEY);
+    if (saved && /hangora\.app/i.test(saved)) {
+      activeBaseUrl = saved;
+    } else {
+      // Drop old Vibely / other hosts
+      activeBaseUrl = API_URL;
+      await AsyncStorage.setItem(ACTIVE_BASE_KEY, API_URL);
+    }
+  } catch {
+    activeBaseUrl = API_URL;
+  }
 }
 
 async function resolveToken(): Promise<string | null> {
@@ -31,14 +96,48 @@ export class ApiError extends Error {
 }
 
 function apiBases(): string[] {
-  return [activeBaseUrl, API_URL, ...API_FALLBACKS].filter(
+  const raw = [activeBaseUrl, API_URL, ...API_FALLBACKS].filter(
     (u, i, arr) => !!u && arr.indexOf(u) === i
   );
+  // Phone often can't reach LAN — try HTTPS cloud first, local last
+  const cloud = raw.filter((u) => !isLanHost(u));
+  const lan = raw.filter((u) => isLanHost(u));
+  if (activeBaseUrl && !isLanHost(activeBaseUrl)) {
+    return [activeBaseUrl, ...cloud.filter((u) => u !== activeBaseUrl), ...lan];
+  }
+  return [...cloud, ...lan];
+}
+
+async function fetchWithTimeout(url: string, options: RequestInit, ms: number) {
+  // Avoid AbortController on RN Android — it often surfaces as
+  // "Network request failed" even when the request would succeed.
+  let timedOut = false;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      timedOut = true;
+      const err = new Error("Request timed out");
+      err.name = "AbortError";
+      reject(err);
+    }, ms);
+  });
+  try {
+    return await Promise.race([fetch(url, options), timeoutPromise]);
+  } catch (err) {
+    if (timedOut) {
+      const e = new Error("Request timed out");
+      e.name = "AbortError";
+      throw e;
+    }
+    throw err;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 async function fetchApi<T>(
   endpoint: string,
-  options?: RequestInit & { skipAuth?: boolean }
+  options?: RequestInit & { skipAuth?: boolean; retries?: number }
 ): Promise<T | null> {
   const headers: Record<string, string> = { Accept: "application/json" };
 
@@ -51,48 +150,72 @@ async function fetchApi<T>(
     if (token) headers.Authorization = `Bearer ${token}`;
   }
 
+  const method = (options?.method || "GET").toUpperCase();
+  const isMutation = method !== "GET" && method !== "HEAD";
+  const maxAttempts =
+    typeof options?.retries === "number"
+      ? Math.max(1, options.retries)
+      : isIdempotentMutation(endpoint, method)
+        ? 3
+        : 1;
+
   const bases = apiBases();
   let lastErr: unknown = null;
 
-  for (const base of bases) {
-    try {
-      const res = await fetch(`${base}${endpoint}`, {
-        ...options,
-        headers: { ...headers, ...(options?.headers as Record<string, string>) },
-      });
-
-      let json: any = null;
+  baseLoop: for (const base of bases) {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        json = await res.json();
-      } catch {
-        throw new ApiError(`Invalid response (${res.status})`, res.status);
-      }
+        const res = await fetchWithTimeout(
+          `${base}${endpoint}`,
+          {
+            ...options,
+            headers: { ...headers, ...(options?.headers as Record<string, string>) },
+          },
+          FETCH_TIMEOUT_MS
+        );
 
-      if (!res.ok || (json && json.success === false && json.error)) {
-        if (res.status === 401 || (res.status === 404 && json?.error === "User not found")) {
-          // Don't wipe session on location/auth soft endpoints without token race
-          if (!endpoint.includes("/auth/location")) {
-            setAuthToken(null);
-            AsyncStorage.multiRemove(["token", "user"]);
-          }
+        let json: any = null;
+        try {
+          json = await res.json();
+        } catch {
+          throw new ApiError(`Invalid response (${res.status})`, res.status);
         }
-        throw new ApiError(json?.error || `Request failed (${res.status})`, res.status);
-      }
 
-      activeBaseUrl = base;
-      return (json?.data ?? json) as T;
-    } catch (err) {
-      lastErr = err;
-      const isNet =
-        !(err instanceof ApiError) &&
-        err instanceof Error &&
-        (err.name === "TypeError" ||
-          err.message.toLowerCase().includes("network request failed"));
-      if (isNet) {
-        console.warn("fetchApi network fail on", base, endpoint);
-        continue;
+        if (!res.ok || (json && json.success === false && json.error)) {
+          if (res.status === 401 || (res.status === 404 && json?.error === "User not found")) {
+            if (!endpoint.includes("/auth/location")) {
+              setAuthToken(null);
+              AsyncStorage.multiRemove(["token", "user"]);
+            }
+          }
+          throw new ApiError(json?.error || `Request failed (${res.status})`, res.status);
+        }
+
+        setActiveApiBase(base);
+        return (json?.data ?? json) as T;
+      } catch (err) {
+        lastErr = err;
+
+        if (err instanceof ApiError) {
+          break baseLoop;
+        }
+
+        if (isNetworkishError(err)) {
+          if (attempt < maxAttempts) {
+            console.warn(`fetchApi retry ${attempt}/${maxAttempts} on`, base, endpoint);
+            await new Promise((r) => setTimeout(r, 450 * attempt));
+            continue;
+          }
+          console.warn("fetchApi network fail on", base, endpoint);
+          // Try next host for GET, or for idempotent mutations (swipe upsert is safe)
+          if (!isMutation || isIdempotentMutation(endpoint, method)) {
+            continue baseLoop;
+          }
+          break baseLoop;
+        }
+
+        break baseLoop;
       }
-      break;
     }
   }
 
@@ -159,10 +282,13 @@ export const api = {
   },
   createPlan: (data: object) =>
     fetchApi<Plan>("/hangouts", { method: "POST", body: JSON.stringify(data) }),
-  joinPlan: (planId: string, _userId?: string) =>
+  joinPlan: (planId: string, remark?: string) =>
     fetchApi<{ message?: string; status?: string; going?: number }>(
       `/hangouts/${planId}/join`,
-      { method: "POST", body: JSON.stringify({}) }
+      {
+        method: "POST",
+        body: JSON.stringify(remark?.trim() ? { remark: remark.trim() } : {}),
+      }
     ),
   respondToJoinRequest: (
     planId: string,
@@ -192,6 +318,7 @@ export const api = {
     fetchApi<{ isMatch?: boolean; demo?: boolean }>("/swipe", {
       method: "POST",
       body: JSON.stringify({ receiverId: data.receiverId, action: data.action }),
+      retries: 3,
     }),
   sendVibe: (data: { receiverId: string; vibeType: string; senderId?: string }) =>
     fetchApi("/vibes", {
@@ -246,6 +373,7 @@ export const api = {
     activityEmoji: string;
     timeLabel: string;
     senderId?: string;
+    hangoutId?: string;
   }) =>
     fetchApi<any>("/invites", {
       method: "POST",
@@ -254,6 +382,7 @@ export const api = {
         activityName: data.activityName,
         activityEmoji: data.activityEmoji,
         timeLabel: data.timeLabel,
+        hangoutId: data.hangoutId,
       }),
     }),
   createPublicInvite: (data: {
@@ -276,11 +405,59 @@ export const api = {
       method: "POST",
       body: JSON.stringify(data),
     }),
-  respondToInvite: (inviteId: string, status: "accepted" | "rejected") =>
+  getPublicInvite: (code: string) =>
+    fetchApi<{
+      inviteCode?: string;
+      activityName?: string;
+      activityEmoji?: string;
+      timeLabel?: string;
+      hangoutId?: string | null;
+      hangout?: { id: string } | null;
+      senderName?: string;
+    }>(`/invites/public/${encodeURIComponent(code)}`),
+  publicRsvp: (data: {
+    inviteCode: string;
+    status: "accepted" | "rejected";
+    name?: string;
+    phone?: string;
+  }) =>
+    fetchApi<{ hangoutId?: string | null }>("/invites/public-rsvp", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  respondToInvite: (
+    inviteId: string,
+    status: "accepted" | "rejected" | "counter",
+    extra?: {
+      activityName?: string;
+      activityEmoji?: string;
+      timeLabel?: string;
+      remark?: string;
+      note?: string;
+    }
+  ) =>
     fetchApi<any>("/invites/respond", {
       method: "POST",
-      body: JSON.stringify({ inviteId, status }),
+      body: JSON.stringify({
+        inviteId,
+        status,
+        ...(extra || {}),
+      }),
     }),
+  /** Best-of-3 RPS settle between counter players */
+  settleInvite: (
+    inviteId: string,
+    action: "start" | "move",
+    move?: "rock" | "paper" | "scissors"
+  ) =>
+    fetchApi<any>("/invites/settle", {
+      method: "POST",
+      body: JSON.stringify({ inviteId, action, ...(move ? { move } : {}) }),
+    }),
+  getSettleInvite: (inviteId: string) =>
+    fetchApi<{ settle: any }>(
+      `/invites/settle?inviteId=${encodeURIComponent(inviteId)}`
+    ),
   getJarItems: (_userId?: string) => fetchApi<any[]>(`/jar`),
   addJarItem: (data: {
     title: string;

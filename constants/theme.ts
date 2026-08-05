@@ -58,8 +58,25 @@ export const API_URL = (() => {
   return url;
 })();
 
-/** Tried in order when primary host fails (phone SSL / DNS flake). */
+/** Socket.io chat server (Railway). Override with EXPO_PUBLIC_CHAT_URL. */
+export const CHAT_WS_URL = (() => {
+  const PROD_CHAT = "https://secure-courage-production-8ba6.up.railway.app";
+  const fromEnv = (process.env.EXPO_PUBLIC_CHAT_URL || "").trim();
+  return (fromEnv || PROD_CHAT).replace(/\/+$/, "");
+})();
+
+/** Tried in order when primary host fails (phone SSL / DNS flake). Hangora only. */
 export const API_FALLBACKS = [
-  "https://vibely-production-d2c1.up.railway.app/api",
   "https://www.hangora.app/api",
 ].filter((u) => u !== API_URL);
+
+/** Resolve chat socket URL from current API host (LAN → :3001, else Railway chat). */
+export function resolveChatWsUrl(apiBase?: string | null) {
+  const base = (apiBase || API_URL).replace(/\/+$/, "");
+  const isLan =
+    /localhost|127\.0\.0\.1|192\.168\.|10\.\d+\.|172\.(1[6-9]|2\d|3[0-1])\./i.test(base);
+  if (isLan) {
+    return base.replace("/api", "").replace(":3000", ":3001");
+  }
+  return CHAT_WS_URL;
+}

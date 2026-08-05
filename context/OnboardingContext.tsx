@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode } from "react";
 import { defaultOnboardingData, OnboardingData } from "../constants/onboarding";
 import { useAuth } from "./AuthContext";
-import { API_URL } from "../constants/theme";
+import { api } from "../services/api";
 
 interface OnboardingContextType {
   data: OnboardingData;
@@ -30,23 +30,12 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     const payload = { ...data, ...override, onboardingDone: true };
 
     try {
-      const res = await fetch(`${API_URL}/auth/profile`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const json = await res.json();
-
-      if (!json.success) {
-        throw new Error(json.error || "Profile save failed");
+      // Use fetchApi (activeBaseUrl + fallbacks) — same host as register/login
+      const res = await api.updateProfile(payload, token);
+      if (!res) {
+        throw new Error("Profile save failed — empty server response");
       }
-
-      return json.data;
+      return res;
     } finally {
       setSaving(false);
     }

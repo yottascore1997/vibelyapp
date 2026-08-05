@@ -830,9 +830,11 @@ export default function CreatePlanScreen() {
     inviteWhatsApp,
   ]);
 
-  const scheduleLabel = `${schedule.dateLabel} · ${formatPeriodLabel(customTime)}`;
-  const inviteTimeLabel =
-    schedule.timeLabel === "Flexible" ? scheduleLabel : schedule.timeLabel;
+  const scheduleLabel =
+    schedule.timeLabel === "Flexible"
+      ? `${schedule.dateLabel} · ${formatPeriodLabel(customTime)}`
+      : `${schedule.dateLabel} · ${schedule.timeLabel}`;
+  const inviteTimeLabel = scheduleLabel;
 
   const selectedInvitees = useMemo(
     () => matches.filter((m) => selectedInviteeIds.includes(m.id)),
@@ -953,6 +955,7 @@ export default function CreatePlanScreen() {
             activityEmoji: activity.emoji,
             timeLabel: inviteTimeLabel,
             senderId: user?.id,
+            hangoutId: plan.id,
           });
         } catch {
           /* continue other invites */
@@ -971,7 +974,7 @@ export default function CreatePlanScreen() {
           const msg =
             pub?.shareMessage ||
             `hang for ${activity.name.toLowerCase()}? ${inviteTimeLabel} — join: ${
-              pub?.inviteUrl || "https://hangora.app"
+              pub?.inviteUrl || "https://www.hangora.app"
             }`;
           if (pub?.whatsappUrl) {
             const can = await Linking.canOpenURL(pub.whatsappUrl);
@@ -1117,6 +1120,197 @@ export default function CreatePlanScreen() {
         </Animated.View>
 
 
+
+        {/* Invite who? */}
+        <Animated.View entering={FadeInDown.delay(320).duration(400)} style={styles.section}>
+          <View style={styles.sectionHead}>
+            <LinearGradient colors={[...T.cta]} style={styles.stepBadge}>
+              <Ionicons name="paper-plane" size={11} color="#fff" />
+            </LinearGradient>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.sectionTitleDark}>Invite who?</Text>
+              <Text style={styles.sectionSubDark}>Pick matches · or share on WhatsApp</Text>
+            </View>
+          </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.inviteScroll}
+          >
+            <Pressable
+              onPress={() => setInviteWhatsApp((v) => !v)}
+              style={[
+                styles.inviteWaCard,
+                inviteWhatsApp && styles.inviteWaCardActive,
+              ]}
+            >
+              <View style={styles.inviteWaIcon}>
+                <Ionicons name="logo-whatsapp" size={22} color="#fff" />
+              </View>
+              <Text style={styles.inviteWaTitle}>WhatsApp</Text>
+              <Text style={styles.inviteWaSub}>Share invite</Text>
+              {inviteWhatsApp ? (
+                <View style={styles.inviteCheck}>
+                  <Ionicons name="checkmark" size={10} color="#fff" />
+                </View>
+              ) : null}
+            </Pressable>
+
+            {matches.length === 0 ? (
+              <View style={styles.inviteEmptyCard}>
+                <Ionicons name="heart-outline" size={22} color={T.purple} />
+                <Text style={styles.inviteEmptyText}>No matches yet</Text>
+                <Pressable onPress={() => router.push("/(tabs)/discover")}>
+                  <Text style={styles.inviteEmptyLink}>Go Discover →</Text>
+                </Pressable>
+              </View>
+            ) : (
+              matches.map((m: MatchProfile) => {
+                const active = selectedInviteeIds.includes(m.id);
+                return (
+                  <Pressable
+                    key={m.id}
+                    onPress={() => toggleInvitee(m.id)}
+                    style={[styles.inviteMatchCard, active && styles.inviteMatchCardActive]}
+                  >
+                    <Image source={{ uri: m.avatarUrl }} style={styles.inviteMatchAvatar} />
+                    {active ? (
+                      <View style={styles.inviteCheck}>
+                        <Ionicons name="checkmark" size={10} color="#fff" />
+                      </View>
+                    ) : null}
+                    <Text style={styles.inviteMatchName} numberOfLines={1}>
+                      {m.name.split(" ")[0]}
+                    </Text>
+                  </Pressable>
+                );
+              })
+            )}
+          </ScrollView>
+
+          {(selectedInvitees.length > 0 || inviteWhatsApp) && (
+            <View style={styles.inviteSummary}>
+              <Ionicons name="checkmark-circle" size={14} color={T.green} />
+              <Text style={styles.inviteSummaryText}>
+                Will send {inviteTargetLabel}
+                {inviteWhatsApp && selectedInvitees.length > 0 ? " + WhatsApp" : ""}
+              </Text>
+            </View>
+          )}
+        </Animated.View>
+
+        {/* Live preview */}
+        <Animated.View entering={FadeInDown.delay(300).duration(400)} style={styles.section}>
+          <View style={styles.previewHead}>
+            <View style={styles.liveDotWrap}>
+              <View style={styles.liveDot} />
+              <Text style={styles.previewLabel}>LIVE PREVIEW</Text>
+            </View>
+            <View style={styles.previewHintPill}>
+              <Ionicons name="eye" size={11} color={T.purpleDeep} />
+              <Text style={styles.previewHintText}>How others see it</Text>
+            </View>
+          </View>
+
+          <View style={[styles.previewCard, { borderColor: `${actMeta.accent}45` }]}>
+            <LinearGradient
+              colors={[`${actMeta.accent}22`, "rgba(255,255,255,0)", `${T.pink}12`]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFillObject}
+            />
+
+            <View style={styles.previewTopRow}>
+              <View style={[styles.previewVibe, { backgroundColor: vibe.soft }]}>
+                <Ionicons name={vibe.icon} size={12} color={vibe.accent} />
+                <Text style={[styles.previewVibeText, { color: vibe.accent }]}>{selectedVibe}</Text>
+              </View>
+              <View style={styles.previewLiveBadge}>
+                <Ionicons name="radio" size={11} color="#fff" />
+                <Text style={styles.previewLiveText}>LIVE</Text>
+              </View>
+            </View>
+
+            <View style={[styles.previewIconOrb, { backgroundColor: actMeta.soft }]}>
+              <Image
+                source={{ uri: actMeta.icon3d }}
+                style={styles.previewIcon3d}
+                resizeMode="contain"
+              />
+            </View>
+            <Text style={styles.previewTitle}>hang for {activity.name.toLowerCase()}?</Text>
+
+            <View style={styles.previewMetaGrid}>
+              <View style={styles.previewMetaItem}>
+                <Ionicons name="calendar-outline" size={14} color={actMeta.accent} />
+                <Text style={[styles.previewMetaText, { color: actMeta.accent }]}>
+                  {scheduleLabel}
+                </Text>
+              </View>
+              <View style={styles.previewMetaItem}>
+                <Ionicons name="people" size={14} color={T.muted} />
+                <Text style={styles.previewMetaMuted}>{maxPeople} people can join</Text>
+              </View>
+              {place.trim() ? (
+                <View style={styles.previewMetaItem}>
+                  <Ionicons name="location" size={14} color={T.muted} />
+                  <Text style={styles.previewMetaMuted}>{place.trim()}</Text>
+                </View>
+              ) : null}
+            </View>
+
+            {description.trim() ? (
+              <View style={styles.previewQuote}>
+                <Ionicons name="chatbubble" size={12} color={T.purple} />
+                <Text style={styles.previewDesc}>"{description.trim()}"</Text>
+              </View>
+            ) : null}
+
+            <View style={styles.previewFooter}>
+              <View style={styles.avatarStack}>
+                {selectedInvitees.length > 0
+                  ? selectedInvitees.slice(0, 3).map((m, i) => (
+                      <Image
+                        key={m.id}
+                        source={{ uri: m.avatarUrl }}
+                        style={[
+                          styles.avatarGhost,
+                          {
+                            marginLeft: i === 0 ? 0 : -8,
+                            zIndex: 3 - i,
+                            backgroundColor: "#1F2937",
+                          },
+                        ]}
+                      />
+                    ))
+                  : [0, 1, 2].map((i) => (
+                      <View
+                        key={i}
+                        style={[
+                          styles.avatarGhost,
+                          {
+                            marginLeft: i === 0 ? 0 : -8,
+                            zIndex: 3 - i,
+                            backgroundColor:
+                              i === 0 ? "#C4B5FD" : i === 1 ? "#F9A8D4" : "#A5B4FC",
+                          },
+                        ]}
+                      >
+                        <Ionicons name="person" size={10} color="#fff" />
+                      </View>
+                    ))}
+              </View>
+              <Text style={styles.previewFooterText}>
+                {selectedInvitees.length > 0
+                  ? `Inviting ${inviteTargetLabel.replace(/^to /, "")}`
+                  : inviteWhatsApp
+                    ? "WhatsApp invite ready"
+                    : "Nearby people can join"}
+              </Text>
+            </View>
+          </View>
+        </Animated.View>
 
         {/* Step 3 — When */}
         <Animated.View entering={FadeInDown.delay(240).duration(400)} style={styles.section}>
@@ -1381,171 +1575,6 @@ export default function CreatePlanScreen() {
               />
             </View>
           </View>
-        </Animated.View>
-
-        {/* Live preview */}
-        <Animated.View entering={FadeInDown.delay(300).duration(400)} style={styles.section}>
-          <View style={styles.previewHead}>
-            <View style={styles.liveDotWrap}>
-              <View style={styles.liveDot} />
-              <Text style={styles.previewLabel}>LIVE PREVIEW</Text>
-            </View>
-            <View style={styles.previewHintPill}>
-              <Ionicons name="eye" size={11} color={T.purpleDeep} />
-              <Text style={styles.previewHintText}>How others see it</Text>
-            </View>
-          </View>
-
-          <View style={[styles.previewCard, { borderColor: `${actMeta.accent}45` }]}>
-            <LinearGradient
-              colors={[`${actMeta.accent}22`, "rgba(255,255,255,0)", `${T.pink}12`]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFillObject}
-            />
-
-            <View style={styles.previewTopRow}>
-              <View style={[styles.previewVibe, { backgroundColor: vibe.soft }]}>
-                <Ionicons name={vibe.icon} size={12} color={vibe.accent} />
-                <Text style={[styles.previewVibeText, { color: vibe.accent }]}>{selectedVibe}</Text>
-              </View>
-              <View style={styles.previewLiveBadge}>
-                <Ionicons name="radio" size={11} color="#fff" />
-                <Text style={styles.previewLiveText}>LIVE</Text>
-              </View>
-            </View>
-
-            <View style={[styles.previewIconOrb, { backgroundColor: actMeta.soft }]}>
-              <Image
-                source={{ uri: actMeta.icon3d }}
-                style={styles.previewIcon3d}
-                resizeMode="contain"
-              />
-            </View>
-            <Text style={styles.previewTitle}>hang for {activity.name.toLowerCase()}?</Text>
-
-            <View style={styles.previewMetaGrid}>
-              <View style={styles.previewMetaItem}>
-                <Ionicons name="calendar-outline" size={14} color={actMeta.accent} />
-                <Text style={[styles.previewMetaText, { color: actMeta.accent }]}>
-                  {scheduleLabel}
-                </Text>
-              </View>
-              <View style={styles.previewMetaItem}>
-                <Ionicons name="people" size={14} color={T.muted} />
-                <Text style={styles.previewMetaMuted}>{maxPeople} people can join</Text>
-              </View>
-              {place.trim() ? (
-                <View style={styles.previewMetaItem}>
-                  <Ionicons name="location" size={14} color={T.muted} />
-                  <Text style={styles.previewMetaMuted}>{place.trim()}</Text>
-                </View>
-              ) : null}
-            </View>
-
-            {description.trim() ? (
-              <View style={styles.previewQuote}>
-                <Ionicons name="chatbubble" size={12} color={T.purple} />
-                <Text style={styles.previewDesc}>"{description.trim()}"</Text>
-              </View>
-            ) : null}
-
-            <View style={styles.previewFooter}>
-              <View style={styles.avatarStack}>
-                {[0, 1, 2].map((i) => (
-                  <View
-                    key={i}
-                    style={[
-                      styles.avatarGhost,
-                      { marginLeft: i === 0 ? 0 : -8, zIndex: 3 - i, backgroundColor: i === 0 ? "#C4B5FD" : i === 1 ? "#F9A8D4" : "#A5B4FC" },
-                    ]}
-                  >
-                    <Ionicons name="person" size={10} color="#fff" />
-                  </View>
-                ))}
-              </View>
-              <Text style={styles.previewFooterText}>Nearby people can join</Text>
-            </View>
-          </View>
-        </Animated.View>
-
-        {/* Invite who? */}
-        <Animated.View entering={FadeInDown.delay(320).duration(400)} style={styles.section}>
-          <View style={styles.sectionHead}>
-            <LinearGradient colors={[...T.cta]} style={styles.stepBadge}>
-              <Ionicons name="paper-plane" size={11} color="#fff" />
-            </LinearGradient>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.sectionTitleDark}>Invite who?</Text>
-              <Text style={styles.sectionSubDark}>Pick matches · or share on WhatsApp</Text>
-            </View>
-          </View>
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.inviteScroll}
-          >
-            <Pressable
-              onPress={() => setInviteWhatsApp((v) => !v)}
-              style={[
-                styles.inviteWaCard,
-                inviteWhatsApp && styles.inviteWaCardActive,
-              ]}
-            >
-              <View style={styles.inviteWaIcon}>
-                <Ionicons name="logo-whatsapp" size={22} color="#fff" />
-              </View>
-              <Text style={styles.inviteWaTitle}>WhatsApp</Text>
-              <Text style={styles.inviteWaSub}>Share invite</Text>
-              {inviteWhatsApp ? (
-                <View style={styles.inviteCheck}>
-                  <Ionicons name="checkmark" size={10} color="#fff" />
-                </View>
-              ) : null}
-            </Pressable>
-
-            {matches.length === 0 ? (
-              <View style={styles.inviteEmptyCard}>
-                <Ionicons name="heart-outline" size={22} color={T.purple} />
-                <Text style={styles.inviteEmptyText}>No matches yet</Text>
-                <Pressable onPress={() => router.push("/(tabs)/discover")}>
-                  <Text style={styles.inviteEmptyLink}>Go Discover →</Text>
-                </Pressable>
-              </View>
-            ) : (
-              matches.map((m: MatchProfile) => {
-                const active = selectedInviteeIds.includes(m.id);
-                return (
-                  <Pressable
-                    key={m.id}
-                    onPress={() => toggleInvitee(m.id)}
-                    style={[styles.inviteMatchCard, active && styles.inviteMatchCardActive]}
-                  >
-                    <Image source={{ uri: m.avatarUrl }} style={styles.inviteMatchAvatar} />
-                    {active ? (
-                      <View style={styles.inviteCheck}>
-                        <Ionicons name="checkmark" size={10} color="#fff" />
-                      </View>
-                    ) : null}
-                    <Text style={styles.inviteMatchName} numberOfLines={1}>
-                      {m.name.split(" ")[0]}
-                    </Text>
-                  </Pressable>
-                );
-              })
-            )}
-          </ScrollView>
-
-          {(selectedInvitees.length > 0 || inviteWhatsApp) && (
-            <View style={styles.inviteSummary}>
-              <Ionicons name="checkmark-circle" size={14} color={T.green} />
-              <Text style={styles.inviteSummaryText}>
-                Will send {inviteTargetLabel}
-                {inviteWhatsApp && selectedInvitees.length > 0 ? " + WhatsApp" : ""}
-              </Text>
-            </View>
-          )}
         </Animated.View>
 
         {/* Tip banner */}

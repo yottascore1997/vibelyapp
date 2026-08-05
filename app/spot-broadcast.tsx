@@ -32,6 +32,7 @@ import Animated, {
 import { VibeFonts } from "../constants/vibeTheme";
 import { PLAN_ACTIVITIES } from "../constants/plans";
 import { api } from "../services/api";
+import { broadcastLiveSpot } from "../services/spotBroadcast";
 import TabBar from "../components/TabBar";
 import AppHeader from "../components/vibe/AppHeader";
 import HangoutCinematicBackground from "../components/vibe/HangoutCinematicBackground";
@@ -322,28 +323,39 @@ export default function SpotBroadcastScreen() {
   }, []);
 
   const handleBroadcastSpot = async () => {
-    const finalVenue = venueName.trim() || `${selectedAct.emoji} ${selectedAct.name}`;
     setLoading(true);
     try {
-      await api.updateSocialStatus({
-        energy: "LESSGO",
-        freeNow: true,
-        activity: `${selectedAct.emoji} at ${finalVenue}`,
+      const spot = await broadcastLiveSpot({
+        activityId: selectedAct.id,
+        activityName: selectedAct.name,
+        emoji: selectedAct.emoji,
+        venue: venueName.trim() || `${selectedAct.emoji} ${selectedAct.name}`,
+        durationMins: duration,
       });
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
       router.push({
         pathname: "/spot-radar",
         params: {
-          venue: finalVenue,
+          venue: spot.venue,
+          vibe: spot.vibe,
+          emoji: spot.emoji,
+          duration: String(spot.duration),
+          activityId: spot.activityId,
+          ...(spot.hangoutId ? { hangoutId: spot.hangoutId } : {}),
+        },
+      });
+    } catch {
+      router.push({
+        pathname: "/spot-radar",
+        params: {
+          venue: venueName.trim() || `${selectedAct.emoji} ${selectedAct.name}`,
           vibe: selectedAct.name,
           emoji: selectedAct.emoji,
           duration: String(duration),
           activityId: selectedAct.id,
         },
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -351,18 +363,39 @@ export default function SpotBroadcastScreen() {
     const finalVenue = venueName.trim() || selectedAct.name;
     setLoading(true);
     try {
+      const spot = await broadcastLiveSpot({
+        activityId: selectedAct.id,
+        activityName: selectedAct.name,
+        emoji: selectedAct.emoji,
+        venue: finalVenue,
+        durationMins: duration,
+      });
       const res = await api.createPublicInvite({
         activityName: selectedAct.name,
         activityEmoji: selectedAct.emoji,
         timeLabel: `At ${finalVenue} for next ${duration} mins!`,
+        hangoutId: spot.hangoutId,
       });
       const shareMsg = `Hey! Sitting at ${finalVenue} (${selectedAct.emoji}). Join my table: ${
-        res?.inviteUrl || "https://vibematch.app"
+        res?.inviteUrl || "https://www.hangora.app"
       }`;
       await Share.share({ message: shareMsg });
+      if (spot.hangoutId) {
+        router.push({
+          pathname: "/spot-radar",
+          params: {
+            venue: spot.venue,
+            vibe: spot.vibe,
+            emoji: spot.emoji,
+            duration: String(spot.duration),
+            activityId: spot.activityId,
+            hangoutId: spot.hangoutId,
+          },
+        });
+      }
     } catch {
       await Share.share({
-        message: `Sitting at ${finalVenue} (${selectedAct.emoji}) right now! Join me: https://vibematch.app`,
+        message: `Sitting at ${finalVenue} (${selectedAct.emoji}) right now! Join me: https://www.hangora.app`,
       });
     } finally {
       setLoading(false);

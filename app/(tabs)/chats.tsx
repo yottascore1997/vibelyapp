@@ -46,7 +46,7 @@ const T = {
 export default function ChatsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { matches, conversations, likesCount } = useMatches();
+  const { matches, conversations } = useMatches();
   const [activeTab, setActiveTab] = useState<"chats" | "hangouts">("chats");
   const [query, setQuery] = useState("");
 
@@ -125,25 +125,6 @@ export default function ChatsScreen() {
                 </View>
               )}
             </View>
-            <Pressable
-              style={styles.likesQuickBtn}
-              onPress={() => router.push("/my-matches")}
-            >
-              <LinearGradient
-                colors={[...T.cta]}
-                style={StyleSheet.absoluteFill}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              />
-              <Ionicons name="heart" size={18} color="#fff" />
-              {likesCount > 0 && (
-                <View style={styles.likesBadge}>
-                  <Text style={styles.likesBadgeText}>
-                    {likesCount > 9 ? "9+" : likesCount}
-                  </Text>
-                </View>
-              )}
-            </Pressable>
           </Animated.View>
 
           <Animated.View
@@ -360,36 +341,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: VibeFonts.bold,
     color: T.purpleBright,
-  },
-  likesQuickBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-    shadowColor: "#8B5CF6",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  likesBadge: {
-    position: "absolute",
-    top: 2,
-    right: 2,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: "#F472B6",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 3,
-  },
-  likesBadgeText: {
-    color: "#FFF",
-    fontSize: 9,
-    fontFamily: VibeFonts.bold,
   },
 
   modeSwitcherTrack: {

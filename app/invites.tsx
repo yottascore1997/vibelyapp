@@ -35,8 +35,9 @@ interface DirectInvite {
   activityEmoji: string;
   activityName: string;
   timeLabel: string;
-  status: "pending" | "accepted" | "rejected";
+  status: "pending" | "accepted" | "rejected" | "countered";
   type: "received" | "sent";
+  isCounter?: boolean;
 }
 
 const inviteActivities = [
@@ -51,7 +52,8 @@ export default function InvitesScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const [invites, setInvites] = useState<DirectInvite[]>([]);
-  const [activeDashFilter, setActiveDashFilter] = useState<"All" | "Accepted" | "Pending" | "Rejected">("All");
+  const [activeDashFilter, setActiveDashFilter] = useState<"All" | "Accepted" | "Pending" | "Rejected" | "Countered">("All");
+  const [counterForId, setCounterForId] = useState<string | null>(null);
 
   // WhatsApp Invite Modal State
   const [showWaModal, setShowWaModal] = useState(false);
@@ -115,6 +117,24 @@ export default function InvitesScreen() {
       }
     } catch (err) {
       console.error("Reject invite failed:", err);
+    }
+  };
+
+  const handleCounterInvite = async (id: string, act: { name: string; emoji: string }) => {
+    try {
+      const res = await api.respondToInvite(id, "counter", {
+        activityName: act.name,
+        activityEmoji: act.emoji,
+        timeLabel: "Soon",
+      });
+      if (res) {
+        setCounterForId(null);
+        await loadInvites();
+        Alert.alert("Counter sent", `You suggested ${act.emoji} ${act.name}`);
+      }
+    } catch (err) {
+      console.error("Counter invite failed:", err);
+      Alert.alert("Error", "Could not send counter offer.");
     }
   };
 
@@ -197,7 +217,7 @@ export default function InvitesScreen() {
 
         {/* Tab Filters */}
         <View style={styles.filters}>
-          {["All", "Accepted", "Pending", "Rejected"].map((filter) => {
+          {["All", "Accepted", "Pending", "Rejected", "Countered"].map((filter) => {
             const active = activeDashFilter === filter;
             return (
               <Pressable key={filter} onPress={() => setActiveDashFilter(filter as any)} style={styles.filterPressable}>
@@ -251,11 +271,17 @@ export default function InvitesScreen() {
                   {/* Status Pill */}
                   {inv.status === "pending" ? (
                     <View style={[styles.statusPill, { backgroundColor: "#FEF3C7", borderColor: "#FDE68A" }]}>
-                      <Text style={[styles.statusText, { color: "#B45309" }]}>⏳ Pending RSVP</Text>
+                      <Text style={[styles.statusText, { color: "#B45309" }]}>
+                        {inv.isCounter ? "🔄 Counter pending" : "⏳ Pending RSVP"}
+                      </Text>
                     </View>
                   ) : inv.status === "accepted" ? (
                     <View style={[styles.statusPill, { backgroundColor: "#DCFCE7", borderColor: "#86EFAC" }]}>
                       <Text style={[styles.statusText, { color: "#15803D" }]}>🟢 Accepted</Text>
+                    </View>
+                  ) : inv.status === "countered" ? (
+                    <View style={[styles.statusPill, { backgroundColor: "#FEF3C7", borderColor: "#FCD34D" }]}>
+                      <Text style={[styles.statusText, { color: "#B45309" }]}>🔄 Countered</Text>
                     </View>
                   ) : (
                     <View style={[styles.statusPill, { backgroundColor: "#FFE4E6", borderColor: "#FECDD3" }]}>
@@ -264,19 +290,52 @@ export default function InvitesScreen() {
                   )}
                 </View>
 
-                {/* Accept/Reject actions for received pending plans */}
+                {/* Accept/Reject/Counter for received pending */}
                 {inv.type === "received" && inv.status === "pending" && (
-                  <View style={styles.actionsRow}>
-                    <Pressable onPress={() => handleRejectInvite(inv.id)} style={[styles.actBtn, styles.rejectBtn]}>
-                      <Ionicons name="close-circle" size={16} color="#E11D48" />
-                      <Text style={styles.rejectText}>Decline 🔴</Text>
+                  <View style={{ gap: 8 }}>
+                    <View style={styles.actionsRow}>
+                      <Pressable onPress={() => handleRejectInvite(inv.id)} style={[styles.actBtn, styles.rejectBtn]}>
+                        <Ionicons name="close-circle" size={16} color="#E11D48" />
+                        <Text style={styles.rejectText}>Decline</Text>
+                      </Pressable>
+                      <Pressable onPress={() => handleAcceptInvite(inv.id)} style={[styles.actBtn, styles.acceptBtn]}>
+                        <LinearGradient colors={["#22C55E", "#15803D"]} style={styles.acceptGradient}>
+                          <Ionicons name="checkmark-circle" size={16} color="#fff" />
+                          <Text style={styles.acceptText}>Join Hang</Text>
+                        </LinearGradient>
+                      </Pressable>
+                    </View>
+                    <Pressable
+                      onPress={() => setCounterForId(counterForId === inv.id ? null : inv.id)}
+                      style={[styles.actBtn, { backgroundColor: "#F3E8FF", borderColor: "#DDD6FE", borderWidth: 1 }]}
+                    >
+                      <Ionicons name="swap-horizontal" size={16} color="#7C3AED" />
+                      <Text style={{ color: "#7C3AED", fontFamily: VibeFonts.bold, fontSize: 13 }}>
+                        Counter offer
+                      </Text>
                     </Pressable>
-                    <Pressable onPress={() => handleAcceptInvite(inv.id)} style={[styles.actBtn, styles.acceptBtn]}>
-                      <LinearGradient colors={["#22C55E", "#15803D"]} style={styles.acceptGradient}>
-                        <Ionicons name="checkmark-circle" size={16} color="#fff" />
-                        <Text style={styles.acceptText}>Accept Ping 🟢</Text>
-                      </LinearGradient>
-                    </Pressable>
+                    {counterForId === inv.id && (
+                      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                        {inviteActivities.map((act) => (
+                          <Pressable
+                            key={act.id}
+                            onPress={() => handleCounterInvite(inv.id, act)}
+                            style={{
+                              paddingHorizontal: 12,
+                              paddingVertical: 8,
+                              borderRadius: 12,
+                              backgroundColor: "#fff",
+                              borderWidth: 1,
+                              borderColor: "#E2E8F0",
+                            }}
+                          >
+                            <Text style={{ fontFamily: VibeFonts.bold, fontSize: 12, color: "#18181B" }}>
+                              {act.emoji} {act.name}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    )}
                   </View>
                 )}
 

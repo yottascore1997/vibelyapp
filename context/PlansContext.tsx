@@ -34,7 +34,7 @@ interface PlansContextType {
   requestStatuses: Record<string, ReqStatus>;
   refresh: () => Promise<void>;
   createPlan: (input: CreatePlanInput) => Promise<Plan>;
-  joinPlan: (planId: string) => Promise<void>;
+  joinPlan: (planId: string, remark?: string) => Promise<void>;
   hasJoined: (planId: string) => boolean;
   getRequestStatus: (planId: string) => ReqStatus;
   respondToRequest: (planId: string, userId: string, accept: boolean) => Promise<void>;
@@ -147,7 +147,7 @@ export function PlansProvider({ children }: { children: ReactNode }) {
     return plan;
   };
 
-  const joinPlan = async (planId: string) => {
+  const joinPlan = async (planId: string, remark?: string) => {
     if (!user) throw new Error("Login required");
     if (requestStatuses[planId] === "accepted") return;
 
@@ -157,7 +157,7 @@ export function PlansProvider({ children }: { children: ReactNode }) {
     setRequestStatuses((s) => ({ ...s, [planId]: "pending" }));
 
     try {
-      const res = await api.joinPlan(planId);
+      const res = await api.joinPlan(planId, remark);
       if (!res) throw new Error("Could not send join request. Please try again.");
 
       const status = (res.status || "pending").toLowerCase() as ReqStatus;
@@ -197,7 +197,15 @@ export function PlansProvider({ children }: { children: ReactNode }) {
               ...p,
               requests: alreadyReq
                 ? p.requests
-                : [...(p.requests || []), { id: user.id, name: user.name, avatarUrl: undefined }],
+                : [
+                    ...(p.requests || []),
+                    {
+                      id: user.id,
+                      name: user.name,
+                      avatarUrl: undefined,
+                      remark: remark?.trim() || null,
+                    },
+                  ],
             };
           })
         );

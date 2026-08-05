@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_URL, API_FALLBACKS } from "../constants/theme";
-import { setAuthToken } from "../services/api";
+import { setAuthToken, setActiveApiBase, hydrateActiveApiBase, api } from "../services/api";
 
 export interface User {
   id: string;
   email: string;
   name: string;
+  phone?: string | null;
   onboardingDone: boolean;
   avatarUrl?: string | null;
   bio?: string;
@@ -17,8 +18,14 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   loading: boolean;
+  /** @deprecated Email/password — use loginWithFirebase */
   login: (email: string, password: string) => Promise<void>;
+  /** @deprecated Email/password — use loginWithFirebase */
   register: (email: string, password: string) => Promise<void>;
+  /** Firebase phone OTP → Hangora JWT */
+  loginWithFirebase: (idToken: string, name?: string) => Promise<User>;
+  /** Dummy OTP login (fixed test number only) */
+  loginWithDevOtp: (phone: string, otp: string) => Promise<User>;
   logout: () => Promise<void>;
   completeOnboarding: () => Promise<void>;
 }
@@ -58,13 +65,10 @@ async function postJson(baseUrl: string, endpoint: string, body: object, timeout
     try {
       json = JSON.parse(text);
     } catch {
-      throw new Error(
-        `Server HTML/invalid JSON (${res.status}).\nURL: ${fullUrl}`
-      );
+      throw new Error(`Server HTML/invalid JSON (${res.status}).\nURL: ${fullUrl}`);
     }
 
     if (!res.ok || !json.success) {
-      // Business errors (wrong password etc.) — do not retry other hosts
       const biz = new Error(json.error || `Request failed (${res.status})`);
       (biz as any).isBiz = true;
       throw biz;
@@ -76,19 +80,23 @@ async function postJson(baseUrl: string, endpoint: string, body: object, timeout
   }
 }
 
-/** Try primary API then Railway fallback — fixes flaky custom-domain SSL on some phones. */
 async function apiCall(endpoint: string, body: object) {
   const timeoutMs = 45000;
-  const bases = [API_URL, ...API_FALLBACKS].filter(
-    (u, i, arr) => !!u && arr.indexOf(u) === i
+  const raw = [API_URL, ...API_FALLBACKS].filter(
+    (u, i, arr) => !!u && arr.indexOf(u) === i && /hangora\.app/i.test(u)
   );
+  // Always prefer Hangora; never Vibely
+  const bases = raw.length > 0 ? raw : ["https://www.hangora.app/api"];
 
   let lastNetworkErr: Error | null = null;
 
   for (const base of bases) {
     try {
       console.log("[Auth] POST", base + endpoint);
-      return await postJson(base, endpoint, body, timeoutMs);
+      const data = await postJson(base, endpoint, body, timeoutMs);
+      setActiveApiBase(base);
+      console.log("[Auth] using API base:", base);
+      return data;
     } catch (err) {
       if (err instanceof Error && (err as any).isBiz) {
         throw err;
@@ -129,18 +137,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    AsyncStorage.multiGet(["token", "user"]).then(async ([t, u]) => {
+    (async () => {
+      await hydrateActiveApiBase();
+      const [t, u] = await AsyncStorage.multiGet(["token", "user"]);
       if (t[1]) {
         try {
-          const res = await fetch(`${API_URL}/auth/profile`, {
-            headers: { Authorization: `Bearer ${t[1]}`, Accept: "application/json" },
-          });
-          let json: any = null;
-          try {
-            json = await res.json();
-          } catch {}
-
-          if (!res.ok || json?.success === false || !json?.data) {
+          setAuthToken(t[1]);
+          const profile = await api.getProfile(t[1]);
+          if (!profile) {
             setToken(null);
             setUser(null);
             setAuthToken(null);
@@ -155,7 +159,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return;
           }
 
-          const normUser = normalizeUser(json.data);
+          const normUser = normalizeUser(profile);
           setToken(t[1]);
           setAuthToken(t[1]);
           setUser(normUser);
@@ -175,18 +179,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch {}
       }
       setLoading(false);
-    });
+    })();
 
     fetch(`${API_URL}/health`)
       .then((r) => r.json())
-      .then(() => console.log("API connected:", API_URL))
+      .then(() => {
+        console.log("API connected:", API_URL);
+        setActiveApiBase(API_URL);
+      })
       .catch(() => {
         console.warn("Primary API not reachable:", API_URL);
         const fb = API_FALLBACKS[0];
         if (fb) {
           fetch(`${fb}/health`)
             .then((r) => r.json())
-            .then(() => console.log("API fallback connected:", fb))
+            .then(() => {
+              console.log("API fallback connected:", fb);
+              setActiveApiBase(fb);
+            })
             .catch(() => console.warn("API fallback also down:", fb));
         }
       });
@@ -201,6 +211,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ["token", newToken],
       ["user", JSON.stringify(normUser)],
     ]);
+    return normUser;
   };
 
   const login = async (email: string, password: string) => {
@@ -217,6 +228,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
     });
     await persist(data.token, data.user);
+  };
+
+  const loginWithFirebase = async (idToken: string, name?: string) => {
+    const data = await apiCall("/auth/firebase", {
+      idToken,
+      ...(name ? { name } : {}),
+    });
+    return persist(data.token, data.user);
+  };
+
+  const loginWithDevOtp = async (phone: string, otp: string) => {
+    const data = await apiCall("/auth/dev-otp", { phone, otp });
+    return persist(data.token, data.user);
   };
 
   const logout = async () => {
@@ -242,7 +266,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, token, loading, login, register, logout, completeOnboarding }}
+      value={{
+        user,
+        token,
+        loading,
+        login,
+        register,
+        loginWithFirebase,
+        loginWithDevOtp,
+        logout,
+        completeOnboarding,
+      }}
     >
       {children}
     </AuthContext.Provider>

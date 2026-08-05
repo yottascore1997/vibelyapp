@@ -4,83 +4,194 @@ import {
   Text,
   StyleSheet,
   Modal,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
+  Dimensions,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
   Alert,
+  StatusBar,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { usePremium, PremiumTier } from "../../context/PremiumContext";
-import { Radius, Spacing } from "../../constants/theme";
+import { VibeFonts } from "../../constants/vibeTheme";
 
-interface PlanOption {
-  id: PremiumTier;
-  title: string;
-  badge?: string;
-  priceMain: string;
-  periodText: string;
-  perDayText: string;
-  saveText?: string;
-  popular?: boolean;
-  features: { icon: string; title: string; sub: string }[];
-}
+const { width: SCREEN_W } = Dimensions.get("window");
 
-const PLANS: PlanOption[] = [
+/** Vibes → Night Out ambient (same as DiscoverVibesGate nightlife card) */
+const PINK = "#F9A8D4";
+const AMBIENT = "#3A1528";
+const AMBIENT_MID = "#1A0C14";
+const DEEP = "#070A14";
+
+const CREAM = "#FBF0C8";
+const INK = "#111111";
+const MUTED_TAG = "#4A4A4A";
+const TEXT = "#FFFFFF";
+const TEXT_SOFT = "rgba(255,255,255,0.78)";
+const LEGAL = "rgba(249,168,212,0.55)";
+const ACCENT_ON_DARK = PINK;
+
+type PlanId = "6m" | "3m" | "1m";
+
+const FEATURES = [
   {
-    id: "GOLD",
-    title: "VibeGold Pass",
-    badge: "🔥 MOST POPULAR",
-    priceMain: "₹99",
-    periodText: "/ week",
-    perDayText: "Only ₹14 / day",
-    saveText: "SAVE 50%",
-    popular: true,
-    features: [
-      { icon: "eye", title: "See Who Liked You", sub: "Instant Unblur 50+ Profiles" },
-      { icon: "infinite", title: "Unlimited Swipes", sub: "No Daily Swipe Limits" },
-      { icon: "options", title: "Advanced Filters", sub: "Height, Zodiac & Lifestyle" },
-      { icon: "refresh", title: "Unlimited Rewinds", sub: "Undo Accidental Left Swipes" },
-      { icon: "sparkles", title: "5 Super Likes / Day", sub: "Stand Out In Swipe Stack" },
-    ],
+    title: "See who likes you",
+    sub: "Match with people who already like you back",
+    icon: "heart" as const,
   },
   {
-    id: "VIP",
-    title: "VibeVIP Pass",
-    badge: "👑 VIP FULL UNLOCK",
-    priceMain: "₹499",
-    periodText: "/ month",
-    perDayText: "Only ₹16 / day",
-    saveText: "BEST VALUE",
-    popular: false,
-    features: [
-      { icon: "navigate", title: "Live Spot Beacons", sub: "Broadcast Hangout Plans" },
-      { icon: "paper-plane", title: "5 Direct DMs / Day", sub: "Message Anyone Instantly" },
-      { icon: "planet", title: "Passport Travel Mode", sub: "Date in Any City Worldwide" },
-      { icon: "rocket", title: "2 Free Boosts / Mo", sub: "5x Profile Spotlight Views" },
-      { icon: "shield-checkmark", title: "Incognito Mode", sub: "Browse Profiles Privately" },
-      { icon: "sparkles", title: "All Gold Perks Included", sub: "Full VIP Access" },
-    ],
+    title: "Unlimited likes",
+    sub: "Like the people you're interested in, as often as you want",
+    icon: "hearts" as const,
+  },
+  {
+    title: "Unlimited rewinds",
+    sub: "Undo accidental left swipes whenever you need",
+    icon: "rewind" as const,
+  },
+  {
+    title: "Advanced filters",
+    sub: "Find people by height, lifestyle, and more",
+    icon: "filters" as const,
+  },
+  {
+    title: "Spotlight boosts",
+    sub: "Be seen first by more people nearby",
+    icon: "boost" as const,
   },
 ];
 
+const PLANS: {
+  id: PlanId;
+  months: number;
+  label: string;
+  badge: string;
+  price: string;
+  perMonth?: string;
+  discount?: string;
+  tier: PremiumTier;
+}[] = [
+  {
+    id: "6m",
+    months: 6,
+    label: "months",
+    badge: "Best price",
+    price: "₹1,299.00",
+    perMonth: "₹216.50/m.",
+    discount: "-69%",
+    tier: "VIP",
+  },
+  {
+    id: "3m",
+    months: 3,
+    label: "months",
+    badge: "Popular",
+    price: "₹899.00",
+    perMonth: "₹299.67/m.",
+    discount: "-57%",
+    tier: "GOLD",
+  },
+  {
+    id: "1m",
+    months: 1,
+    label: "month",
+    badge: "Unit price",
+    price: "₹699.00",
+    tier: "GOLD",
+  },
+];
+
+function NightOutBackground() {
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      <LinearGradient
+        colors={[AMBIENT, AMBIENT_MID, DEEP]}
+        locations={[0, 0.45, 1]}
+        style={StyleSheet.absoluteFill}
+      />
+      <LinearGradient
+        colors={[`${PINK}55`, `${PINK}18`, "transparent"]}
+        locations={[0, 0.35, 1]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={styles.colorWash}
+      />
+      <View style={[styles.glowOrb, { backgroundColor: PINK, shadowColor: PINK }]} />
+      <View style={[styles.glowOrbBottom, { backgroundColor: PINK, shadowColor: PINK }]} />
+      <View style={styles.doodleWrap}>
+        <View style={[styles.doodleArc, styles.doodle1]} />
+        <View style={[styles.doodleArc, styles.doodle2]} />
+        <View style={[styles.doodleArc, styles.doodle3]} />
+        <View style={[styles.doodleArc, styles.doodle4]} />
+      </View>
+    </View>
+  );
+}
+
+function FeatureIcon({ kind }: { kind: string }) {
+  if (kind === "hearts") {
+    return (
+      <View style={[styles.iconBox, styles.iconBoxRed]}>
+        <Ionicons
+          name="heart"
+          size={22}
+          color="#fff"
+          style={{ position: "absolute", left: 14, top: 16, opacity: 0.95 }}
+        />
+        <Ionicons
+          name="heart"
+          size={26}
+          color="#fff"
+          style={{ position: "absolute", right: 12, top: 12 }}
+        />
+      </View>
+    );
+  }
+  const map: Record<string, keyof Ionicons.glyphMap> = {
+    heart: "heart",
+    rewind: "arrow-undo",
+    filters: "options",
+    boost: "flash",
+  };
+  return (
+    <View style={styles.iconBox}>
+      <Ionicons name={map[kind] || "heart"} size={28} color="#fff" />
+    </View>
+  );
+}
+
 export default function PaywallModal() {
+  const insets = useSafeAreaInsets();
   const { paywallVisible, closePaywall, upgradeTier } = usePremium();
-  const [selectedPlan, setSelectedPlan] = useState<PremiumTier>("GOLD");
+  const [selectedPlan, setSelectedPlan] = useState<PlanId>("3m");
+  const [featureIndex, setFeatureIndex] = useState(1);
   const [purchasing, setPurchasing] = useState(false);
 
-  const activePlanObj = PLANS.find((p) => p.id === selectedPlan) || PLANS[0];
+  const activePlan = PLANS.find((p) => p.id === selectedPlan) || PLANS[1];
 
-  const handleSubscribe = async () => {
+  const onFeatureScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const x = e.nativeEvent.contentOffset.x;
+    const idx = Math.round(x / SCREEN_W);
+    if (idx !== featureIndex && idx >= 0 && idx < FEATURES.length) {
+      setFeatureIndex(idx);
+    }
+  };
+
+  const handleContinue = async () => {
     setPurchasing(true);
     try {
-      await new Promise((res) => setTimeout(res, 800));
-      await upgradeTier(selectedPlan);
+      await new Promise((r) => setTimeout(r, 700));
+      await upgradeTier(activePlan.tier);
+      closePaywall();
       Alert.alert(
-        "🎉 Hangora Premium Active!",
-        `Congratulations! Your ${activePlanObj.title} is now active.`
+        "Premium unlocked",
+        `${activePlan.months} ${activePlan.label} plan is now active.`
       );
     } catch {
-      Alert.alert("Payment Failed", "Please try again.");
+      Alert.alert("Payment failed", "Please try again.");
     } finally {
       setPurchasing(false);
     }
@@ -90,417 +201,387 @@ export default function PaywallModal() {
     <Modal
       visible={paywallVisible}
       animationType="slide"
-      transparent
+      presentationStyle="fullScreen"
       onRequestClose={closePaywall}
     >
-      <View style={styles.overlay}>
-        <View style={styles.modalCard}>
-          {/* Soft Mesh Glow Orbs */}
-          <View style={[styles.orb, styles.orb1]} />
-          <View style={[styles.orb, styles.orb2]} />
+      <StatusBar barStyle="light-content" backgroundColor={AMBIENT} />
+      <View style={[styles.root, { paddingTop: insets.top }]}>
+        <NightOutBackground />
 
-          {/* Close Button */}
-          <TouchableOpacity style={styles.closeBtn} onPress={closePaywall} activeOpacity={0.8}>
-            <Ionicons name="close" size={20} color="#18181B" />
-          </TouchableOpacity>
-
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-            {/* Header Crown */}
-            <View style={styles.headerBox}>
-              <View style={styles.crownRing}>
-                <Text style={styles.crownEmoji}>👑</Text>
-              </View>
-
-              {/* Special Countdown Tag */}
-              <View style={styles.countdownPill}>
-                <View style={styles.livePulseDot} />
-                <Text style={styles.countdownText}>SPECIAL LAUNCH PRICE • ENDS IN 14:59</Text>
-              </View>
-
-              <Text style={styles.heroTitle}>Unlock Hangora Premium</Text>
-              <Text style={styles.heroSub}>
-                🔥 Join 12,400+ members matching 3x faster with Premium
-              </Text>
-            </View>
-
-            {/* Plan Selection Cards */}
-            <View style={styles.plansRow}>
-              {PLANS.map((plan) => {
-                const isSelected = selectedPlan === plan.id;
-                return (
-                  <TouchableOpacity
-                    key={plan.id}
-                    onPress={() => setSelectedPlan(plan.id)}
-                    activeOpacity={0.88}
-                    style={styles.planCardItem}
-                  >
-                    {isSelected ? (
-                      <LinearGradient
-                        colors={["#7C3AED", "#8B5CF6"]}
-                        style={styles.planCardSelectedGrad}
-                      >
-                        <View style={styles.planCardSelectedInner}>
-                          {plan.badge && (
-                            <View style={styles.planBadgeSelected}>
-                              <Text style={styles.planBadgeTextSelected}>{plan.badge}</Text>
-                            </View>
-                          )}
-                          <Text style={styles.planTitleSelected}>{plan.title}</Text>
-                          <View style={styles.priceRow}>
-                            <Text style={styles.priceMainSelected}>{plan.priceMain}</Text>
-                            <Text style={styles.pricePeriodSelected}>{plan.periodText}</Text>
-                          </View>
-                          <Text style={styles.perDaySelected}>{plan.perDayText}</Text>
-                          {plan.saveText && (
-                            <View style={styles.saveTagSelected}>
-                              <Text style={styles.saveTagTextSelected}>{plan.saveText}</Text>
-                            </View>
-                          )}
-                        </View>
-                      </LinearGradient>
-                    ) : (
-                      <View style={styles.planCardIdle}>
-                        {plan.badge && (
-                          <View style={styles.planBadgeIdle}>
-                            <Text style={styles.planBadgeTextIdle}>{plan.badge}</Text>
-                          </View>
-                        )}
-                        <Text style={styles.planTitleIdle}>{plan.title}</Text>
-                        <View style={styles.priceRow}>
-                          <Text style={styles.priceMainIdle}>{plan.priceMain}</Text>
-                          <Text style={styles.pricePeriodIdle}>{plan.periodText}</Text>
-                        </View>
-                        <Text style={styles.perDayIdle}>{plan.perDayText}</Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {/* Feature Cards Grid (Hangout Light Aesthetic) */}
-            <View style={styles.featuresSection}>
-              <Text style={styles.sectionHeaderTitle}>
-                WHAT YOU UNLOCK WITH {activePlanObj.title.toUpperCase()}:
-              </Text>
-              <View style={styles.featuresGrid}>
-                {activePlanObj.features.map((feat, idx) => (
-                  <View key={idx} style={styles.featureCard}>
-                    <View style={styles.featureIconBox}>
-                      <Ionicons name={feat.icon as any} size={18} color="#7C3AED" />
-                    </View>
-                    <View style={styles.featureTextGroup}>
-                      <Text style={styles.featureItemTitle}>{feat.title}</Text>
-                      <Text style={styles.featureItemSub}>{feat.sub}</Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            </View>
-
-            {/* Security Guarantee Bar */}
-            <View style={styles.securityBar}>
-              <Ionicons name="shield-checkmark" size={16} color="#10B981" />
-              <Text style={styles.securityText}>100% Safe Payment • Cancel Anytime</Text>
-            </View>
-          </ScrollView>
-
-          {/* Bottom Action Footer */}
-          <View style={styles.footerContainer}>
-            <TouchableOpacity onPress={handleSubscribe} disabled={purchasing} activeOpacity={0.88}>
-              <LinearGradient
-                colors={["#7C3AED", "#8B5CF6", "#EC4899"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.ctaButton}
-              >
-                <Text style={styles.ctaText}>
-                  {purchasing ? "ACTIVATING PREMIUM..." : `GET ${activePlanObj.title.toUpperCase()}`}
-                </Text>
-                <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
-              </LinearGradient>
-            </TouchableOpacity>
-            <Text style={styles.legalNote}>Cancel anytime from App Store or Play Store settings.</Text>
-          </View>
+        <View style={[styles.topBar, styles.hPad]}>
+          <Pressable onPress={closePaywall} hitSlop={12} style={styles.backBtn}>
+            <Ionicons name="chevron-back" size={28} color={TEXT} />
+          </Pressable>
+          <Text style={styles.title}>Premium</Text>
+          <View style={styles.backBtn} />
         </View>
+
+        <ScrollView
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onMomentumScrollEnd={onFeatureScroll}
+          style={styles.featurePager}
+          contentOffset={{ x: SCREEN_W * 1, y: 0 }}
+        >
+          {FEATURES.map((f) => (
+            <View key={f.title} style={styles.featureSlide}>
+              <FeatureIcon kind={f.icon} />
+              <Text style={styles.featureTitle}>{f.title}</Text>
+              <Text style={styles.featureSub}>{f.sub}</Text>
+            </View>
+          ))}
+        </ScrollView>
+
+        <View style={styles.dots}>
+          {FEATURES.map((_, i) => (
+            <View
+              key={i}
+              style={[styles.dot, i === featureIndex ? styles.dotActive : styles.dotIdle]}
+            />
+          ))}
+        </View>
+
+        <View style={[styles.plansRow, styles.hPad]}>
+          {PLANS.map((plan) => {
+            const selected = selectedPlan === plan.id;
+            return (
+              <Pressable
+                key={plan.id}
+                onPress={() => setSelectedPlan(plan.id)}
+                style={[styles.planCard, selected ? styles.planSelected : styles.planIdle]}
+              >
+                <View
+                  style={[
+                    styles.planBadge,
+                    selected && styles.planBadgeOnDark,
+                    (plan.id === "6m" || plan.id === "1m") && styles.planBadgePurple,
+                  ]}
+                >
+                  <Text style={styles.planBadgeText}>{plan.badge}</Text>
+                </View>
+
+                <Text style={[styles.planMonthsNum, selected && styles.textOnDark]}>
+                  {plan.months}
+                </Text>
+                <Text style={[styles.planMonthsLabel, selected && styles.textOnDark]}>
+                  {plan.label}
+                </Text>
+
+                <Text style={[styles.planPrice, selected && styles.textOnDark]}>{plan.price}</Text>
+
+                {!!plan.perMonth && (
+                  <Text style={[styles.planPerMonth, selected && styles.perMonthOnDark]}>
+                    {plan.perMonth}
+                  </Text>
+                )}
+
+                {!!plan.discount && (
+                  <View style={[styles.discountPill, selected && styles.discountOnDark]}>
+                    <Text style={[styles.discountText, selected && styles.discountTextOnDark]}>
+                      {plan.discount}
+                    </Text>
+                  </View>
+                )}
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <View style={{ flex: 1 }} />
+
+        <Text style={[styles.legal, styles.hPad]}>
+          By clicking Continue, your payment will be made using your Google Play account and your
+          selected subscription will be activated for the period of time indicated. At the end of
+          that period, your subscription will automatically be renewed at the same price and for the
+          same duration, unless you deactivate the renewal option in the Google Play settings.
+        </Text>
+
+        <Pressable
+          style={[styles.continueBtn, styles.hPadBtn, purchasing && { opacity: 0.7 }]}
+          onPress={handleContinue}
+          disabled={purchasing}
+        >
+          <Text style={styles.continueText}>{purchasing ? "Processing…" : "Continue"}</Text>
+        </Pressable>
+
+        <View style={{ height: Math.max(insets.bottom, 12) }} />
       </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
+  root: {
     flex: 1,
-    backgroundColor: "rgba(24, 24, 27, 0.6)",
-    justifyContent: "flex-end",
+    backgroundColor: DEEP,
   },
-  modalCard: {
-    height: "92%",
-    backgroundColor: "#F8F9FD",
-    borderTopLeftRadius: 36,
-    borderTopRightRadius: 36,
-    paddingTop: Spacing.lg,
-    paddingHorizontal: Spacing.md,
-    overflow: "hidden",
-    position: "relative",
+  colorWash: {
+    ...StyleSheet.absoluteFillObject,
   },
-  orb: { position: "absolute", borderRadius: 999 },
-  orb1: {
-    width: 260,
-    height: 260,
-    top: -50,
-    right: -40,
-    backgroundColor: "rgba(124, 58, 237, 0.08)",
+  glowOrb: {
+    position: "absolute",
+    top: "12%",
+    left: SCREEN_W * 0.15,
+    width: SCREEN_W * 0.7,
+    height: SCREEN_W * 0.7,
+    borderRadius: SCREEN_W * 0.35,
+    opacity: 0.22,
+    shadowOpacity: 0.7,
+    shadowRadius: 60,
+    shadowOffset: { width: 0, height: 0 },
   },
-  orb2: {
+  glowOrbBottom: {
+    position: "absolute",
+    bottom: -40,
+    right: -60,
     width: 220,
     height: 220,
-    top: 200,
-    left: -50,
-    backgroundColor: "rgba(236, 72, 153, 0.06)",
+    borderRadius: 110,
+    opacity: 0.14,
+    shadowOpacity: 0.5,
+    shadowRadius: 40,
+    shadowOffset: { width: 0, height: 0 },
   },
-  closeBtn: {
+  doodleWrap: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: "hidden",
+  },
+  doodleArc: {
     position: "absolute",
-    top: 18,
-    right: 18,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 10,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    shadowColor: "#7C3AED",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
+    borderColor: "rgba(249,168,212,0.35)",
+    borderWidth: 1.5,
+    backgroundColor: "transparent",
   },
-  scrollContent: {
-    paddingBottom: 130,
+  doodle1: {
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    top: 36,
+    right: -30,
+    borderLeftColor: "transparent",
+    borderBottomColor: "transparent",
   },
-  headerBox: {
-    alignItems: "center",
-    marginTop: Spacing.xs,
-    marginBottom: Spacing.md,
+  doodle2: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    top: 90,
+    right: 40,
+    borderRightColor: "transparent",
+    borderTopColor: "transparent",
+    opacity: 0.7,
   },
-  crownRing: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: "#F3E8FF",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 8,
-    borderWidth: 2,
-    borderColor: "rgba(124, 58, 237, 0.25)",
-    shadowColor: "#7C3AED",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 4,
+  doodle3: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    top: 70,
+    left: -40,
+    borderRightColor: "transparent",
+    borderBottomColor: "transparent",
+    opacity: 0.55,
   },
-  crownEmoji: { fontSize: 32 },
-
-  countdownPill: {
+  doodle4: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    top: 180,
+    left: 50,
+    borderLeftColor: "transparent",
+    borderTopColor: "transparent",
+    opacity: 0.4,
+  },
+  hPad: {
+    paddingHorizontal: 16,
+  },
+  hPadBtn: {
+    marginHorizontal: 16,
+  },
+  topBar: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 20,
-    backgroundColor: "#F3E8FF",
-    borderWidth: 1,
-    borderColor: "rgba(124, 58, 237, 0.2)",
+    justifyContent: "space-between",
+    paddingTop: 4,
     marginBottom: 8,
   },
-  livePulseDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#7C3AED",
+  backBtn: {
+    width: 36,
+    height: 36,
+    alignItems: "flex-start",
+    justifyContent: "center",
   },
-  countdownText: {
-    fontSize: 9,
-    fontWeight: "800",
-    color: "#7C3AED",
-    letterSpacing: 0.8,
+  title: {
+    fontSize: 22,
+    fontFamily: VibeFonts.extraBold,
+    color: TEXT,
+    letterSpacing: -0.3,
   },
-  heroTitle: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: "#18181B",
-    letterSpacing: -0.5,
+  featurePager: {
+    maxHeight: 200,
+  },
+  featureSlide: {
+    width: SCREEN_W,
+    paddingHorizontal: 36,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconBox: {
+    width: 64,
+    height: 64,
+    borderRadius: 18,
+    backgroundColor: INK,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 18,
+  },
+  iconBoxRed: {
+    backgroundColor: "#E11D48",
+  },
+  featureTitle: {
+    fontSize: 26,
+    fontFamily: VibeFonts.extraBold,
+    color: TEXT,
     textAlign: "center",
+    letterSpacing: -0.4,
+    marginBottom: 8,
   },
-  heroSub: {
-    fontSize: 13,
-    color: "#64748B",
-    marginTop: 4,
+  featureSub: {
+    fontSize: 15,
+    fontFamily: VibeFonts.medium,
+    color: TEXT_SOFT,
     textAlign: "center",
-    fontWeight: "500",
-    paddingHorizontal: Spacing.md,
+    lineHeight: 21,
+    paddingHorizontal: 12,
   },
-
-  // Plan Selection Row
+  dots: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 7,
+    marginTop: 10,
+    marginBottom: 22,
+  },
+  dot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  dotActive: { backgroundColor: PINK },
+  dotIdle: { backgroundColor: "rgba(255,255,255,0.28)" },
   plansRow: {
     flexDirection: "row",
     gap: 10,
-    marginBottom: Spacing.md,
+    alignItems: "stretch",
   },
-  planCardItem: {
+  planCard: {
     flex: 1,
-  },
-  planCardSelectedGrad: {
-    borderRadius: 20,
-    padding: 2,
-    shadowColor: "#7C3AED",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 6,
-  },
-  planCardSelectedInner: {
-    padding: 12,
-    borderRadius: 18,
-    backgroundColor: "#F3E8FF",
-  },
-  planCardIdle: {
-    padding: 14,
-    borderRadius: 20,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1.5,
-    borderColor: "#E2E8F0",
-    shadowColor: "#7C3AED",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    elevation: 1,
-  },
-  planBadgeSelected: {
-    alignSelf: "flex-start",
-    backgroundColor: "#7C3AED",
+    borderRadius: 22,
+    paddingTop: 14,
+    paddingBottom: 14,
     paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-    marginBottom: 6,
-  },
-  planBadgeTextSelected: { fontSize: 9, fontWeight: "800", color: "#FFFFFF" },
-  planBadgeIdle: {
-    alignSelf: "flex-start",
-    backgroundColor: "#E2E8F0",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-    marginBottom: 6,
-  },
-  planBadgeTextIdle: { fontSize: 9, fontWeight: "700", color: "#64748B" },
-  planTitleSelected: { fontSize: 14, fontWeight: "800", color: "#7C3AED" },
-  planTitleIdle: { fontSize: 14, fontWeight: "700", color: "#18181B" },
-  priceRow: { flexDirection: "row", alignItems: "baseline", gap: 3, marginTop: 4 },
-  priceMainSelected: { fontSize: 24, fontWeight: "800", color: "#18181B" },
-  priceMainIdle: { fontSize: 20, fontWeight: "800", color: "#18181B" },
-  pricePeriodSelected: { fontSize: 12, color: "#64748B", fontWeight: "600" },
-  pricePeriodIdle: { fontSize: 11, color: "#94A3B8", fontWeight: "500" },
-  perDaySelected: { fontSize: 10, color: "#7C3AED", fontWeight: "700", marginTop: 2 },
-  perDayIdle: { fontSize: 10, color: "#94A3B8", fontWeight: "500", marginTop: 2 },
-  saveTagSelected: {
-    marginTop: 6,
-    alignSelf: "flex-start",
-    backgroundColor: "#7C3AED",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  saveTagTextSelected: { fontSize: 9, fontWeight: "800", color: "#FFFFFF" },
-
-  // Feature Section
-  featuresSection: {
-    marginBottom: Spacing.md,
-  },
-  sectionHeaderTitle: {
-    fontSize: 10,
-    fontWeight: "800",
-    color: "#7C3AED",
-    letterSpacing: 0.8,
-    marginBottom: 10,
-  },
-  featuresGrid: {
-    gap: 8,
-  },
-  featureCard: {
-    flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    padding: 12,
-    borderRadius: 16,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1.5,
-    borderColor: "#E2E8F0",
-    shadowColor: "#7C3AED",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    elevation: 1,
+    minHeight: 210,
   },
-  featureIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: "#F3E8FF",
-    alignItems: "center",
-    justifyContent: "center",
+  planIdle: {
+    backgroundColor: CREAM,
   },
-  featureTextGroup: { flex: 1 },
-  featureItemTitle: { fontSize: 13, fontWeight: "700", color: "#18181B" },
-  featureItemSub: { fontSize: 11, color: "#64748B", marginTop: 1, fontWeight: "500" },
-
-  securityBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 9,
-    borderRadius: 12,
-    backgroundColor: "rgba(16, 185, 129, 0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(16, 185, 129, 0.2)",
-  },
-  securityText: { fontSize: 11, fontWeight: "700", color: "#10B981" },
-
-  // Footer CTA
-  footerContainer: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: Spacing.md,
-    paddingBottom: Spacing.lg,
-    backgroundColor: "rgba(255, 255, 255, 0.98)",
-    borderTopWidth: 1,
-    borderTopColor: "#E2E8F0",
-  },
-  ctaButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 16,
-    borderRadius: Radius.full,
-    shadowColor: "#7C3AED",
-    shadowOffset: { width: 0, height: 6 },
+  planSelected: {
+    backgroundColor: INK,
+    transform: [{ scale: 1.02 }],
+    shadowColor: PINK,
     shadowOpacity: 0.35,
     shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
     elevation: 8,
   },
-  ctaText: { color: "#FFFFFF", fontSize: 15, fontWeight: "800", letterSpacing: 0.5 },
-  legalNote: {
+  planBadge: {
+    backgroundColor: MUTED_TAG,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  planBadgePurple: {
+    backgroundColor: "#7C3AED",
+  },
+  planBadgeOnDark: {
+    backgroundColor: "rgba(255,255,255,0.18)",
+  },
+  planBadgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontFamily: VibeFonts.semiBold,
+  },
+  planMonthsNum: {
+    fontSize: 40,
+    fontFamily: VibeFonts.extraBold,
+    color: INK,
+    lineHeight: 44,
+  },
+  planMonthsLabel: {
+    fontSize: 16,
+    fontFamily: VibeFonts.bold,
+    color: INK,
+    marginBottom: 10,
+    marginTop: -2,
+  },
+  planPrice: {
+    fontSize: 15,
+    fontFamily: VibeFonts.extraBold,
+    color: INK,
+    marginBottom: 2,
+  },
+  planPerMonth: {
+    fontSize: 12,
+    fontFamily: VibeFonts.medium,
+    color: INK,
+    opacity: 0.85,
+    marginBottom: 10,
+  },
+  perMonthOnDark: {
+    color: ACCENT_ON_DARK,
+    opacity: 1,
+  },
+  textOnDark: {
+    color: "#fff",
+  },
+  discountPill: {
+    marginTop: "auto" as const,
+    backgroundColor: INK,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  discountOnDark: {
+    backgroundColor: "#fff",
+  },
+  discountText: {
+    color: "#fff",
+    fontSize: 12,
+    fontFamily: VibeFonts.bold,
+  },
+  discountTextOnDark: {
+    color: INK,
+  },
+  legal: {
     fontSize: 10,
-    color: "#94A3B8",
+    lineHeight: 14,
+    color: "#FFFFFF",
     textAlign: "center",
-    marginTop: 6,
-    fontWeight: "500",
+    fontFamily: VibeFonts.regular,
+    marginBottom: 14,
+    marginTop: 18,
+  },
+  continueBtn: {
+    backgroundColor: "#22C55E",
+    borderRadius: 999,
+    paddingVertical: 17,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  continueText: {
+    color: "#fff",
+    fontSize: 17,
+    fontFamily: VibeFonts.extraBold,
   },
 });

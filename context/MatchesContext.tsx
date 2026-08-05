@@ -7,7 +7,8 @@ import { usePlans } from "./PlansContext";
 import { DiscoverProfile, MatchProfile, SwipeAction } from "../constants/matches";
 import { ChatThread, buildEmptyThread, formatChatPreview, parseReplyPayload } from "../constants/chats";
 import { ChatGate, evaluateLocalChatGate } from "../constants/chatGate";
-import { API_URL } from "../constants/theme";
+import { resolveChatWsUrl } from "../constants/theme";
+import { getActiveApiBase } from "../services/api";
 import { Alert } from "react-native";
 
 const STORAGE_SWIPED = "@vibematch_swiped";
@@ -97,6 +98,7 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
   const [typingUsers, setTypingUsers] = useState<Record<string, { userId: string; name: string }[]>>({});
 
   const [socketConnected, setSocketConnected] = useState(false);
+  const lastChatErrorRef = useRef<string | null>(null);
   const socketRef = useRef<any>(null);
 
   const persistChats = async (threads: ChatThread[]) => {
@@ -439,7 +441,11 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
         setDeck(prevDeck);
         setLastSwipe(null);
         await AsyncStorage.setItem(STORAGE_SWIPED, JSON.stringify(prevSwiped));
-        Alert.alert("Swipe failed", "Check your connection and try again.");
+        const msg =
+          err instanceof Error && /network|timeout|abort/i.test(err.message)
+            ? "Network glitch — check Wi‑Fi/data and try the like again."
+            : "Could not save that like. Try again.";
+        Alert.alert("Swipe failed", msg);
         return { isMatch: false, profile };
       }
     }
@@ -517,21 +523,37 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const base = API_URL.replace("/api", "");
-    const wsUrl = base.replace(":3000", ":3001");
+    const wsUrl = resolveChatWsUrl(getActiveApiBase());
     console.log(`[MatchesContext] Connecting to Chat WebSocket: ${wsUrl}`);
 
     const socket = io(wsUrl, {
-      transports: ["websocket"],
+      transports: ["websocket", "polling"],
       forceNew: true,
       auth: { token },
+      reconnection: true,
+      reconnectionAttempts: 12,
+      reconnectionDelay: 1200,
     });
     socketRef.current = socket;
 
     socket.on("connect", () => {
       console.log(`[MatchesContext] Chat WebSocket connected: ${socket.id}`);
+      lastChatErrorRef.current = null;
       setSocketConnected(true);
     });
+
+    socket.on("connect_error", (err) => {
+      const msg = String(err?.message || err);
+      lastChatErrorRef.current = msg;
+      console.warn("[MatchesContext] Chat socket connect_error:", msg);
+      setSocketConnected(false);
+      if (msg.toLowerCase().includes("unauthorized") || msg.toLowerCase().includes("token")) {
+        console.warn(
+          "[MatchesContext] Chat JWT rejected — Hangora API JWT_SECRET must match chat Railway JWT_SECRET (no quotes). Then logout/login."
+        );
+      }
+    });
+
 
     socket.on("disconnect", () => {
       setSocketConnected(false);
@@ -927,8 +949,8 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
       setChatGates((prev) => ({ ...prev, [matchId]: provisional }));
     }
 
-    // Emit live message over the socket connection
-    if (socketRef.current) {
+    // Emit live message over the socket connection (production only — no REST fallback)
+    if (socketRef.current?.connected && socketConnected) {
       const payload = {
         matchId,
         senderId: user.id,
@@ -938,9 +960,25 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
       socketRef.current.emit("send_message", payload);
       console.log("[MatchesContext] Emitted send_message:", payload);
     } else {
-      console.warn("[MatchesContext] Socket not connected");
-      Alert.alert("Offline", "Connect to the internet to send messages.");
-      // Roll back optimistic message
+      console.warn("[MatchesContext] Socket not connected — message not sent");
+      const err = (lastChatErrorRef.current || "").toLowerCase();
+      const isJwt =
+        err.includes("unauthorized") || err.includes("token") || err.includes("jwt");
+      const isDown =
+        err.includes("websocket error") ||
+        err.includes("xhr poll error") ||
+        err.includes("timeout") ||
+        err.includes("502") ||
+        !lastChatErrorRef.current;
+
+      Alert.alert(
+        "Chat not connected",
+        isJwt
+          ? "Chat server rejected your login token. On BOTH Railway services (Hangora API + Chat) set the same JWT_SECRET with no quotes, redeploy both, then logout and login again in the app."
+          : isDown
+            ? "Chat server is down or unreachable (check Railway chat service is running — Start Command: npm run start:chat). Secret match nahi, server online hona chahiye."
+            : `Chat connection failed: ${lastChatErrorRef.current}`
+      );
       setConversations((prev) => {
         const next = prev.map((t) =>
           t.matchId === matchId

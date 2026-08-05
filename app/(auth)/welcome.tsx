@@ -356,7 +356,7 @@ export default function WelcomeScreen() {
           {/* Actions & Security */}
           <Animated.View style={[styles.actionsArea, actionsAnimatedStyle]}>
             <TouchableOpacity
-              onPress={() => router.push("/(auth)/register")}
+              onPress={() => router.push("/(auth)/login")}
               activeOpacity={0.88}
               style={styles.primaryBtnTouchable}
             >
@@ -366,8 +366,8 @@ export default function WelcomeScreen() {
                 end={{ x: 1, y: 0 }}
                 style={styles.primaryBtn}
               >
-                <Text style={styles.primaryText}>Get Started Free</Text>
-                <Ionicons name="arrow-forward" size={19} color="#FFF" />
+                <Text style={styles.primaryText}>Continue with mobile</Text>
+                <Ionicons name="phone-portrait-outline" size={19} color="#FFF" />
               </LinearGradient>
             </TouchableOpacity>
 

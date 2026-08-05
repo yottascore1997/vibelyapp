@@ -8,6 +8,8 @@ export interface PlanRequest {
   id: string;
   name: string;
   avatarUrl?: string | null;
+  /** Note from joiner while request is pending */
+  remark?: string | null;
 }
 
 export interface Plan {
@@ -149,7 +151,17 @@ export function formatPlanSchedule(opts: {
 
   let timeLabel = d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
   if (opts.customTime) {
-    timeLabel = opts.customTime;
+    // Never show raw "15:00" — always friendly clock / period
+    const parts = opts.customTime.split(":").map(Number);
+    const h = parts[0];
+    const m = parts[1] || 0;
+    if (!Number.isNaN(h)) {
+      const tmp = new Date(d);
+      tmp.setHours(h, m, 0, 0);
+      timeLabel = tmp.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
+    } else {
+      timeLabel = opts.customTime;
+    }
   } else if (opts.timeId === "now" && (opts.dateId === "today" || !opts.dateId)) {
     timeLabel = "Right now";
   } else if (opts.timeId === "30min") timeLabel = "In 30 min";
@@ -158,6 +170,50 @@ export function formatPlanSchedule(opts: {
   else if (!opts.timeId) timeLabel = "Flexible";
 
   return { timeLabel, dateLabel };
+}
+
+/** Consistent Today · 3:00 PM style for cards, invites, details */
+export function formatFriendlyPlanWhen(opts: {
+  scheduledAt?: string | null;
+  timeLabel?: string | null;
+  time?: string | null;
+}): string {
+  const { scheduledAt, timeLabel, time } = opts;
+  if (scheduledAt) {
+    const d = new Date(scheduledAt);
+    if (!Number.isNaN(d.getTime())) {
+      const now = new Date();
+      const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const startThat = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const dayDiff = Math.round(
+        (startThat.getTime() - startToday.getTime()) / 86400000
+      );
+      const timeStr = d.toLocaleTimeString("en-IN", {
+        hour: "numeric",
+        minute: "2-digit",
+      });
+      if (dayDiff === 0) return `Today · ${timeStr}`;
+      if (dayDiff === 1) return `Tomorrow · ${timeStr}`;
+      if (dayDiff === -1) return `Yesterday · ${timeStr}`;
+      return `${d.toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+      })} · ${timeStr}`;
+    }
+  }
+
+  if (timeLabel) {
+    // Raw 24h clock from older clients
+    if (/^\d{1,2}:\d{2}$/.test(timeLabel.trim())) {
+      const [h, m] = timeLabel.trim().split(":").map(Number);
+      const t = new Date();
+      t.setHours(h, m || 0, 0, 0);
+      return t.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
+    }
+    return timeLabel;
+  }
+
+  return time || "Flexible";
 }
 
 export function formatTimeOption(timeId: string): string {

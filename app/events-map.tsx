@@ -41,27 +41,27 @@ import TabBar from "../components/TabBar";
 const CITY_STORAGE_KEY = "@hangora_map_city";
 
 const T = {
-  bg: "#F8F9FD",
-  card: "#FFFFFF",
-  cardElevated: "#FFFFFF",
-  ink: "#18181B",
-  muted: "#64748B",
-  faint: "#94A3B8",
-  border: "#E2E8F0",
-  purple: "#7C3AED",
-  purpleDeep: "#6D28D9",
-  purpleBright: "#8B5CF6",
-  softPurple: "#F3E8FF",
-  pink: "#EC4899",
-  green: "#10B981",
-  yellow: "#F59E0B",
-  red: "#EF4444",
-  blue: "#2563EB",
-  dark: "#18181B",
-  darkSoft: "#27272A",
-  glass: "rgba(255,255,255,0.92)",
-  cta: ["#7C3AED", "#8B5CF6"] as const,
-  promo: ["#7C3AED", "#8B5CF6", "#EC4899"] as const,
+  bg: "#070A14",
+  card: "rgba(22, 26, 46, 0.94)",
+  cardElevated: "rgba(28, 32, 54, 0.96)",
+  ink: "#F4F6FB",
+  muted: "#A7B0C4",
+  faint: "#7C869C",
+  border: "rgba(160, 170, 200, 0.16)",
+  purple: "#A78BFA",
+  purpleDeep: "#8B5CF6",
+  purpleBright: "#C4B5FD",
+  softPurple: "rgba(139, 92, 246, 0.16)",
+  pink: "#F472B6",
+  green: "#34D399",
+  yellow: "#FBBF24",
+  red: "#F87171",
+  blue: "#60A5FA",
+  dark: "#070A14",
+  darkSoft: "#121826",
+  glass: "rgba(18, 22, 38, 0.92)",
+  cta: ["#7C3AED", "#A78BFA"] as const,
+  promo: ["#6D28D9", "#8B5CF6", "#EC4899"] as const,
 };
 
 type MapMode = "events" | "people";
@@ -240,7 +240,7 @@ export default function EventsMapScreen() {
   if (!cityReady) {
     return (
       <View style={[styles.root, styles.loadingWrap]}>
-        <StatusBar style="dark" />
+        <StatusBar style="light" />
         <ActivityIndicator color={T.purple} size="large" />
         <Text style={styles.loadingText}>Loading live map…</Text>
       </View>
@@ -249,7 +249,7 @@ export default function EventsMapScreen() {
 
   return (
     <View style={styles.root}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
 
       <InteractiveCityMap
         key={`${cityId}-${mapKey}`}
@@ -278,19 +278,19 @@ export default function EventsMapScreen() {
 
       {/* Soft premium washes */}
       <LinearGradient
-        colors={["rgba(248,249,253,0.98)", "rgba(248,249,253,0.85)", "rgba(248,249,253,0.4)", "transparent"]}
+        colors={["rgba(7,10,20,0.98)", "rgba(7,10,20,0.75)", "rgba(7,10,20,0.35)", "transparent"]}
         style={[styles.topWash, { height: insets.top + 180 }]}
         pointerEvents="none"
       />
       <LinearGradient
-        colors={["transparent", "rgba(248,249,253,0.55)", "rgba(248,249,253,0.95)"]}
+        colors={["transparent", "rgba(7,10,20,0.55)", "rgba(7,10,20,0.96)"]}
         style={styles.bottomWash}
         pointerEvents="none"
       />
 
       {/* Fixed Top Container (AppHeader + City Controls + Mode Switcher) */}
       <View style={styles.fixedTopOverlay}>
-        <AppHeader variant="light" tagline="Explore live events & squad nearby" />
+        <AppHeader variant="dark" tagline="Explore live events & squad nearby" />
 
         <View style={styles.headerControlsRow}>
           <Pressable style={styles.iconBtn} onPress={() => router.back()}>
@@ -596,7 +596,7 @@ export default function EventsMapScreen() {
 
       {/* Absolute Fixed Bottom Navigation Bar */}
       <View style={styles.fixedBottomNav}>
-        <TabBar dark={false} />
+        <TabBar dark={true} />
       </View>
     </View>
   );
@@ -642,12 +642,12 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: T.card,
     borderWidth: 1,
     borderColor: T.border,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#64748B",
+    shadowColor: "#000",
     shadowOpacity: 0.08,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
@@ -658,13 +658,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: T.card,
     borderRadius: 18,
     borderWidth: 1,
     borderColor: T.border,
     paddingHorizontal: 8,
     paddingVertical: 7,
-    shadowColor: "#64748B",
+    shadowColor: "#000",
     shadowOpacity: 0.08,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
@@ -706,13 +706,13 @@ const styles = StyleSheet.create({
   },
   modeTrack: {
     flexDirection: "row",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: T.card,
     borderRadius: 18,
     borderWidth: 1,
     borderColor: T.border,
     padding: 4,
     gap: 4,
-    shadowColor: "#64748B",
+    shadowColor: "#000",
     shadowOpacity: 0.08,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
@@ -738,14 +738,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: T.card,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: T.border,
     paddingHorizontal: 14,
     marginHorizontal: 14,
     height: 44,
-    shadowColor: "#64748B",
+    shadowColor: "#000",
     shadowOpacity: 0.06,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
@@ -778,14 +778,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: T.card,
     borderWidth: 1,
     borderColor: T.border,
     paddingVertical: 7,
     marginHorizontal: 24,
     marginTop: 6,
     borderRadius: 999,
-    shadowColor: "#64748B",
+    shadowColor: "#000",
     shadowOpacity: 0.06,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
@@ -800,13 +800,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: T.card,
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: T.border,
-    shadowColor: "#64748B",
+    shadowColor: "#000",
     shadowOpacity: 0.08,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
@@ -843,7 +843,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     borderWidth: 1,
     borderColor: T.border,
-    shadowColor: "#18181B",
+    shadowColor: "#000",
     shadowOpacity: 0.12,
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 8 },
@@ -883,7 +883,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: "#BBF7D0",
+    backgroundColor: "rgba(52, 211, 153, 0.18)",
   },
   liveBadgeText: {
     color: "#fff",
@@ -909,7 +909,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: VibeFonts.bold,
     color: T.pink,
-    backgroundColor: "#FCE7F3",
+    backgroundColor: "rgba(244, 114, 182, 0.16)",
     overflow: "hidden",
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -931,7 +931,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 999,
   },
-  spotsPill: { backgroundColor: "#FCE7F3" },
+  spotsPill: { backgroundColor: "rgba(244, 114, 182, 0.16)" },
   statText: { fontSize: 11, fontFamily: VibeFonts.bold, color: T.purpleDeep },
   spotsText: { fontSize: 11, fontFamily: VibeFonts.bold, color: T.pink },
   hostText: { fontSize: 11, fontFamily: VibeFonts.medium, color: T.faint },
@@ -970,7 +970,7 @@ const styles = StyleSheet.create({
     padding: 16,
     flexDirection: "row",
     gap: 14,
-    shadowColor: "#18181B",
+    shadowColor: "#000",
     shadowOpacity: 0.12,
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 8 },
@@ -1047,12 +1047,12 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: T.card,
     borderWidth: 1,
     borderColor: T.border,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#64748B",
+    shadowColor: "#000",
     shadowOpacity: 0.08,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },

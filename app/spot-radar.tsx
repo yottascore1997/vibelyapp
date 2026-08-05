@@ -180,6 +180,9 @@ export default function SpotRadarScreen() {
     (Array.isArray(params.duration) ? params.duration[0] : params.duration) || "30",
     10
   );
+  const hangoutId =
+    (Array.isArray(params.hangoutId) ? params.hangoutId[0] : params.hangoutId) || "";
+  const [checkedIn, setCheckedIn] = useState(false);
 
   const videoKey = useMemo(
     () => resolveActivityVideoKey(activityIdParam, vibe, emoji),
@@ -225,6 +228,16 @@ export default function SpotRadarScreen() {
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Soft auto check-in nudge when under 5 minutes left
+  useEffect(() => {
+    if (secondsLeft === 300 && !checkedIn) {
+      Alert.alert("Still here?", "Tap I'm at this venue so nearby people know you're live.", [
+        { text: "Later", style: "cancel" },
+        { text: "Check in", onPress: () => handleCheckIn() },
+      ]);
+    }
+  }, [secondsLeft, checkedIn]);
 
   const formatTimer = (totalSec: number) => {
     const mins = Math.floor(totalSec / 60);
@@ -325,6 +338,7 @@ export default function SpotRadarScreen() {
           activityName: vibe,
           activityEmoji: emoji,
           timeLabel: `At ${venue}!`,
+          ...(hangoutId ? { hangoutId } : {}),
         });
       }
       setPingedUserIds((prev) => [...prev, targetUser.id]);
@@ -334,6 +348,23 @@ export default function SpotRadarScreen() {
       Alert.alert("⚡ Invite sent!", `Ping sent to ${targetUser.name}!`);
     } finally {
       setSendingPingId(null);
+    }
+  };
+
+  const handleCheckIn = async () => {
+    if (checkedIn) return;
+    try {
+      await api.updateSocialStatus({
+        energy: "LESSGO",
+        freeNow: true,
+        activityName: `${emoji} I'm at ${venue}`,
+        timeLabel: "Checked in · join me",
+      });
+      setCheckedIn(true);
+      Alert.alert("You're here ✓", `Checked in at ${venue}. Nearby people can see you're live.`);
+    } catch {
+      setCheckedIn(true);
+      Alert.alert("You're here ✓", `Checked in at ${venue}.`);
     }
   };
 
@@ -367,15 +398,16 @@ export default function SpotRadarScreen() {
         activityName: vibe,
         activityEmoji: emoji,
         timeLabel: `At ${venue} for next ${initialDuration} mins!`,
+        ...(hangoutId ? { hangoutId } : {}),
       });
       await Share.share({
         message: `Hey! Live Spot at ${venue} (${emoji} ${vibe}). Join: ${
-          res?.inviteUrl || "https://vibematch.app"
+          res?.inviteUrl || "https://www.hangora.app"
         }`,
       });
     } catch {
       await Share.share({
-        message: `At ${venue} (${emoji} ${vibe}) right now! Join me: https://vibematch.app`,
+        message: `At ${venue} (${emoji} ${vibe}) right now! Join me: https://www.hangora.app`,
       });
     }
   };
@@ -447,6 +479,30 @@ export default function SpotRadarScreen() {
                 <Text style={styles.heroVibe}>
                   Scanning nearby · {formatTimer(secondsLeft)}
                 </Text>
+                <TouchableOpacity
+                  style={[styles.checkInBtn, checkedIn && styles.checkInBtnDone]}
+                  onPress={handleCheckIn}
+                  activeOpacity={0.88}
+                >
+                  <Ionicons
+                    name={checkedIn ? "checkmark-circle" : "navigate"}
+                    size={14}
+                    color="#FFF"
+                  />
+                  <Text style={styles.checkInBtnText}>
+                    {checkedIn ? "Checked in · I'm here" : "I'm at this venue"}
+                  </Text>
+                </TouchableOpacity>
+                {hangoutId ? (
+                  <TouchableOpacity
+                    onPress={() =>
+                      router.push({ pathname: "/plan-details", params: { id: hangoutId } })
+                    }
+                    style={styles.openHangoutLink}
+                  >
+                    <Text style={styles.openHangoutLinkText}>Open live hangout →</Text>
+                  </TouchableOpacity>
+                ) : null}
               </View>
             </View>
           </Animated.View>
@@ -1020,6 +1076,33 @@ const styles = StyleSheet.create({
     fontFamily: VibeFonts.medium,
     color: "rgba(255,255,255,0.85)",
     marginTop: 4,
+  },
+  checkInBtn: {
+    marginTop: 12,
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(16,185,129,0.95)",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+  },
+  checkInBtnDone: {
+    backgroundColor: "rgba(52,211,153,0.55)",
+  },
+  checkInBtnText: {
+    color: "#FFF",
+    fontSize: 12,
+    fontFamily: VibeFonts.extraBold,
+  },
+  openHangoutLink: {
+    marginTop: 8,
+  },
+  openHangoutLinkText: {
+    color: "#C4B5FD",
+    fontSize: 12,
+    fontFamily: VibeFonts.semiBold,
   },
   heroShareChip: {
     width: 34,

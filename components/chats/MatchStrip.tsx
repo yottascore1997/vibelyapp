@@ -30,14 +30,6 @@ export default function MatchStrip({ matches, onPressMatch, onDiscover }: Props)
     <View style={styles.wrap}>
       <View style={styles.header}>
         <View style={styles.titleRow}>
-          <LinearGradient
-            colors={[...T.cta]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.sparkle}
-          >
-            <Ionicons name="sparkles" size={12} color="#fff" />
-          </LinearGradient>
           <Text style={styles.title}>New Matches</Text>
         </View>
         <View style={styles.countPill}>
@@ -129,13 +121,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   titleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  sparkle: {
-    width: 24,
-    height: 24,
-    borderRadius: 9,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   title: {
     fontSize: 14,
     fontFamily: VibeFonts.extraBold,

@@ -20,7 +20,8 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://www.hangora.app/api"
+        "EXPO_PUBLIC_API_URL": "https://www.hangora.app/api",
+        "EXPO_PUBLIC_CHAT_URL": "https://secure-courage-production-8ba6.up.railway.app"
       }
     },
     "production": {
@@ -29,7 +30,8 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://www.hangora.app/api"
+        "EXPO_PUBLIC_API_URL": "https://www.hangora.app/api",
+        "EXPO_PUBLIC_CHAT_URL": "https://secure-courage-production-8ba6.up.railway.app"
       }
     }
   },

@@ -11,7 +11,10 @@ import {
   Pressable,
   Dimensions,
   Linking,
+  Share,
+  ActivityIndicator,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -23,6 +26,7 @@ import { useAuth } from "../context/AuthContext";
 import { PLAN_ACTIVITIES } from "../constants/plans";
 import { VibeFonts } from "../constants/vibeTheme";
 import { Radius, Spacing } from "../constants/theme";
+import { api } from "../services/api";
 import TabBar from "../components/TabBar";
 import HangoutCinematicBackground from "../components/vibe/HangoutCinematicBackground";
 import VibeSplitModal from "../components/vibe/VibeSplitModal";
@@ -100,24 +104,30 @@ function formatWhen(
   timeLabel?: string | null,
   time?: string | null
 ) {
+  // Prefer scheduledAt so cards never show raw / incomplete clocks
+  if (scheduledAt) {
+    const d = new Date(scheduledAt);
+    if (!Number.isNaN(d.getTime())) {
+      const now = new Date();
+      const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const startThat = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const dayDiff = Math.round(
+        (startThat.getTime() - startToday.getTime()) / 86400000
+      );
+      const timeStr = d.toLocaleTimeString("en-IN", {
+        hour: "numeric",
+        minute: "2-digit",
+      });
+      if (dayDiff === 0) return `Today · ${timeStr}`;
+      if (dayDiff === 1) return `Tomorrow · ${timeStr}`;
+      return `${d.toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+      })} · ${timeStr}`;
+    }
+  }
   if (timeLabel) return timeLabel;
-  if (!scheduledAt) return time || "Flexible";
-  const d = new Date(scheduledAt);
-  const now = new Date();
-  const sameDay =
-    d.getFullYear() === now.getFullYear() &&
-    d.getMonth() === now.getMonth() &&
-    d.getDate() === now.getDate();
-  const tomorrow = new Date(now);
-  tomorrow.setDate(now.getDate() + 1);
-  const isTomorrow =
-    d.getFullYear() === tomorrow.getFullYear() &&
-    d.getMonth() === tomorrow.getMonth() &&
-    d.getDate() === tomorrow.getDate();
-  const timeStr = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  if (sameDay) return `Today, ${timeStr}`;
-  if (isTomorrow) return `Tomorrow, ${timeStr}`;
-  return `${d.toLocaleDateString([], { month: "short", day: "numeric" })}, ${timeStr}`;
+  return time || "Flexible";
 }
 
 function buildSchedule(scheduledAt?: string) {
@@ -291,6 +301,8 @@ export default function PlanDetailsScreen() {
     type: "user_leave" | "host_remove" | "host_cancel";
   } | null>(null);
   const [nowTick, setNowTick] = useState(Date.now());
+  const [hangProofUri, setHangProofUri] = useState<string | null>(null);
+  const [hangProofSharing, setHangProofSharing] = useState(false);
 
   const plan = [...myPlans, ...nearbyPlans].find((p) => p.id === id);
 
@@ -377,6 +389,50 @@ export default function PlanDetailsScreen() {
   const { venue, area } = locationParts;
   const isMine = plan.creatorId === user?.id;
   const requestStatus = getRequestStatus(plan.id);
+  const canShareHangProof = isMine || requestStatus === "accepted";
+
+  const handleHangProof = async () => {
+    if (hangProofSharing) return;
+    setHangProofSharing(true);
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert("Permission needed", "Allow photos to share Hang Proof.");
+        return;
+      }
+      const picked = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        quality: 0.85,
+        allowsEditing: true,
+        aspect: [4, 5],
+      });
+      if (picked.canceled || !picked.assets?.[0]?.uri) return;
+      const uri = picked.assets[0].uri;
+      setHangProofUri(uri);
+
+      let inviteUrl = "https://www.hangora.app";
+      try {
+        const pub = await api.createPublicInvite({
+          activityName: plan.activity || plan.title,
+          activityEmoji: activity.emoji,
+          timeLabel: plan.timeLabel || "We hung out!",
+          hangoutId: plan.id,
+        });
+        if (pub?.inviteUrl) inviteUrl = pub.inviteUrl;
+      } catch {
+        // share without invite
+      }
+
+      await Share.share({
+        message: `Hang Proof ✨\n${activity.emoji} ${plan.title}\nWe met on Hangora — join the next one: ${inviteUrl}`,
+        url: uri,
+      });
+    } catch {
+      Alert.alert("Couldn't share", "Try again in a moment.");
+    } finally {
+      setHangProofSharing(false);
+    }
+  };
   const heroImage = plan.imageUrl || activity.image;
   const openSpots = Math.max(0, plan.maxParticipants - plan.going);
   const participants = plan.participants || [];
@@ -486,6 +542,20 @@ export default function PlanDetailsScreen() {
             <Ionicons name="checkmark-done" size={16} color={C.purple} />
             <Text style={styles.hostPillText}>This hangout has ended</Text>
           </View>
+          <Pressable
+            style={styles.hangProofBtn}
+            onPress={handleHangProof}
+            disabled={hangProofSharing}
+          >
+            {hangProofSharing ? (
+              <ActivityIndicator color="#C4B5FD" />
+            ) : (
+              <>
+                <Ionicons name="camera" size={16} color="#C4B5FD" />
+                <Text style={styles.hangProofBtnText}>Hang Proof · share the memory</Text>
+              </>
+            )}
+          </Pressable>
         </View>
       );
     }
@@ -510,6 +580,20 @@ export default function PlanDetailsScreen() {
               </View>
             </Pressable>
           </View>
+          <Pressable
+            style={styles.hangProofBtn}
+            onPress={handleHangProof}
+            disabled={hangProofSharing}
+          >
+            {hangProofSharing ? (
+              <ActivityIndicator color="#C4B5FD" />
+            ) : (
+              <>
+                <Ionicons name="camera" size={16} color="#C4B5FD" />
+                <Text style={styles.hangProofBtnText}>Hang Proof · share photo</Text>
+              </>
+            )}
+          </Pressable>
         </View>
       );
     }
@@ -541,6 +625,22 @@ export default function PlanDetailsScreen() {
             </Pressable>
           </View>
           <Text style={styles.cancelHint}>You can leave anytime</Text>
+          <Pressable
+            style={styles.hangProofBtn}
+            onPress={handleHangProof}
+            disabled={hangProofSharing}
+          >
+            {hangProofSharing ? (
+              <ActivityIndicator color="#C4B5FD" />
+            ) : (
+              <>
+                <Ionicons name="camera" size={16} color="#C4B5FD" />
+                <Text style={styles.hangProofBtnText}>
+                  {hangProofUri ? "Share another Hang Proof" : "Hang Proof · share photo"}
+                </Text>
+              </>
+            )}
+          </Pressable>
         </View>
       );
     }
@@ -649,7 +749,29 @@ export default function PlanDetailsScreen() {
               style={styles.navBtn}
               onPress={() =>
                 Alert.alert("Hangout options", undefined, [
-                  { text: "Share", onPress: () => {} },
+                  ...(canShareHangProof
+                    ? [{ text: "Hang Proof", onPress: () => handleHangProof() }]
+                    : []),
+                  {
+                    text: "Share invite",
+                    onPress: async () => {
+                      try {
+                        const pub = await api.createPublicInvite({
+                          activityName: plan.activity || plan.title,
+                          activityEmoji: activity.emoji,
+                          timeLabel: plan.timeLabel || "Join us!",
+                          hangoutId: plan.id,
+                        });
+                        await Share.share({
+                          message: `Join my hangout on Hangora: ${pub?.inviteUrl || "https://www.hangora.app"}`,
+                        });
+                      } catch {
+                        await Share.share({
+                          message: `Join my hangout: https://www.hangora.app`,
+                        });
+                      }
+                    },
+                  },
                   { text: "Report", style: "destructive", onPress: () => {} },
                   { text: "Cancel", style: "cancel" },
                 ])
@@ -1000,7 +1122,7 @@ export default function PlanDetailsScreen() {
                       openUserProfile({
                         id: req.id || (req as any).userId,
                         name: req.name,
-                        avatarUrl: req.avatarUrl,
+                        avatarUrl: req.avatarUrl || undefined,
                       })
                     }
                   >
@@ -1014,7 +1136,11 @@ export default function PlanDetailsScreen() {
                     />
                     <View style={{ flex: 1 }}>
                       <Text style={styles.requestName}>{req.name}</Text>
-                      <Text style={styles.requestSub}>wants to join your hangout</Text>
+                      <Text style={styles.requestSub}>
+                        {(req as any).remark
+                          ? `“${(req as any).remark}”`
+                          : "wants to join your hangout"}
+                      </Text>
                     </View>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -1855,6 +1981,23 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: VibeFonts.regular,
     color: C.faint,
+  },
+  hangProofBtn: {
+    marginTop: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(167,139,250,0.35)",
+    backgroundColor: "rgba(139,92,246,0.12)",
+  },
+  hangProofBtnText: {
+    color: "#C4B5FD",
+    fontSize: 13,
+    fontFamily: VibeFonts.bold,
   },
 
   modalOverlay: {

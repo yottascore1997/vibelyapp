@@ -22,19 +22,37 @@ import { StatusBar } from "expo-status-bar";
 import Animated, { FadeInDown, FadeInUp, ZoomIn } from "react-native-reanimated";
 import TabBar from "../components/TabBar";
 import AppHeader from "../components/vibe/AppHeader";
+import HangoutCinematicBackground from "../components/vibe/HangoutCinematicBackground";
 import { VibeFonts } from "../constants/vibeTheme";
 import { useAuth } from "../context/AuthContext";
 
 const { width } = Dimensions.get("window");
 
-// Categories required by user spec
+const T = {
+  bg: "#070A14",
+  card: "rgba(22, 26, 46, 0.94)",
+  cardElevated: "rgba(28, 32, 54, 0.96)",
+  ink: "#F4F6FB",
+  muted: "#A7B0C4",
+  faint: "#7C869C",
+  border: "rgba(160, 170, 200, 0.16)",
+  purple: "#A78BFA",
+  purpleDeep: "#8B5CF6",
+  softPurple: "rgba(139, 92, 246, 0.16)",
+  pink: "#F472B6",
+  green: "#34D399",
+  yellow: "#FBBF24",
+  cta: ["#7C3AED", "#A78BFA"] as const,
+  promo: ["#6D28D9", "#8B5CF6", "#EC4899"] as const,
+};
+
 const CATEGORIES = [
-  { id: "Coffee", label: "Coffee", emoji: "☕", bg: "#FEF3C7", color: "#D97706" },
-  { id: "Drinks", label: "Drinks", emoji: "🍹", bg: "#FCE7F3", color: "#DB2777" },
-  { id: "Dinner", label: "Dinner", emoji: "🍽️", bg: "#FFEDD5", color: "#EA580C" },
-  { id: "Walk", label: "Walk", emoji: "🚶", bg: "#D1FAE5", color: "#059669" },
-  { id: "Movie", label: "Movie", emoji: "🎬", bg: "#F3E8FF", color: "#7C3AED" },
-  { id: "Bowling", label: "Bowling", emoji: "🎳", bg: "#E0F2FE", color: "#0284C7" },
+  { id: "Coffee", label: "Coffee", emoji: "☕", bg: "rgba(251, 191, 36, 0.16)", color: "#FBBF24" },
+  { id: "Drinks", label: "Drinks", emoji: "🍹", bg: "rgba(244, 114, 182, 0.16)", color: "#F472B6" },
+  { id: "Dinner", label: "Dinner", emoji: "🍽️", bg: "rgba(249, 115, 22, 0.16)", color: "#FB923C" },
+  { id: "Walk", label: "Walk", emoji: "🚶", bg: "rgba(52, 211, 153, 0.16)", color: "#34D399" },
+  { id: "Movie", label: "Movie", emoji: "🎬", bg: "rgba(139, 92, 246, 0.16)", color: "#A78BFA" },
+  { id: "Bowling", label: "Bowling", emoji: "🎳", bg: "rgba(96, 165, 250, 0.16)", color: "#60A5FA" },
 ];
 
 // Basic filters required by user spec
@@ -390,9 +408,11 @@ export default function ExploreEventsScreen() {
   const joinedEvents = eventsList.filter((e) => e.joinedUserIds.includes(currentUserId));
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <StatusBar style="dark" />
-      <AppHeader variant="light" tagline="Explore Events · Real Meets" />
+    <View style={styles.screenRoot}>
+      <HangoutCinematicBackground />
+      <SafeAreaView style={styles.container} edges={["top"]}>
+      <StatusBar style="light" />
+      <AppHeader variant="dark" tagline="Explore Events · Real Meets" />
 
       {/* Notification Toast Banner */}
       {toastMessage && (
@@ -413,15 +433,15 @@ export default function ExploreEventsScreen() {
       <View style={styles.headerRow}>
         <View style={styles.headerLeft}>
           <Pressable style={styles.backBtn} onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={20} color="#18181B" />
+            <Ionicons name="chevron-back" size={20} color={T.ink} />
           </Pressable>
           <View>
             <Text style={styles.headerTitle}>Hangora Events</Text>
             {/* City Picker Dropdown Button */}
             <Pressable style={styles.cityPill} onPress={() => setShowCityPicker(true)}>
-              <Ionicons name="location-sharp" size={12} color="#7C3AED" />
+              <Ionicons name="location-sharp" size={12} color={T.purple} />
               <Text style={styles.cityName}>{selectedCity}</Text>
-              <Ionicons name="chevron-down" size={12} color="#64748B" />
+              <Ionicons name="chevron-down" size={12} color={T.muted} />
             </Pressable>
           </View>
         </View>
@@ -432,7 +452,7 @@ export default function ExploreEventsScreen() {
             style={styles.myEventsBtn}
             onPress={() => setShowMyEventsModal(true)}
           >
-            <Ionicons name="calendar-outline" size={16} color="#7C3AED" />
+            <Ionicons name="calendar-outline" size={16} color={T.purple} />
             <Text style={styles.myEventsBtnText}>My Events</Text>
           </Pressable>
 
@@ -453,17 +473,17 @@ export default function ExploreEventsScreen() {
 
       {/* Search Input Bar */}
       <View style={styles.searchBarWrap}>
-        <Ionicons name="search" size={18} color="#64748B" style={{ marginRight: 8 }} />
+        <Ionicons name="search" size={18} color={T.muted} style={{ marginRight: 8 }} />
         <TextInput
           style={styles.searchInput}
           placeholder="Search events, venue or city..."
-          placeholderTextColor="#94A3B8"
+          placeholderTextColor={T.faint}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
         {searchQuery.length > 0 && (
           <Pressable onPress={() => setSearchQuery("")}>
-            <Ionicons name="close-circle" size={18} color="#94A3B8" />
+            <Ionicons name="close-circle" size={18} color={T.faint} />
           </Pressable>
         )}
       </View>
@@ -622,13 +642,13 @@ export default function ExploreEventsScreen() {
 
                       {/* Date & Time */}
                       <View style={styles.infoRow}>
-                        <Ionicons name="time" size={13} color="#7C3AED" />
+                        <Ionicons name="time" size={13} color={T.purple} />
                         <Text style={styles.infoText}>{evt.dateLabel}</Text>
                       </View>
 
                       {/* Location & Distance */}
                       <View style={styles.infoRow}>
-                        <Ionicons name="location" size={13} color="#EC4899" />
+                        <Ionicons name="location" size={13} color={T.pink} />
                         <Text style={styles.infoText} numberOfLines={1}>
                           {evt.venue} · {evt.distance}
                         </Text>
@@ -637,7 +657,7 @@ export default function ExploreEventsScreen() {
                       {/* Footer Row: Spots Left & Join Action */}
                       <View style={styles.cardFooter}>
                         <View style={styles.spotsWrap}>
-                          <Ionicons name="people" size={13} color="#64748B" />
+                          <Ionicons name="people" size={13} color={T.muted} />
                           <Text style={styles.spotsText}>
                             {spotsLeft > 0 ? `${spotsLeft} spots left` : "Full"}
                           </Text>
@@ -670,7 +690,7 @@ export default function ExploreEventsScreen() {
       </ScrollView>
 
       {/* Floating Bottom TabBar */}
-      <TabBar dark={false} />
+      <TabBar dark={true} />
 
       {/* ----------------- MODAL 1: CITY SELECTOR MODAL ----------------- */}
       <Modal visible={showCityPicker} animationType="fade" transparent>
@@ -765,7 +785,7 @@ export default function ExploreEventsScreen() {
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
                         <Text style={styles.hostName}>{selectedEvent.hostName}</Text>
                         {selectedEvent.isHostVerified && (
-                          <Ionicons name="checkmark-circle" size={14} color="#7C3AED" />
+                          <Ionicons name="checkmark-circle" size={14} color={T.purple} />
                         )}
                       </View>
                       <Text style={styles.hostSub}>Event Host</Text>
@@ -776,7 +796,7 @@ export default function ExploreEventsScreen() {
 
                   {/* Date & Time Info Card */}
                   <View style={styles.detailsCardBox}>
-                    <Ionicons name="calendar-outline" size={20} color="#7C3AED" />
+                    <Ionicons name="calendar-outline" size={20} color={T.purple} />
                     <View>
                       <Text style={styles.detailsCardBoxTitle}>Date & Time</Text>
                       <Text style={styles.detailsCardBoxSub}>{selectedEvent.dateLabel}</Text>
@@ -785,7 +805,7 @@ export default function ExploreEventsScreen() {
 
                   {/* Venue & Google Maps Link */}
                   <View style={styles.detailsCardBox}>
-                    <Ionicons name="location-outline" size={20} color="#EC4899" />
+                    <Ionicons name="location-outline" size={20} color={T.pink} />
                     <View style={{ flex: 1 }}>
                       <Text style={styles.detailsCardBoxTitle}>Venue & Location</Text>
                       <Text style={styles.detailsCardBoxSub}>{selectedEvent.venue}</Text>
@@ -794,7 +814,7 @@ export default function ExploreEventsScreen() {
                           style={styles.mapLinkBtn}
                           onPress={() => Linking.openURL(selectedEvent.googleMapsUrl!)}
                         >
-                          <Ionicons name="map" size={14} color="#7C3AED" />
+                          <Ionicons name="map" size={14} color={T.purple} />
                           <Text style={styles.mapLinkBtnText}>View on Google Maps ↗</Text>
                         </Pressable>
                       )}
@@ -810,7 +830,7 @@ export default function ExploreEventsScreen() {
                     Participants ({selectedEvent.joinedCount} / {selectedEvent.maxParticipants})
                   </Text>
                   <View style={styles.participantsCard}>
-                    <Ionicons name="people" size={18} color="#7C3AED" />
+                    <Ionicons name="people" size={18} color={T.purple} />
                     <Text style={styles.participantsText}>
                       {selectedEvent.joinedCount} people attending
                     </Text>
@@ -842,10 +862,10 @@ export default function ExploreEventsScreen() {
 
       {/* ----------------- MODAL 3: CREATE EVENT (HOST) MODAL ----------------- */}
       <Modal visible={showCreateModal} animationType="slide">
-        <SafeAreaView style={{ flex: 1, backgroundColor: "#F8F9FD" }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: T.bg }}>
           <View style={styles.createModalHeader}>
             <Pressable onPress={() => setShowCreateModal(false)}>
-              <Ionicons name="close" size={24} color="#18181B" />
+              <Ionicons name="close" size={24} color={T.ink} />
             </Pressable>
             <Text style={styles.createModalTitle}>Host an Event 🎪</Text>
             <Pressable onPress={handleCreateEventSubmit}>
@@ -859,6 +879,7 @@ export default function ExploreEventsScreen() {
             <TextInput
               style={styles.formInput}
               placeholder="e.g. Sunset Specialty Coffee & Chill ☕"
+              placeholderTextColor={T.faint}
               value={formTitle}
               onChangeText={setFormTitle}
             />
@@ -893,6 +914,7 @@ export default function ExploreEventsScreen() {
             <TextInput
               style={styles.formInput}
               placeholder="e.g. Cafe Connect, Dharampeth"
+              placeholderTextColor={T.faint}
               value={formVenue}
               onChangeText={setFormVenue}
             />
@@ -904,6 +926,7 @@ export default function ExploreEventsScreen() {
                 <TextInput
                   style={styles.formInput}
                   placeholder="Today / Tomorrow"
+                  placeholderTextColor={T.faint}
                   value={formDate}
                   onChangeText={setFormDate}
                 />
@@ -914,6 +937,7 @@ export default function ExploreEventsScreen() {
                 <TextInput
                   style={styles.formInput}
                   placeholder="19:00"
+                  placeholderTextColor={T.faint}
                   value={formTime}
                   onChangeText={setFormTime}
                 />
@@ -925,6 +949,7 @@ export default function ExploreEventsScreen() {
             <TextInput
               style={styles.formInput}
               placeholder="e.g. 8"
+              placeholderTextColor={T.faint}
               keyboardType="number-pad"
               value={formMaxParticipants}
               onChangeText={setFormMaxParticipants}
@@ -974,6 +999,7 @@ export default function ExploreEventsScreen() {
                 <TextInput
                   style={styles.formInput}
                   placeholder="150"
+                  placeholderTextColor={T.faint}
                   keyboardType="number-pad"
                   value={formTicketPrice}
                   onChangeText={setFormTicketPrice}
@@ -987,6 +1013,7 @@ export default function ExploreEventsScreen() {
               style={[styles.formInput, { height: 90, textAlignVertical: "top" }]}
               multiline
               placeholder="Tell people what this event is about..."
+              placeholderTextColor={T.faint}
               value={formDescription}
               onChangeText={setFormDescription}
             />
@@ -1004,10 +1031,10 @@ export default function ExploreEventsScreen() {
 
       {/* ----------------- MODAL 4: MY EVENTS MODAL (Upcoming & Joined Tabs) ----------------- */}
       <Modal visible={showMyEventsModal} animationType="slide">
-        <SafeAreaView style={{ flex: 1, backgroundColor: "#F8F9FD" }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: T.bg }}>
           <View style={styles.createModalHeader}>
             <Pressable onPress={() => setShowMyEventsModal(false)}>
-              <Ionicons name="close" size={24} color="#18181B" />
+              <Ionicons name="close" size={24} color={T.ink} />
             </Pressable>
             <Text style={styles.createModalTitle}>My Events 📅</Text>
             <View style={{ width: 24 }} />
@@ -1081,21 +1108,26 @@ export default function ExploreEventsScreen() {
                     <Text style={styles.myEventItemSub}>{evt.dateLabel}</Text>
                     <Text style={styles.myEventItemSub}>{evt.venue}</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
+                  <Ionicons name="chevron-forward" size={16} color={T.faint} />
                 </Pressable>
               ))
             )}
           </ScrollView>
         </SafeAreaView>
       </Modal>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screenRoot: {
+    flex: 1,
+    backgroundColor: T.bg,
+  },
   container: {
     flex: 1,
-    backgroundColor: "#F8F9FD",
+    backgroundColor: "transparent",
   },
 
   toastWrap: {
@@ -1112,7 +1144,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 18,
-    shadowColor: "#7C3AED",
+    shadowColor: T.purpleDeep,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
@@ -1140,16 +1172,16 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: T.card,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: T.border,
   },
   headerTitle: {
     fontSize: 18,
     fontFamily: VibeFonts.extraBold,
-    color: "#18181B",
+    color: T.ink,
   },
   cityPill: {
     flexDirection: "row",
@@ -1160,7 +1192,7 @@ const styles = StyleSheet.create({
   cityName: {
     fontSize: 11,
     fontFamily: VibeFonts.bold,
-    color: "#7C3AED",
+    color: T.purple,
   },
 
   headerRight: {
@@ -1172,7 +1204,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "#F3E8FF",
+    backgroundColor: T.softPurple,
     paddingHorizontal: 10,
     paddingVertical: 7,
     borderRadius: 14,
@@ -1180,7 +1212,7 @@ const styles = StyleSheet.create({
   myEventsBtnText: {
     fontSize: 11,
     fontFamily: VibeFonts.bold,
-    color: "#7C3AED",
+    color: T.purple,
   },
   hostBtnGrad: {
     flexDirection: "row",
@@ -1199,20 +1231,20 @@ const styles = StyleSheet.create({
   searchBarWrap: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: T.card,
     marginHorizontal: 16,
     marginVertical: 8,
     paddingHorizontal: 12,
     height: 42,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: T.border,
   },
   searchInput: {
     flex: 1,
     fontSize: 13,
     fontFamily: VibeFonts.medium,
-    color: "#18181B",
+    color: T.ink,
   },
 
   sectionWrap: {
@@ -1222,7 +1254,7 @@ const styles = StyleSheet.create({
   sectionHeading: {
     fontSize: 14,
     fontFamily: VibeFonts.bold,
-    color: "#18181B",
+    color: T.ink,
     marginHorizontal: 16,
     marginBottom: 8,
   },
@@ -1238,17 +1270,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: T.card,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: T.border,
   },
   catPillActive: {
-    backgroundColor: "#7C3AED",
-    borderColor: "#7C3AED",
+    backgroundColor: T.purpleDeep,
+    borderColor: T.purpleDeep,
   },
   catPillSelected: {
     borderWidth: 2,
-    borderColor: "#7C3AED",
+    borderColor: T.purple,
   },
   catEmoji: {
     fontSize: 14,
@@ -1256,7 +1288,7 @@ const styles = StyleSheet.create({
   catLabel: {
     fontSize: 12,
     fontFamily: VibeFonts.bold,
-    color: "#18181B",
+    color: T.ink,
   },
   catLabelActive: {
     color: "#FFFFFF",
@@ -1274,18 +1306,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: T.card,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: T.border,
   },
   filterChipActive: {
-    backgroundColor: "#18181B",
-    borderColor: "#18181B",
+    backgroundColor: T.purpleDeep,
+    borderColor: T.purpleDeep,
   },
   filterChipText: {
     fontSize: 11,
     fontFamily: VibeFonts.bold,
-    color: "#64748B",
+    color: T.muted,
   },
   filterChipTextActive: {
     color: "#FFFFFF",
@@ -1299,7 +1331,7 @@ const styles = StyleSheet.create({
   feedTitle: {
     fontSize: 13,
     fontFamily: VibeFonts.bold,
-    color: "#64748B",
+    color: T.muted,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
@@ -1309,14 +1341,14 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   eventCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: T.card,
     borderRadius: 22,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: T.border,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.2,
     shadowRadius: 10,
     elevation: 2,
   },
@@ -1335,7 +1367,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 10,
     left: 10,
-    backgroundColor: "rgba(255,255,255,0.9)",
+    backgroundColor: T.cardElevated,
     paddingHorizontal: 9,
     paddingVertical: 4,
     borderRadius: 12,
@@ -1343,7 +1375,7 @@ const styles = StyleSheet.create({
   cardCatText: {
     fontSize: 10,
     fontFamily: VibeFonts.bold,
-    color: "#18181B",
+    color: T.ink,
   },
   priceBadge: {
     position: "absolute",
@@ -1354,10 +1386,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   priceBadgeFree: {
-    backgroundColor: "#10B981",
+    backgroundColor: T.green,
   },
   priceBadgePaid: {
-    backgroundColor: "#F59E0B",
+    backgroundColor: T.yellow,
   },
   priceBadgeText: {
     fontSize: 10,
@@ -1372,7 +1404,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 15,
     fontFamily: VibeFonts.bold,
-    color: "#18181B",
+    color: T.ink,
     lineHeight: 20,
   },
   infoRow: {
@@ -1383,7 +1415,7 @@ const styles = StyleSheet.create({
   infoText: {
     fontSize: 11,
     fontFamily: VibeFonts.medium,
-    color: "#64748B",
+    color: T.muted,
     flex: 1,
   },
   cardFooter: {
@@ -1393,7 +1425,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: "#F1F5F9",
+    borderTopColor: T.border,
   },
   spotsWrap: {
     flexDirection: "row",
@@ -1403,16 +1435,16 @@ const styles = StyleSheet.create({
   spotsText: {
     fontSize: 11,
     fontFamily: VibeFonts.bold,
-    color: "#64748B",
+    color: T.muted,
   },
   cardJoinBtn: {
-    backgroundColor: "#7C3AED",
+    backgroundColor: T.purpleDeep,
     paddingHorizontal: 16,
     paddingVertical: 7,
     borderRadius: 12,
   },
   cardJoinBtnJoined: {
-    backgroundColor: "#DCFCE7",
+    backgroundColor: "rgba(52, 211, 153, 0.16)",
   },
   cardJoinBtnText: {
     color: "#FFFFFF",
@@ -1420,30 +1452,30 @@ const styles = StyleSheet.create({
     fontFamily: VibeFonts.bold,
   },
   cardJoinBtnTextJoined: {
-    color: "#15803D",
+    color: T.green,
   },
 
   emptyCard: {
     marginHorizontal: 16,
     padding: 24,
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: T.card,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: T.border,
   },
   emptyEmoji: { fontSize: 36, marginBottom: 6 },
-  emptyTitle: { fontSize: 16, fontFamily: VibeFonts.bold, color: "#18181B" },
+  emptyTitle: { fontSize: 16, fontFamily: VibeFonts.bold, color: T.ink },
   emptySub: {
     fontSize: 12,
     fontFamily: VibeFonts.medium,
-    color: "#64748B",
+    color: T.muted,
     marginTop: 4,
     textAlign: "center",
   },
   emptyCta: {
     marginTop: 12,
-    backgroundColor: "#7C3AED",
+    backgroundColor: T.purpleDeep,
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 14,
@@ -1453,14 +1485,14 @@ const styles = StyleSheet.create({
   // Modals
   modalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.5)",
+    backgroundColor: "rgba(7, 10, 20, 0.72)",
     justifyContent: "flex-end",
   },
   modalDismiss: {
     flex: 1,
   },
   cityModalCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: T.cardElevated,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     padding: 20,
@@ -1469,7 +1501,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 16,
     fontFamily: VibeFonts.bold,
-    color: "#18181B",
+    color: T.ink,
     textAlign: "center",
   },
   citiesGrid: {
@@ -1482,18 +1514,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 16,
-    backgroundColor: "#F8F9FD",
+    backgroundColor: T.card,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: T.border,
   },
   cityBtnActive: {
-    backgroundColor: "#7C3AED",
-    borderColor: "#7C3AED",
+    backgroundColor: T.purpleDeep,
+    borderColor: T.purpleDeep,
   },
   cityBtnText: {
     fontSize: 13,
     fontFamily: VibeFonts.bold,
-    color: "#18181B",
+    color: T.ink,
   },
   cityBtnTextActive: {
     color: "#FFFFFF",
@@ -1502,7 +1534,7 @@ const styles = StyleSheet.create({
   // Event Details Modal
   detailsModalCard: {
     height: "90%",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: T.cardElevated,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     overflow: "hidden",
@@ -1536,7 +1568,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   detailsCatPill: {
-    backgroundColor: "rgba(255,255,255,0.9)",
+    backgroundColor: T.cardElevated,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
@@ -1544,7 +1576,7 @@ const styles = StyleSheet.create({
   detailsCatPillText: {
     fontSize: 11,
     fontFamily: VibeFonts.bold,
-    color: "#18181B",
+    color: T.ink,
   },
 
   detailsBody: {
@@ -1554,7 +1586,7 @@ const styles = StyleSheet.create({
   detailsTitle: {
     fontSize: 20,
     fontFamily: VibeFonts.extraBold,
-    color: "#18181B",
+    color: T.ink,
     lineHeight: 26,
   },
   hostRow: {
@@ -1570,36 +1602,36 @@ const styles = StyleSheet.create({
   hostName: {
     fontSize: 14,
     fontFamily: VibeFonts.bold,
-    color: "#18181B",
+    color: T.ink,
   },
   hostSub: {
     fontSize: 11,
     fontFamily: VibeFonts.medium,
-    color: "#64748B",
+    color: T.muted,
   },
   detailsDivider: {
     height: 1,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: T.border,
   },
   detailsCardBox: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
     padding: 12,
-    backgroundColor: "#F8F9FD",
+    backgroundColor: T.card,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: T.border,
   },
   detailsCardBoxTitle: {
     fontSize: 11,
     fontFamily: VibeFonts.bold,
-    color: "#64748B",
+    color: T.muted,
   },
   detailsCardBoxSub: {
     fontSize: 13,
     fontFamily: VibeFonts.bold,
-    color: "#18181B",
+    color: T.ink,
     marginTop: 2,
   },
   mapLinkBtn: {
@@ -1611,12 +1643,12 @@ const styles = StyleSheet.create({
   mapLinkBtnText: {
     fontSize: 11,
     fontFamily: VibeFonts.bold,
-    color: "#7C3AED",
+    color: T.purple,
   },
   detailsDesc: {
     fontSize: 13,
     fontFamily: VibeFonts.medium,
-    color: "#334155",
+    color: T.muted,
     lineHeight: 20,
   },
   participantsCard: {
@@ -1624,29 +1656,29 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     padding: 12,
-    backgroundColor: "#F3E8FF",
+    backgroundColor: T.softPurple,
     borderRadius: 16,
   },
   participantsText: {
     fontSize: 12,
     fontFamily: VibeFonts.bold,
-    color: "#7C3AED",
+    color: T.purple,
   },
 
   detailsStickyFooter: {
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: "#F1F5F9",
-    backgroundColor: "#FFFFFF",
+    borderTopColor: T.border,
+    backgroundColor: T.cardElevated,
   },
   detailsJoinBtn: {
-    backgroundColor: "#7C3AED",
+    backgroundColor: T.purpleDeep,
     paddingVertical: 14,
     borderRadius: 18,
     alignItems: "center",
   },
   detailsJoinBtnJoined: {
-    backgroundColor: "#10B981",
+    backgroundColor: T.green,
   },
   detailsJoinBtnText: {
     color: "#FFFFFF",
@@ -1662,18 +1694,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
-    backgroundColor: "#FFFFFF",
+    borderBottomColor: T.border,
+    backgroundColor: T.cardElevated,
   },
   createModalTitle: {
     fontSize: 16,
     fontFamily: VibeFonts.bold,
-    color: "#18181B",
+    color: T.ink,
   },
   createModalSaveText: {
     fontSize: 14,
     fontFamily: VibeFonts.bold,
-    color: "#7C3AED",
+    color: T.purple,
   },
   createFormScroll: {
     padding: 16,
@@ -1682,19 +1714,19 @@ const styles = StyleSheet.create({
   formLabel: {
     fontSize: 12,
     fontFamily: VibeFonts.bold,
-    color: "#475569",
+    color: T.muted,
     marginBottom: -4,
   },
   formInput: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: T.card,
     borderWidth: 1,
-    borderColor: "#CBD5E1",
+    borderColor: T.border,
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 10,
     fontSize: 13,
     fontFamily: VibeFonts.medium,
-    color: "#18181B",
+    color: T.ink,
   },
   formCategoryGrid: {
     flexDirection: "row",
@@ -1708,18 +1740,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 14,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: T.card,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: T.border,
   },
   formCatChipActive: {
-    backgroundColor: "#7C3AED",
-    borderColor: "#7C3AED",
+    backgroundColor: T.purpleDeep,
+    borderColor: T.purpleDeep,
   },
   formCatChipText: {
     fontSize: 12,
     fontFamily: VibeFonts.bold,
-    color: "#18181B",
+    color: T.ink,
   },
   formCatChipTextActive: {
     color: "#FFFFFF",
@@ -1733,25 +1765,25 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     alignItems: "center",
     borderRadius: 14,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: T.card,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: T.border,
   },
   toggleBtnActive: {
-    backgroundColor: "#18181B",
-    borderColor: "#18181B",
+    backgroundColor: T.purpleDeep,
+    borderColor: T.purpleDeep,
   },
   toggleBtnText: {
     fontSize: 12,
     fontFamily: VibeFonts.bold,
-    color: "#64748B",
+    color: T.muted,
   },
   toggleBtnTextActive: {
     color: "#FFFFFF",
   },
   submitEventBtn: {
     marginTop: 10,
-    backgroundColor: "#7C3AED",
+    backgroundColor: T.purpleDeep,
     paddingVertical: 14,
     borderRadius: 16,
     alignItems: "center",
@@ -1767,7 +1799,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     marginHorizontal: 16,
     marginTop: 12,
-    backgroundColor: "#E2E8F0",
+    backgroundColor: T.card,
     borderRadius: 16,
     padding: 3,
   },
@@ -1778,20 +1810,20 @@ const styles = StyleSheet.create({
     borderRadius: 13,
   },
   myEventsTabBtnActive: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: T.cardElevated,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 2,
   },
   myEventsTabText: {
     fontSize: 12,
     fontFamily: VibeFonts.bold,
-    color: "#64748B",
+    color: T.muted,
   },
   myEventsTabTextActive: {
-    color: "#7C3AED",
+    color: T.purple,
   },
 
   myEventItemCard: {
@@ -1799,11 +1831,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
     padding: 12,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: T.card,
     borderRadius: 18,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: T.border,
   },
   myEventItemImage: {
     width: 54,
@@ -1813,12 +1845,12 @@ const styles = StyleSheet.create({
   myEventItemTitle: {
     fontSize: 14,
     fontFamily: VibeFonts.bold,
-    color: "#18181B",
+    color: T.ink,
   },
   myEventItemSub: {
     fontSize: 11,
     fontFamily: VibeFonts.medium,
-    color: "#64748B",
+    color: T.muted,
     marginTop: 2,
   },
 });

@@ -26,13 +26,13 @@ import Animated, {
   withSequence,
   Easing,
 } from "react-native-reanimated";
-import ZeptoHomeHeader from "../../components/home/ZeptoHomeHeader";
 import HomeSlideBanner from "../../components/home/HomeSlideBanner";
 import SpinTheWheel from "../../components/home/SpinTheWheel";
 import OnlineStory from "../../components/home/OnlineStory";
 import SpotBeaconModal from "../../components/vibe/SpotBeaconModal";
 import CreatePlanFab from "../../components/CreatePlanFab";
 import HangoutCinematicBackground from "../../components/vibe/HangoutCinematicBackground";
+import AppHeader from "../../components/vibe/AppHeader";
 import { useMatches } from "../../context/MatchesContext";
 import { usePlans } from "../../context/PlansContext";
 import { useAuth } from "../../context/AuthContext";
@@ -158,15 +158,12 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { deck } = useMatches();
   const { nearbyPlans, myPlans, refresh: refreshPlans } = usePlans();
-  const { user, token } = useAuth();
+  const { user } = useAuth();
 
   const [activeUsers, setActiveUsers] = useState<any[]>([]);
   const [suggestions, setSuggestions] = useState<any[]>([]);
-  const [profile, setProfile] = useState<any>(null);
   const [loadingOnline, setLoadingOnline] = useState(true);
   const [spotModalVisible, setSpotModalVisible] = useState(false);
-
-  const firstName = (profile?.firstName || profile?.name || user?.name || "there").split(" ")[0];
 
   const resolveUrl = useCallback((url?: string | null, name?: string) => {
     if (url) {
@@ -176,8 +173,6 @@ export default function HomeScreen() {
     const label = encodeURIComponent((name || "U").split(" ")[0]);
     return `https://ui-avatars.com/api/?name=${label}&background=7C3AED&color=fff&size=200`;
   }, []);
-
-  const getAvatarUri = () => resolveUrl(profile?.avatarUrl, firstName);
 
   useEffect(() => {
     let alive = true;
@@ -210,18 +205,6 @@ export default function HomeScreen() {
     };
   }, [user?.id, refreshPlans]);
 
-  useEffect(() => {
-    if (!token) return;
-    (async () => {
-      try {
-        const res = (await api.getProfile(token)) as any;
-        setProfile(res?.profile || res);
-      } catch {
-        /* ignore */
-      }
-    })();
-  }, [token]);
-
   const handleVibeSelect = async (v: (typeof TONIGHT_VIBES)[number]) => {
     try {
       await api.updateSocialStatus({
@@ -251,24 +234,15 @@ export default function HomeScreen() {
 
   const suggested = (suggestions.length > 0 ? suggestions : deck).slice(0, 8);
 
-  const locationLabel =
-    profile?.city ||
-    profile?.location?.city ||
-    profile?.location ||
-    user?.city ||
-    null;
-
   return (
     <View style={[styles.root, { paddingBottom: Math.max(insets.bottom, 8) }]}>
       <HangoutCinematicBackground />
       <StatusBar barStyle="light-content" backgroundColor="#070A14" />
 
       <View style={styles.foreground}>
-      <ZeptoHomeHeader
-        avatarUrl={getAvatarUri()}
-        city={typeof locationLabel === "string" ? locationLabel : null}
-        livePlans={livePlans.length}
-        onPromoPress={() => router.push("/create-plan")}
+      <AppHeader
+        variant="dark"
+        tagline="Post & join plans · Real Moves"
       />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
