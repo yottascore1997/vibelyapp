@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -16,6 +16,8 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { BlurView } from "expo-blur";
+import MaskedView from "@react-native-masked-view/masked-view";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useVideoPlayer, VideoView } from "expo-video";
@@ -41,13 +43,23 @@ import { PLAN_ACTIVITIES, formatPlanSchedule } from "../constants/plans";
 import { CITIES, CityId, resolveCityId } from "../constants/mapEvents";
 import { VibeFonts } from "../constants/vibeTheme";
 import TabBar from "../components/TabBar";
-import HangoutCinematicBackground from "../components/vibe/HangoutCinematicBackground";
+import MorphingMeshBackground from "../components/vibe/MorphingMeshBackground";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../services/api";
 import type { MatchProfile } from "../constants/matches";
 
 const friendsHangout3d = require("../assets/friends_hangout_3d.png");
+const MOCKUP_ACTIVITY_ORDER = [
+  "coffee",
+  "travel",
+  "food",
+  "movie",
+  "biryani",
+  "drinks",
+  "beer",
+  "sutta",
+] as const;
 const coffeeVideo = require("../assets/cofee.mp4");
 const smokeVideo = require("../assets/smoke.mp4");
 const drinkVideo = require("../assets/drink.mp4");
@@ -61,11 +73,12 @@ const ACT_VIDEOS: Record<string, number> = {
   beer: drinkVideo,
 };
 
-/** Premium Microsoft Fluent 3D emoji icons */
+/** Premium Microsoft Fluent 3D emoji icons — matched to mockup */
 const FLUENT_3D = "https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets";
 const ACT_3D: Record<string, string> = {
   coffee: `${FLUENT_3D}/Hot%20beverage/3D/hot_beverage_3d.png`,
-  food: `${FLUENT_3D}/Pizza/3D/pizza_3d.png`,
+  travel: `${FLUENT_3D}/Luggage/3D/luggage_3d.png`,
+  food: `${FLUENT_3D}/Hamburger/3D/hamburger_3d.png`,
   biryani: `${FLUENT_3D}/Curry%20rice/3D/curry_rice_3d.png`,
   beer: `${FLUENT_3D}/Beer%20mug/3D/beer_mug_3d.png`,
   sutta: `${FLUENT_3D}/Cigarette/3D/cigarette_3d.png`,
@@ -74,23 +87,34 @@ const ACT_3D: Record<string, string> = {
   drinks: `${FLUENT_3D}/Cocktail%20glass/3D/cocktail_glass_3d.png`,
 };
 
-/** Match Hangout: dark navy + premium multi-accent (purple / green / gold) */
+/** Premium Hangora — ink black + champagne / soft rose (restrained) */
 const T = {
-  bg: "#070A14",
-  card: "rgba(22, 26, 46, 0.94)",
-  ink: "#F4F6FB",
-  muted: "#A7B0C4",
-  faint: "#7C869C",
-  border: "rgba(160, 170, 200, 0.16)",
-  pink: "#F472B6",
-  purple: "#A78BFA",
-  purpleDeep: "#8B5CF6",
-  softPurple: "rgba(139, 92, 246, 0.18)",
-  softPink: "rgba(244, 114, 182, 0.16)",
-  green: "#34D399",
-  amber: "#FBBF24",
-  cta: ["#7C3AED", "#A78BFA"] as const,
-  promo: ["#6D28D9", "#8B5CF6", "#EC4899"] as const,
+  bg: "#08080A",
+  card: "rgba(255, 255, 255, 0.045)",
+  ink: "#F7F5F2",
+  muted: "rgba(247,245,242,0.62)",
+  faint: "rgba(247,245,242,0.38)",
+  border: "rgba(255, 255, 255, 0.09)",
+  pink: "#E879A9",
+  purple: "#C4B5FD",
+  purpleDeep: "#A78BFA",
+  orange: "#E8A87C",
+  orangeDeep: "#D4895A",
+  yellow: "#D4AF37",
+  yellowDeep: "#C9A227",
+  softPurple: "rgba(167, 139, 250, 0.14)",
+  softOrange: "rgba(232, 168, 124, 0.14)",
+  softYellow: "rgba(212, 175, 55, 0.14)",
+  softPink: "rgba(232, 121, 169, 0.12)",
+  green: "#3DDC97",
+  greenDeep: "#1FA971",
+  amber: "#D4AF37",
+  cta: ["#C9A227", "#E879A9"] as const,
+  accentPurple: ["#7C3AED", "#A78BFA"] as const,
+  accentOrange: ["#D4895A", "#E8A87C"] as const,
+  accentYellow: ["#C9A227", "#D4AF37"] as const,
+  accentGreen: ["#1FA971", "#3DDC97"] as const,
+  promo: ["#C9A227", "#E879A9"] as const,
 };
 
 type IonName = keyof typeof Ionicons.glyphMap;
@@ -141,6 +165,13 @@ const ACT_META: Record<
     soft: "rgba(251, 191, 36, 0.14)",
     colors: ["#FBBF24", "#D97706"],
     icon3d: ACT_3D.coffee,
+  },
+  travel: {
+    icon: "airplane",
+    accent: "#38BDF8",
+    soft: "rgba(56, 189, 248, 0.14)",
+    colors: ["#38BDF8", "#0284C7"],
+    icon3d: ACT_3D.travel,
   },
   food: {
     icon: "pizza",
@@ -257,6 +288,66 @@ function FloatingFriends3D() {
   );
 }
 
+/** Floating 3D activity icon for live preview hero */
+function PreviewHeroIcon({ icon3d, accent }: { icon3d: string; accent: string }) {
+  const t = useSharedValue(0);
+  useEffect(() => {
+    t.value = withRepeat(
+      withTiming(1, { duration: 2400, easing: Easing.inOut(Easing.sin) }),
+      -1,
+      true
+    );
+  }, [t]);
+
+  const floatStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: interpolate(t.value, [0, 1], [0, -8]) },
+      { scale: interpolate(t.value, [0, 1], [1, 1.06]) },
+    ],
+  }));
+
+  const ringStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(t.value, [0, 1], [0.35, 0.75]),
+    transform: [{ scale: interpolate(t.value, [0, 1], [0.9, 1.12]) }],
+  }));
+
+  return (
+    <View style={styles.previewHeroIconWrap}>
+      <Animated.View
+        style={[styles.previewHeroRing, { backgroundColor: `${accent}55` }, ringStyle]}
+      />
+      <Animated.View style={[styles.previewHeroOrb, { borderColor: `${accent}88` }, floatStyle]}>
+        <LinearGradient
+          colors={[`${accent}40`, "rgba(255,255,255,0.06)"]}
+          style={StyleSheet.absoluteFillObject}
+        />
+        <Image source={{ uri: icon3d }} style={styles.previewHeroIcon3d} resizeMode="contain" />
+      </Animated.View>
+    </View>
+  );
+}
+
+function LivePulseDot() {
+  const p = useSharedValue(0);
+  useEffect(() => {
+    p.value = withRepeat(
+      withTiming(1, { duration: 1100, easing: Easing.out(Easing.quad) }),
+      -1,
+      false
+    );
+  }, [p]);
+  const pulse = useAnimatedStyle(() => ({
+    opacity: interpolate(p.value, [0, 1], [0.55, 0]),
+    transform: [{ scale: interpolate(p.value, [0, 1], [1, 2.2]) }],
+  }));
+  return (
+    <View style={styles.livePulseWrap}>
+      <Animated.View style={[styles.livePulseRing, pulse]} />
+      <View style={styles.liveDot} />
+    </View>
+  );
+}
+
 function getActivityCardStyle(id: string) {
   switch (id) {
     case "coffee":
@@ -267,6 +358,15 @@ function getActivityCardStyle(id: string) {
         text: "#FBBF24",
         effects: ["♨️", "💨", "☁️"],
         type: "smoke",
+      };
+    case "travel":
+      return {
+        darkBg: ["#071821", "#030B12"],
+        border: "#38BDF8",
+        glow: "#0EA5E9",
+        text: "#7DD3FC",
+        effects: ["✈️", "✨", "🌍"],
+        type: "stars",
       };
     case "food":
     case "biryani":
@@ -431,7 +531,11 @@ function GameActivityTile({
       >
         <Animated.View style={pressStyle}>
           <LinearGradient
-            colors={active ? (styleMeta.darkBg as any) : ["#0B0B0F", "#16161E"]}
+            colors={
+              active
+                ? (styleMeta.darkBg as any)
+                : ["rgba(255,255,255,0.045)", "rgba(255,255,255,0.015)"]
+            }
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={[
@@ -439,18 +543,22 @@ function GameActivityTile({
               active
                 ? {
                     borderColor: styleMeta.border,
-                    borderWidth: 2.5,
+                    borderWidth: 2,
                     shadowColor: styleMeta.glow,
-                    shadowOpacity: 0.5,
-                    shadowRadius: 14,
-                    elevation: 7,
+                    shadowOpacity: 0.55,
+                    shadowRadius: 10,
+                    shadowOffset: { width: 0, height: 0 },
+                    elevation: 4,
                   }
                 : {
-                    borderColor: "rgba(255, 255, 255, 0.12)",
+                    borderColor: "rgba(255, 255, 255, 0.14)",
                     borderWidth: 1,
                   },
             ]}
           >
+            {!active ? (
+              <BlurView intensity={22} tint="dark" style={StyleSheet.absoluteFillObject} />
+            ) : null}
             {active ? (
               <Animated.View
                 entering={ZoomIn.duration(200)}
@@ -491,8 +599,8 @@ const SIMPLE_DATES = [
 ];
 
 const SIMPLE_TIMES = [
-  { id: "morning", label: "Morning", icon: "sunny" as IonName, customTime: "10:00" },
-  { id: "afternoon", label: "Afternoon", icon: "partly-sunny" as IonName, customTime: "15:00" },
+  { id: "morning", label: "AM", icon: "sunny" as IonName, customTime: "10:00" },
+  { id: "afternoon", label: "PM", icon: "partly-sunny" as IonName, customTime: "16:00" },
   { id: "night", label: "Night", icon: "moon" as IonName, customTime: "21:00" },
 ];
 
@@ -515,9 +623,18 @@ function formatYmdLabel(ymd: string) {
 
 function formatPeriodLabel(customTime?: string) {
   if (customTime === "10:00") return "Morning";
-  if (customTime === "15:00") return "Afternoon";
+  if (customTime === "15:00" || customTime === "16:00") return "Afternoon";
   if (customTime === "21:00") return "Night";
   return "Afternoon";
+}
+
+function formatClockLabel(customTime?: string) {
+  if (!customTime) return "4:00 PM";
+  const [h, m] = customTime.split(":").map(Number);
+  if (Number.isNaN(h)) return customTime;
+  const d = new Date();
+  d.setHours(h, m || 0, 0, 0);
+  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 }
 
 function startOfDay(d: Date) {
@@ -765,6 +882,7 @@ export default function CreatePlanScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const tabBarHeight = 72 + Math.max(insets.bottom, 12);
+  const scrollRef = useRef<ScrollView>(null);
   const { createPlan } = usePlans();
   const { matches } = useMatches();
   const { token, user } = useAuth();
@@ -773,7 +891,7 @@ export default function CreatePlanScreen() {
   const [timeId, setTimeId] = useState<string | undefined>(undefined);
   const [dateId, setDateId] = useState<string>("today");
   const [customDate, setCustomDate] = useState("");
-  const [customTime, setCustomTime] = useState("15:00");
+  const [customTime, setCustomTime] = useState("16:00");
   const [maxPeople, setMaxPeople] = useState(4);
   const [visibility, setVisibility] = useState<"PUBLIC" | "FRIENDS">("PUBLIC");
   const [showCalendar, setShowCalendar] = useState(false);
@@ -784,6 +902,7 @@ export default function CreatePlanScreen() {
   const [selectedInviteeIds, setSelectedInviteeIds] = useState<string[]>([]);
   const [inviteWhatsApp, setInviteWhatsApp] = useState(false);
   const [showSendPreview, setShowSendPreview] = useState(false);
+  const [showPlanBuilder, setShowPlanBuilder] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -835,6 +954,10 @@ export default function CreatePlanScreen() {
       ? `${schedule.dateLabel} · ${formatPeriodLabel(customTime)}`
       : `${schedule.dateLabel} · ${schedule.timeLabel}`;
   const inviteTimeLabel = scheduleLabel;
+  const upcomingPlace = place.trim() || "Downtown Cafe";
+  const upcomingTitle = `${activity.name} at ${upcomingPlace}`;
+  const upcomingTimeLine = `${schedule.dateLabel} • ${formatClockLabel(customTime)}`;
+  const upcomingAvatars = matches.slice(0, 3);
 
   const selectedInvitees = useMemo(
     () => matches.filter((m) => selectedInviteeIds.includes(m.id)),
@@ -859,14 +982,15 @@ export default function CreatePlanScreen() {
   };
 
   const openSendPreview = () => {
-    if (selectedInviteeIds.length === 0 && !inviteWhatsApp) {
-      Alert.alert(
-        "Who should get this invite?",
-        "Pick a match, or turn on Invite on WhatsApp."
-      );
+    setShowSendPreview(true);
+  };
+
+  const confirmSendInvite = () => {
+    if (!inviteWhatsApp && selectedInviteeIds.length === 0) {
+      Alert.alert("Pick someone", "Select WhatsApp or a match to invite.");
       return;
     }
-    setShowSendPreview(true);
+    handleCreate({ forceWhatsApp: inviteWhatsApp });
   };
 
   const pickQuickDate = (id: string) => {
@@ -884,8 +1008,9 @@ export default function CreatePlanScreen() {
     setTimeId(undefined);
   };
 
-  const handleCreate = async () => {
+  const handleCreate = async (opts?: { forceWhatsApp?: boolean }) => {
     setSaving(true);
+    const shareOnWhatsApp = opts?.forceWhatsApp || inviteWhatsApp;
     const energyLabel = `[Vibe: ${selectedVibe}]`;
     try {
       const placeText = place.trim();
@@ -896,12 +1021,16 @@ export default function CreatePlanScreen() {
           : `${placeText}, ${planCity.name}`
         : planCity.name;
 
+      // Don't block invite send on GPS — attach coords if already available quickly
       let gps: { latitude: number; longitude: number; city?: string } | null = null;
       try {
         const { getCurrentUserLocation } = await import("../services/location");
-        const { api } = await import("../services/api");
-        const loc = await getCurrentUserLocation({ highAccuracy: true });
-        if (loc.ok) {
+        const locPromise = getCurrentUserLocation({ highAccuracy: false });
+        const loc = await Promise.race([
+          locPromise,
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500)),
+        ]);
+        if (loc && "ok" in loc && loc.ok) {
           gps = {
             latitude: loc.location.latitude,
             longitude: loc.location.longitude,
@@ -912,15 +1041,29 @@ export default function CreatePlanScreen() {
           } else if (loc.location.city && placeText && !alreadyHasCity) {
             location = `${placeText}, ${loc.location.city}`;
           }
-          try {
-            await api.updateLocation({
+          // best-effort location sync in background
+          api
+            .updateLocation({
               latitude: loc.location.latitude,
               longitude: loc.location.longitude,
               city: loc.location.city,
-            });
-          } catch {
-            /* best-effort */
-          }
+            })
+            .catch(() => {});
+        } else {
+          // finish GPS in background without delaying create
+          locPromise
+            .then((l) => {
+              if (l.ok) {
+                api
+                  .updateLocation({
+                    latitude: l.location.latitude,
+                    longitude: l.location.longitude,
+                    city: l.location.city,
+                  })
+                  .catch(() => {});
+              }
+            })
+            .catch(() => {});
         }
       } catch {
         /* create still works without GPS */
@@ -929,7 +1072,7 @@ export default function CreatePlanScreen() {
       const plan = await createPlan({
         activityId,
         activityName: activity.name,
-        emoji: activity.emoji,
+        emoji: activity.emoji || "✨",
         timeId,
         dateId,
         customDate: dateId === "custom" ? customDate || undefined : undefined,
@@ -947,55 +1090,101 @@ export default function CreatePlanScreen() {
       await AsyncStorage.setItem("@hangora_map_city", planCityId);
 
       // Send invites to selected matches
+      let inviteOk = 0;
+      let inviteFail = 0;
+      let lastInviteErr = "";
+      const invitedNames: string[] = [];
       for (const invitee of selectedInvitees) {
         try {
           await api.sendInvite({
             receiverId: invitee.id,
             activityName: activity.name,
-            activityEmoji: activity.emoji,
-            timeLabel: inviteTimeLabel,
+            activityEmoji: activity.emoji || "✨",
+            timeLabel: inviteTimeLabel || "Soon",
             senderId: user?.id,
             hangoutId: plan.id,
           });
-        } catch {
-          /* continue other invites */
+          inviteOk += 1;
+          invitedNames.push(invitee.name.split(" ")[0]);
+        } catch (err) {
+          inviteFail += 1;
+          lastInviteErr = err instanceof Error ? err.message : "Invite failed";
         }
       }
 
-      // WhatsApp share — link invite to hangout so "I'm coming" joins group + VibeSplit
-      if (inviteWhatsApp) {
+      // WhatsApp share — MUST include /p/{code} web RSVP page (guests without app)
+      if (shareOnWhatsApp) {
+        const {
+          buildHangoutInviteShareMessage,
+          buildWhatsAppShareUrl,
+          resolveRsvpInviteUrl,
+        } = await import("../utils/inviteShare");
+
+        let pub: any = null;
+        let inviteUrl: string | null = null;
         try {
-          const pub = await api.createPublicInvite({
+          pub = await api.createPublicInvite({
             activityName: activity.name,
-            activityEmoji: activity.emoji,
-            timeLabel: inviteTimeLabel,
+            activityEmoji: activity.emoji || "✨",
+            timeLabel: inviteTimeLabel || "Soon",
             hangoutId: plan.id,
           });
-          const msg =
-            pub?.shareMessage ||
-            `hang for ${activity.name.toLowerCase()}? ${inviteTimeLabel} — join: ${
-              pub?.inviteUrl || "https://www.hangora.app"
-            }`;
-          if (pub?.whatsappUrl) {
-            const can = await Linking.canOpenURL(pub.whatsappUrl);
-            if (can) await Linking.openURL(pub.whatsappUrl);
+          inviteUrl = resolveRsvpInviteUrl(pub);
+          if (!inviteUrl) {
+            // one retry
+            pub = await api.createPublicInvite({
+              activityName: activity.name,
+              activityEmoji: activity.emoji || "✨",
+              timeLabel: inviteTimeLabel || "Soon",
+              hangoutId: plan.id,
+            });
+            inviteUrl = resolveRsvpInviteUrl(pub);
+          }
+        } catch (err) {
+          console.error("WhatsApp invite create failed:", err);
+        }
+
+        if (!inviteUrl) {
+          Alert.alert(
+            "RSVP link nahi bani",
+            "WhatsApp pe sirf website link nahi bhejenge.\n\nCheck internet / login, phir Invites → WhatsApp se dubara try karo.\nPlan save ho chuka hai."
+          );
+        } else {
+          const msg = buildHangoutInviteShareMessage({
+            senderName: user?.name || pub?.senderName,
+            activityName: activity.name,
+            activityEmoji: activity.emoji || "✨",
+            timeLabel: inviteTimeLabel || "Soon",
+            location,
+            inviteUrl,
+          });
+          try {
+            const waUrl = buildWhatsAppShareUrl(msg);
+            const can = await Linking.canOpenURL(waUrl);
+            if (can) await Linking.openURL(waUrl);
             else await Share.share({ message: msg });
-          } else {
+          } catch {
             await Share.share({ message: msg });
           }
-        } catch {
-          await Share.share({
-            message: `hang for ${activity.name.toLowerCase()}? ${inviteTimeLabel} — join me on Hangora!`,
-          });
         }
       }
 
       setShowSendPreview(false);
 
+      if (selectedInvitees.length > 0 && inviteOk === 0) {
+        Alert.alert(
+          "Plan ban gaya, invite nahi gaya",
+          lastInviteErr ||
+            "Internet weak lag raha hai. Plan save ho chuka hai — Invites se dubara bhejo.",
+          [{ text: "OK", onPress: () => router.replace("/hangout") }]
+        );
+        return;
+      }
+
       const who =
-        selectedInvitees.length > 0
-          ? ` Invite sent to ${selectedInvitees.map((m) => m.name.split(" ")[0]).join(", ")}.`
-          : inviteWhatsApp
+        invitedNames.length > 0
+          ? ` Invite sent to ${invitedNames.join(", ")}${inviteFail > 0 ? ` (${inviteFail} failed)` : ""}.`
+          : shareOnWhatsApp
             ? " Shared on WhatsApp — when they tap I'm Coming, they join your group & VibeSplit."
             : "";
 
@@ -1008,7 +1197,16 @@ export default function CreatePlanScreen() {
         ]
       );
     } catch (e) {
-      Alert.alert("Error", e instanceof Error ? e.message : "Could not create plan");
+      const msg = e instanceof Error ? e.message : "Could not create plan";
+      const isNet =
+        /network|timed out|timeout|failed to fetch/i.test(msg) ||
+        (e instanceof Error && (e as any).status === 0);
+      Alert.alert(
+        isNet ? "Connection issue" : "Error",
+        isNet
+          ? "Internet weak hai — dubara Sending Invite dabao. Plan abhi save nahi hua."
+          : msg
+      );
     } finally {
       setSaving(false);
     }
@@ -1016,502 +1214,362 @@ export default function CreatePlanScreen() {
 
   return (
     <View style={styles.root}>
-      <HangoutCinematicBackground />
-      <StatusBar barStyle="light-content" backgroundColor="#070A14" />
+      <MorphingMeshBackground />
+      <StatusBar barStyle="light-content" backgroundColor="#08080A" />
 
       <View style={styles.foreground}>
-      <AppHeader variant="dark" tagline="Craft a spontaneous hang" />
-
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: 4 }]}>
-        <Pressable style={styles.iconBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={20} color={T.ink} />
-        </Pressable>
-        <View style={styles.headerCenter}>
-          <View style={styles.headerBrand}>
-            <Ionicons name="planet" size={12} color={T.purple} />
-            <Text style={styles.headerEyebrow}>HANGOUT</Text>
-          </View>
-          <Text style={styles.headerTitle}>Create Plan</Text>
-        </View>
-        <Pressable style={styles.iconBtn} onPress={() => router.replace("/hangout")}>
-          <Ionicons name="close" size={20} color={T.ink} />
-        </Pressable>
-      </View>
+      <AppHeader variant="dark" tagline="Craft a spontaneous hang ✨" />
 
       <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scroll, { paddingBottom: tabBarHeight + 100 }]}
+        contentContainerStyle={[
+          styles.scroll,
+          { paddingBottom: tabBarHeight + 100 },
+        ]}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Hero */}
+        {/* Hero — exact mockup: copy left + friends cutout right */}
         <Animated.View entering={FadeInDown.duration(420)} style={styles.heroWrap}>
-          <LinearGradient
-            colors={["#1A1530", "#151B2E", "#0E1424"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.hero}
-          >
-            <View style={styles.heroBlobA} />
-            <View style={styles.heroBlobB} />
-            <View style={styles.heroCopy}>
-              <View style={styles.heroPill}>
-                <Ionicons name="sparkles" size={11} color={T.purple} />
-                <Text style={styles.heroPillText}>HANGOUT MOVES</Text>
-              </View>
-              <Text style={styles.heroTitle}>Craft your{"\n"}perfect hang 🚀</Text>
-              <Text style={styles.heroSub}>
-                Squad up · pick a quest · go live nearby.
-              </Text>
-              <View style={styles.heroStats}>
-                <View style={styles.heroStat}>
-                  <Ionicons name="people" size={12} color={T.purple} />
-                  <Text style={styles.heroStatText}>Squad ready</Text>
-                </View>
-                <View style={styles.heroStatDot} />
-                <View style={styles.heroStat}>
-                  <Ionicons name="game-controller" size={12} color={T.pink} />
-                  <Text style={styles.heroStatText}>Pick & play</Text>
-                </View>
-              </View>
-            </View>
-            <FloatingFriends3D />
-          </LinearGradient>
-        </Animated.View>
-
-        {/* Progress */}
-        {/* Step 1 — Activity (Primary Focus!) */}
-        <Animated.View entering={FadeInDown.delay(120).duration(400)} style={styles.section}>
-          <View style={styles.sectionCardLight}>
-            <View style={styles.sectionHead}>
-              <LinearGradient colors={[...T.cta]} style={styles.stepBadge}>
-                <Ionicons name="game-controller" size={11} color="#fff" />
-              </LinearGradient>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.sectionTitleDark}>Pick Activity</Text>
-                <Text style={styles.sectionSubDark}>Tap a 3D move to start</Text>
-              </View>
-              <View style={styles.xpPillCompact}>
-                <Ionicons name="flash" size={9} color="#fff" />
-                <Text style={styles.xpPillText}>HOT</Text>
-              </View>
-            </View>
-
-            <View style={styles.actGrid}>
-              {PLAN_ACTIVITIES.map((act, idx) => {
-                const meta = ACT_META[act.id] || ACT_META.coffee;
-                return (
-                  <GameActivityTile
-                    key={act.id}
-                    id={act.id}
-                    name={act.name}
-                    icon3d={meta.icon3d}
-                    accent={meta.accent}
-                    soft={`${meta.accent}30`}
-                    active={activityId === act.id}
-                    delay={200 + idx * 35}
-                    onPress={() => setActivityId(act.id)}
-                    dark={false}
-                  />
-                );
-              })}
-            </View>
-          </View>
-        </Animated.View>
-
-
-
-        {/* Invite who? */}
-        <Animated.View entering={FadeInDown.delay(320).duration(400)} style={styles.section}>
-          <View style={styles.sectionHead}>
-            <LinearGradient colors={[...T.cta]} style={styles.stepBadge}>
-              <Ionicons name="paper-plane" size={11} color="#fff" />
-            </LinearGradient>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.sectionTitleDark}>Invite who?</Text>
-              <Text style={styles.sectionSubDark}>Pick matches · or share on WhatsApp</Text>
-            </View>
-          </View>
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.inviteScroll}
-          >
-            <Pressable
-              onPress={() => setInviteWhatsApp((v) => !v)}
-              style={[
-                styles.inviteWaCard,
-                inviteWhatsApp && styles.inviteWaCardActive,
-              ]}
-            >
-              <View style={styles.inviteWaIcon}>
-                <Ionicons name="logo-whatsapp" size={22} color="#fff" />
-              </View>
-              <Text style={styles.inviteWaTitle}>WhatsApp</Text>
-              <Text style={styles.inviteWaSub}>Share invite</Text>
-              {inviteWhatsApp ? (
-                <View style={styles.inviteCheck}>
-                  <Ionicons name="checkmark" size={10} color="#fff" />
-                </View>
-              ) : null}
-            </Pressable>
-
-            {matches.length === 0 ? (
-              <View style={styles.inviteEmptyCard}>
-                <Ionicons name="heart-outline" size={22} color={T.purple} />
-                <Text style={styles.inviteEmptyText}>No matches yet</Text>
-                <Pressable onPress={() => router.push("/(tabs)/discover")}>
-                  <Text style={styles.inviteEmptyLink}>Go Discover →</Text>
-                </Pressable>
-              </View>
-            ) : (
-              matches.map((m: MatchProfile) => {
-                const active = selectedInviteeIds.includes(m.id);
-                return (
-                  <Pressable
-                    key={m.id}
-                    onPress={() => toggleInvitee(m.id)}
-                    style={[styles.inviteMatchCard, active && styles.inviteMatchCardActive]}
-                  >
-                    <Image source={{ uri: m.avatarUrl }} style={styles.inviteMatchAvatar} />
-                    {active ? (
-                      <View style={styles.inviteCheck}>
-                        <Ionicons name="checkmark" size={10} color="#fff" />
-                      </View>
-                    ) : null}
-                    <Text style={styles.inviteMatchName} numberOfLines={1}>
-                      {m.name.split(" ")[0]}
-                    </Text>
-                  </Pressable>
-                );
-              })
-            )}
-          </ScrollView>
-
-          {(selectedInvitees.length > 0 || inviteWhatsApp) && (
-            <View style={styles.inviteSummary}>
-              <Ionicons name="checkmark-circle" size={14} color={T.green} />
-              <Text style={styles.inviteSummaryText}>
-                Will send {inviteTargetLabel}
-                {inviteWhatsApp && selectedInvitees.length > 0 ? " + WhatsApp" : ""}
-              </Text>
-            </View>
-          )}
-        </Animated.View>
-
-        {/* Live preview */}
-        <Animated.View entering={FadeInDown.delay(300).duration(400)} style={styles.section}>
-          <View style={styles.previewHead}>
-            <View style={styles.liveDotWrap}>
-              <View style={styles.liveDot} />
-              <Text style={styles.previewLabel}>LIVE PREVIEW</Text>
-            </View>
-            <View style={styles.previewHintPill}>
-              <Ionicons name="eye" size={11} color={T.purpleDeep} />
-              <Text style={styles.previewHintText}>How others see it</Text>
-            </View>
-          </View>
-
-          <View style={[styles.previewCard, { borderColor: `${actMeta.accent}45` }]}>
+          <View style={styles.hero}>
+            <BlurView intensity={24} tint="dark" style={StyleSheet.absoluteFillObject} />
             <LinearGradient
-              colors={[`${actMeta.accent}22`, "rgba(255,255,255,0)", `${T.pink}12`]}
+              colors={[
+                "rgba(255,120,40,0.18)",
+                "rgba(255,45,122,0.08)",
+                "rgba(18,14,22,0.55)",
+                "rgba(12,10,16,0.72)",
+              ]}
+              locations={[0, 0.28, 0.65, 1]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={StyleSheet.absoluteFillObject}
             />
-
-            <View style={styles.previewTopRow}>
-              <View style={[styles.previewVibe, { backgroundColor: vibe.soft }]}>
-                <Ionicons name={vibe.icon} size={12} color={vibe.accent} />
-                <Text style={[styles.previewVibeText, { color: vibe.accent }]}>{selectedVibe}</Text>
-              </View>
-              <View style={styles.previewLiveBadge}>
-                <Ionicons name="radio" size={11} color="#fff" />
-                <Text style={styles.previewLiveText}>LIVE</Text>
-              </View>
+            <View style={styles.heroSparkle}>
+              <Ionicons name="sparkles" size={14} color="#FBBF24" />
             </View>
-
-            <View style={[styles.previewIconOrb, { backgroundColor: actMeta.soft }]}>
-              <Image
-                source={{ uri: actMeta.icon3d }}
-                style={styles.previewIcon3d}
-                resizeMode="contain"
-              />
-            </View>
-            <Text style={styles.previewTitle}>hang for {activity.name.toLowerCase()}?</Text>
-
-            <View style={styles.previewMetaGrid}>
-              <View style={styles.previewMetaItem}>
-                <Ionicons name="calendar-outline" size={14} color={actMeta.accent} />
-                <Text style={[styles.previewMetaText, { color: actMeta.accent }]}>
-                  {scheduleLabel}
-                </Text>
-              </View>
-              <View style={styles.previewMetaItem}>
-                <Ionicons name="people" size={14} color={T.muted} />
-                <Text style={styles.previewMetaMuted}>{maxPeople} people can join</Text>
-              </View>
-              {place.trim() ? (
-                <View style={styles.previewMetaItem}>
-                  <Ionicons name="location" size={14} color={T.muted} />
-                  <Text style={styles.previewMetaMuted}>{place.trim()}</Text>
+            <View style={styles.heroRow}>
+              <View style={styles.heroCopy}>
+                <View style={styles.heroMovesPill}>
+                  <Text style={styles.heroMovesPillText}>✨ HANGOUT MODE</Text>
                 </View>
-              ) : null}
+                <Text style={styles.heroTitle}>Make Plans.</Text>
+                <MaskedView
+                  maskElement={
+                    <Text style={[styles.heroTitle, styles.heroMemoriesMask]}>Make Memories.</Text>
+                  }
+                >
+                  <LinearGradient
+                    colors={["#E879A9", "#E8A87C", "#C9A227"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                  >
+                    <Text style={[styles.heroTitle, styles.heroMemoriesMask, { opacity: 0 }]}>
+                      Make Memories.
+                    </Text>
+                  </LinearGradient>
+                </MaskedView>
+                <Text style={styles.heroSub}>
+                  Pick an activity, invite your people, and vibe together.
+                </Text>
+                <Pressable
+                  onPress={() => {
+                    setShowPlanBuilder(true);
+                    openSendPreview();
+                  }}
+                  style={styles.heroCtaWrap}
+                >
+                  <LinearGradient
+                  colors={["#C9A227", "#E879A9", "#D4895A"]}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  style={styles.heroCta}
+                >
+                  <Text style={styles.heroCtaText}>Create a Plan</Text>
+                  <View style={styles.heroCtaPlus}>
+                    <Ionicons name="add" size={18} color="#1A1520" />
+                  </View>
+                </LinearGradient>
+                </Pressable>
+              </View>
+              <View style={styles.heroFriendsWrap} pointerEvents="none">
+                <Image
+                  source={friendsHangout3d}
+                  style={styles.heroFriendsImg}
+                  resizeMode="contain"
+                />
+              </View>
             </View>
+          </View>
+        </Animated.View>
 
-            {description.trim() ? (
-              <View style={styles.previewQuote}>
-                <Ionicons name="chatbubble" size={12} color={T.purple} />
-                <Text style={styles.previewDesc}>"{description.trim()}"</Text>
+        {/* Pick an Activity */}
+        <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.section}>
+          <View style={styles.pickHead}>
+            <View style={styles.pickTitleRow}>
+              <Ionicons name="game-controller" size={18} color="#A78BFA" />
+              <Text style={styles.pickTitle}>Pick an Activity</Text>
+              <Pressable
+                onPress={() => router.push("/hangout")}
+                style={styles.pickViewAll}
+                hitSlop={8}
+              >
+                <Text style={styles.pickViewAllText}>View all</Text>
+                <Ionicons name="chevron-forward" size={13} color="rgba(255,255,255,0.55)" />
+              </Pressable>
+            </View>
+          </View>
+
+          <View style={styles.actGrid}>
+            {MOCKUP_ACTIVITY_ORDER.map((id) => PLAN_ACTIVITIES.find((a) => a.id === id))
+              .filter(Boolean)
+              .map((act, idx) => {
+                const meta = ACT_META[act!.id] || ACT_META.coffee;
+                return (
+                  <GameActivityTile
+                    key={act!.id}
+                    id={act!.id}
+                    name={act!.id === "sutta" ? "Sutta Meet" : act!.name}
+                    icon3d={meta.icon3d}
+                    accent={meta.accent}
+                    soft={`${meta.accent}30`}
+                    active={activityId === act!.id}
+                    delay={160 + idx * 30}
+                    onPress={() => setActivityId(act!.id)}
+                  />
+                );
+              })}
+          </View>
+        </Animated.View>
+
+        {/* Your upcoming plan — exact mockup card */}
+        <Animated.View entering={FadeInDown.delay(160).duration(360)} style={styles.hangSummary}>
+          <View style={styles.hangSummaryIconWrap}>
+            <Image source={{ uri: actMeta.icon3d }} style={styles.hangSummaryIcon} />
+          </View>
+          <View style={styles.upcomingCopy}>
+            <Text style={styles.upcomingLabel}>Your upcoming plan</Text>
+            <Text style={styles.hangSummaryTitle} numberOfLines={1}>
+              {upcomingTitle}
+            </Text>
+            <View style={styles.upcomingDetailsRow}>
+              <View style={styles.upcomingMetaRow}>
+                <Ionicons name="time-outline" size={12} color="rgba(255,255,255,0.55)" />
+                <Text style={styles.hangSummaryMeta}>{upcomingTimeLine}</Text>
               </View>
+              <View style={styles.upcomingMetaRow}>
+                <Ionicons name="people-outline" size={12} color="rgba(255,255,255,0.45)" />
+                <Text style={styles.hangSummaryCap}>{maxPeople} people joining</Text>
+              </View>
+            </View>
+          </View>
+          <View style={styles.hangAvatarStack}>
+            {upcomingAvatars.length > 0
+              ? upcomingAvatars.map((m, i) => (
+                  <Image
+                    key={m.id}
+                    source={{ uri: m.avatarUrl }}
+                    style={[
+                      styles.hangAvatarImg,
+                      {
+                        marginLeft: i === 0 ? 0 : -10,
+                        zIndex: 3 - i,
+                      },
+                    ]}
+                  />
+                ))
+              : [0, 1, 2].map((i) => (
+                  <View
+                    key={i}
+                    style={[
+                      styles.hangAvatarGhost,
+                      {
+                        marginLeft: i === 0 ? 0 : -10,
+                        zIndex: 3 - i,
+                        backgroundColor: ["#C4B5FD", "#FF8A3D", "#FF4D8D"][i],
+                      },
+                    ]}
+                  >
+                    <Ionicons name="person" size={10} color="#fff" />
+                  </View>
+                ))}
+            <View style={[styles.hangAvatarGhost, styles.hangAvatarMore, { marginLeft: -8 }]}>
+              <Text style={styles.hangAvatarMoreText}>+1</Text>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={16}
+              color="rgba(255,255,255,0.45)"
+              style={{ marginLeft: 6 }}
+            />
+          </View>
+        </Animated.View>
+
+        {showPlanBuilder ? (
+        <>
+        {/* Invite your people */}
+        <Animated.View entering={FadeInDown.delay(260).duration(360)} style={styles.section}>
+          <View style={styles.inviteHeadRow}>
+            <Ionicons name="paper-plane" size={14} color={T.orange} />
+            <Text style={styles.inviteHeadTitle}>Invite your people</Text>
+          </View>
+          <View style={styles.inviteTeaserRow}>
+            <Pressable
+              onPress={() => {
+                setInviteWhatsApp(true);
+                openSendPreview();
+              }}
+              style={styles.inviteTeaserWa}
+            >
+              <View style={styles.inviteTeaserWaIcon}>
+                <Ionicons name="logo-whatsapp" size={18} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.inviteTeaserTitle}>WhatsApp</Text>
+                <Text style={styles.inviteTeaserSub}>Share invite</Text>
+              </View>
+            </Pressable>
+            {matches[0] ? (
+              <Pressable
+                onPress={() => {
+                  if (!selectedInviteeIds.includes(matches[0].id)) {
+                    toggleInvitee(matches[0].id);
+                  }
+                  openSendPreview();
+                }}
+                style={styles.inviteTeaserMatch}
+              >
+                <Image source={{ uri: matches[0].avatarUrl }} style={styles.inviteTeaserAvatar} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.inviteTeaserTitle} numberOfLines={1}>
+                    {matches[0].name.split(" ")[0]}
+                  </Text>
+                  <Text style={styles.inviteTeaserSub}>Share invite</Text>
+                </View>
+              </Pressable>
             ) : null}
-
-            <View style={styles.previewFooter}>
-              <View style={styles.avatarStack}>
-                {selectedInvitees.length > 0
-                  ? selectedInvitees.slice(0, 3).map((m, i) => (
-                      <Image
-                        key={m.id}
-                        source={{ uri: m.avatarUrl }}
-                        style={[
-                          styles.avatarGhost,
-                          {
-                            marginLeft: i === 0 ? 0 : -8,
-                            zIndex: 3 - i,
-                            backgroundColor: "#1F2937",
-                          },
-                        ]}
-                      />
-                    ))
-                  : [0, 1, 2].map((i) => (
-                      <View
-                        key={i}
-                        style={[
-                          styles.avatarGhost,
-                          {
-                            marginLeft: i === 0 ? 0 : -8,
-                            zIndex: 3 - i,
-                            backgroundColor:
-                              i === 0 ? "#C4B5FD" : i === 1 ? "#F9A8D4" : "#A5B4FC",
-                          },
-                        ]}
-                      >
-                        <Ionicons name="person" size={10} color="#fff" />
-                      </View>
-                    ))}
-              </View>
-              <Text style={styles.previewFooterText}>
-                {selectedInvitees.length > 0
-                  ? `Inviting ${inviteTargetLabel.replace(/^to /, "")}`
-                  : inviteWhatsApp
-                    ? "WhatsApp invite ready"
-                    : "Nearby people can join"}
+            <View style={styles.inviteTeaserTip}>
+              <Ionicons name="diamond" size={14} color={T.yellow} />
+              <Text style={styles.inviteTeaserTipText}>
+                Plans with place + time get 3× more joins. Keep notes playful.
               </Text>
             </View>
           </View>
         </Animated.View>
 
-        {/* Step 3 — When */}
-        <Animated.View entering={FadeInDown.delay(240).duration(400)} style={styles.section}>
+        {/* When & Where */}
+        <Animated.View entering={FadeInDown.delay(200).duration(400)} style={styles.section}>
           <View style={styles.sectionCardLight}>
             <View style={styles.sectionHead}>
-              <LinearGradient colors={[...T.cta]} style={styles.stepBadge}>
+              <View style={[styles.stepBadge, { backgroundColor: T.orangeDeep }]}>
                 <Ionicons name="calendar" size={11} color="#fff" />
-              </LinearGradient>
+              </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.sectionTitleDark}>When & Where</Text>
-                <Text style={styles.sectionSubDark}>Schedule, venue, and people</Text>
-              </View>
-              <View style={styles.optionalPill}>
-                <Text style={styles.optionalPillText}>Quick Pick</Text>
+                <Text style={styles.sectionSubDark}>Schedule, spot · size</Text>
               </View>
             </View>
 
-            <Text style={styles.simpleFieldLabel}>Date</Text>
-            <View style={styles.simpleSegRow}>
+            {/* Date */}
+            <View style={styles.wwSegRow}>
               {SIMPLE_DATES.map((d) => {
                 const active = dateId === d.id;
                 return (
                   <Pressable
                     key={d.id}
                     onPress={() => pickQuickDate(d.id)}
-                    style={[styles.simpleSeg, active && styles.simpleSegActiveWrap]}
+                    style={[styles.wwSeg, active && styles.wwSegPromoOn]}
                   >
-                    {active ? (
-                      <LinearGradient
-                        colors={[...T.cta]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={styles.simpleSegActive}
-                      >
-                        <Ionicons name={d.icon} size={14} color="#fff" />
-                        <Text style={styles.simpleSegTextActive}>{d.label}</Text>
-                      </LinearGradient>
-                    ) : (
-                      <>
-                        <Ionicons name={d.icon} size={14} color="#C4B5FD" />
-                        <Text style={styles.simpleSegText}>{d.label}</Text>
-                      </>
-                    )}
+                    <Ionicons name={d.icon} size={14} color={active ? "#fff" : T.orange} />
+                    <Text style={[styles.wwSegText, active && styles.wwSegTextLight]}>{d.label}</Text>
                   </Pressable>
                 );
               })}
               <Pressable
                 onPress={() => setShowCalendar(true)}
-                style={[
-                  styles.simpleSeg,
-                  styles.calendarSeg,
-                  calendarActive && styles.simpleSegActiveWrap,
-                ]}
+                style={[styles.wwSeg, calendarActive && styles.wwSegPromoOn]}
               >
-                {calendarActive ? (
-                  <LinearGradient
-                    colors={[...T.cta]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.simpleSegActive}
-                  >
-                    <Ionicons name="calendar" size={14} color="#fff" />
-                    <Text style={styles.simpleSegTextActive} numberOfLines={1}>
-                      {formatYmdLabel(customDate)}
-                    </Text>
-                  </LinearGradient>
-                ) : (
-                  <>
-                    <Ionicons name="calendar" size={14} color="#C4B5FD" />
-                    <Text style={styles.simpleSegText}>Calendar</Text>
-                  </>
-                )}
+                <Ionicons name="calendar" size={14} color={calendarActive ? "#fff" : T.orange} />
+                <Text style={[styles.wwSegText, calendarActive && styles.wwSegTextLight]} numberOfLines={1}>
+                  {calendarActive ? formatYmdLabel(customDate) : "Pick"}
+                </Text>
               </Pressable>
             </View>
-            {calendarActive ? (
-              <Pressable style={styles.pickedDateRow} onPress={() => setShowCalendar(true)}>
-                <Ionicons name="checkmark-circle" size={14} color="#A78BFA" />
-                <Text style={styles.pickedDateText}>{formatYmdLabel(customDate)}</Text>
-                <Text style={styles.pickedDateChange}>Change</Text>
-              </Pressable>
-            ) : null}
 
-            <Text style={[styles.simpleFieldLabel, { marginTop: 12 }]}>Time</Text>
-            <View style={styles.simpleSegRow}>
+            {/* Time */}
+            <View style={[styles.wwSegRow, { marginTop: 8 }]}>
               {SIMPLE_TIMES.map((t) => {
                 const active = selectedPeriod === t.id;
                 return (
                   <Pressable
                     key={t.id}
                     onPress={() => pickPeriod(t)}
-                    style={[styles.simpleSeg, active && styles.simpleSegActiveWrap]}
+                    style={[styles.wwSeg, active && styles.wwSegPinkOn]}
                   >
-                    {active ? (
-                      <LinearGradient
-                        colors={[...T.cta]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={styles.simpleSegActive}
-                      >
-                        <Ionicons name={t.icon} size={14} color="#fff" />
-                        <Text style={styles.simpleSegTextActive}>{t.label}</Text>
-                      </LinearGradient>
-                    ) : (
-                      <>
-                        <Ionicons name={t.icon} size={14} color="#C4B5FD" />
-                        <Text style={styles.simpleSegText}>{t.label}</Text>
-                      </>
-                    )}
+                    <Ionicons name={t.icon} size={14} color={active ? "#fff" : T.pink} />
+                    <Text style={[styles.wwSegText, active && styles.wwSegTextLight]}>{t.label}</Text>
                   </Pressable>
                 );
               })}
             </View>
 
-            <Text style={[styles.simpleFieldLabel, { marginTop: 12 }]}>People can join</Text>
-            <View style={styles.peopleRow}>
-              <Pressable
-                onPress={() => setMaxPeople((n) => Math.max(2, n - 1))}
-                style={styles.peopleStepBtn}
-              >
-                <Ionicons name="remove" size={16} color="#E2E8F0" />
-              </Pressable>
-              <View style={styles.peopleValueBox}>
-                <Ionicons name="people" size={15} color="#C4B5FD" />
-                <Text style={styles.peopleValue}>{maxPeople}</Text>
-                <Text style={styles.peopleValueHint}>max</Text>
-              </View>
-              <Pressable
-                onPress={() => setMaxPeople((n) => Math.min(12, n + 1))}
-                style={styles.peopleStepBtn}
-              >
-                <Ionicons name="add" size={16} color="#E2E8F0" />
-              </Pressable>
-              <View style={styles.peopleQuickRow}>
-                {PEOPLE_OPTIONS.map((n) => {
-                  const active = maxPeople === n;
-                  return (
-                    <Pressable
-                      key={n}
-                      onPress={() => setMaxPeople(n)}
-                      style={[styles.peopleChip, active && styles.peopleChipActive]}
-                    >
-                      <Text style={[styles.peopleChipText, active && styles.peopleChipTextActive]}>
-                        {n}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
+            {/* People + Privacy */}
+            <View style={styles.wwMetaRow}>
+              <View style={styles.wwPeople}>
+                <Pressable
+                  onPress={() => setMaxPeople((n) => Math.max(2, n - 1))}
+                  style={styles.wwStepOrange}
+                >
+                  <Ionicons name="remove" size={15} color={T.orange} />
+                </Pressable>
+                <View style={styles.wwPeopleVal}>
+                  <Ionicons name="people" size={13} color="#fff" />
+                  <Text style={styles.wwPeopleNum}>{maxPeople}</Text>
+                </View>
+                <Pressable
+                  onPress={() => setMaxPeople((n) => Math.min(12, n + 1))}
+                  style={styles.wwStepOrange}
+                >
+                  <Ionicons name="add" size={15} color={T.orange} />
+                </Pressable>
               </View>
 
-              <Text style={[styles.simpleFieldLabel, { marginTop: 14 }]}>Audience / Privacy</Text>
-              <View style={{ flexDirection: "row", gap: 10, marginTop: 6 }}>
+              <View style={styles.wwPrivacy}>
                 <Pressable
                   onPress={() => setVisibility("PUBLIC")}
-                  style={[
-                    styles.simpleSeg,
-                    { flex: 1 },
-                    visibility === "PUBLIC" && styles.simpleSegActiveWrap,
-                  ]}
+                  style={[styles.wwPrivBtn, visibility === "PUBLIC" && styles.wwPrivPromoOn]}
                 >
-                  {visibility === "PUBLIC" ? (
-                    <LinearGradient
-                      colors={[...T.cta]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.simpleSegActive}
-                    >
-                      <Ionicons name="earth" size={14} color="#fff" />
-                      <Text style={styles.simpleSegTextActive}>Public 🌍</Text>
-                    </LinearGradient>
-                  ) : (
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                      <Ionicons name="earth-outline" size={14} color="#C4B5FD" />
-                      <Text style={styles.simpleSegText}>Public 🌍</Text>
-                    </View>
-                  )}
+                  <Ionicons
+                    name="earth"
+                    size={13}
+                    color={visibility === "PUBLIC" ? "#fff" : "rgba(255,255,255,0.55)"}
+                  />
+                  <Text
+                    style={[
+                      styles.wwPrivText,
+                      visibility === "PUBLIC" && styles.wwPrivTextOn,
+                    ]}
+                  >
+                    Public
+                  </Text>
                 </Pressable>
-
                 <Pressable
                   onPress={() => setVisibility("FRIENDS")}
-                  style={[
-                    styles.simpleSeg,
-                    { flex: 1 },
-                    visibility === "FRIENDS" && styles.simpleSegActiveWrap,
-                  ]}
+                  style={[styles.wwPrivBtn, visibility === "FRIENDS" && styles.wwPrivPromoOn]}
                 >
-                  {visibility === "FRIENDS" ? (
-                    <LinearGradient
-                      colors={["#7C3AED", "#6D28D9"]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.simpleSegActive}
-                    >
-                      <Ionicons name="lock-closed" size={14} color="#fff" />
-                      <Text style={styles.simpleSegTextActive}>Friends Only 🔒</Text>
-                    </LinearGradient>
-                  ) : (
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                      <Ionicons name="lock-closed-outline" size={14} color="#C4B5FD" />
-                      <Text style={styles.simpleSegText}>Friends Only 🔒</Text>
-                    </View>
-                  )}
+                  <Ionicons
+                    name="lock-closed"
+                    size={12}
+                    color={visibility === "FRIENDS" ? "#fff" : "rgba(255,255,255,0.55)"}
+                  />
+                  <Text
+                    style={[
+                      styles.wwPrivText,
+                      visibility === "FRIENDS" && styles.wwPrivTextOn,
+                    ]}
+                  >
+                    Friends
+                  </Text>
                 </Pressable>
               </View>
             </View>
@@ -1523,13 +1581,11 @@ export default function CreatePlanScreen() {
               onSelect={pickCalendarDate}
             />
 
-            <View style={styles.whenDivider} />
-
-            <Text style={styles.cityPickLabel}>City on map</Text>
+            {/* City — ORANGE active */}
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.cityPickRow}
+              contentContainerStyle={styles.wwCityRow}
             >
               {CITIES.map((c) => {
                 const active = planCityId === c.id;
@@ -1537,78 +1593,75 @@ export default function CreatePlanScreen() {
                   <Pressable
                     key={c.id}
                     onPress={() => setPlanCityId(c.id)}
-                    style={[styles.cityPickChip, active && styles.cityPickChipActive]}
+                    style={[styles.wwCityChip, active && styles.wwCityChipOn]}
                   >
-                    <Text style={styles.cityPickEmoji}>{c.emoji}</Text>
-                    <Text style={[styles.cityPickText, active && styles.cityPickTextActive]}>
-                      {c.name}
-                    </Text>
+                    <Text style={styles.wwCityEmoji}>{c.emoji}</Text>
+                    <Text style={[styles.wwCityText, active && styles.wwCityTextOn]}>{c.name}</Text>
                   </Pressable>
                 );
               })}
             </ScrollView>
 
-            <View style={styles.inputRowDark}>
-              <Ionicons name="navigate" size={16} color="#7C3AED" />
+            <View style={[styles.wwInput, styles.wwInputOrange]}>
+              <Ionicons name="location" size={15} color={T.orange} />
               <TextInput
-                style={styles.inputDark}
+                style={styles.wwInputText}
                 value={place}
                 onChangeText={setPlace}
-                placeholder={`Place in ${planCity.name} · cafe, park, mall...`}
-                placeholderTextColor="#94A3B8"
+                placeholder={`Place in ${planCity.name}…`}
+                placeholderTextColor="rgba(255,255,255,0.35)"
               />
               {place.trim() ? (
-                <Ionicons name="checkmark-circle" size={16} color={T.green} />
+                <Ionicons name="checkmark-circle" size={16} color={T.orange} />
               ) : null}
             </View>
 
-            <View style={[styles.inputRowDark, styles.noteRowDark]}>
-              <Ionicons name="chatbubble-ellipses" size={16} color="#7C3AED" style={{ marginTop: 2 }} />
+            <View style={[styles.wwInput, styles.wwInputPurple, styles.wwNote]}>
+              <Ionicons name="chatbubble-ellipses" size={15} color={T.pink} style={{ marginTop: 1 }} />
               <TextInput
-                style={[styles.inputDark, styles.noteInputDark]}
+                style={[styles.wwInputText, styles.wwNoteText]}
                 value={description}
                 onChangeText={setDescription}
-                placeholder="Note · one line for the squad..."
-                placeholderTextColor="#94A3B8"
+                placeholder="One-liner for the squad…"
+                placeholderTextColor="rgba(255,255,255,0.35)"
                 multiline
                 maxLength={120}
               />
             </View>
           </View>
         </Animated.View>
-
-        {/* Tip banner */}
-        <Animated.View entering={FadeInDown.delay(340).duration(360)} style={styles.tipBanner}>
-          <LinearGradient colors={["#1A1530", "#221528"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.tipInner}>
-            <View style={styles.tipIcon}>
-              <Ionicons name="diamond" size={16} color="#FBBF24" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.tipTitle}>Pro tip</Text>
-              <Text style={styles.tipText}>
-                Plans with place + time get 3× more joins. Keep notes playful.
-              </Text>
-            </View>
-          </LinearGradient>
-        </Animated.View>
+        </>
+        ) : null}
       </ScrollView>
 
-      {/* Sticky CTA above TabBar */}
+      {/* Sticky CTA — green Create Hangout */}
       <View style={[styles.footer, { bottom: tabBarHeight }]}>
-        <LinearGradient colors={["transparent", T.bg]} style={styles.footerFade} />
+        <LinearGradient
+          colors={["transparent", "rgba(18,18,18,0.75)", "#121212"]}
+          style={styles.footerFade}
+        />
         <View style={styles.ctaWrap}>
-          <Pressable onPress={openSendPreview} disabled={saving} style={styles.ctaPressGreen}>
+          <Pressable
+            onPress={() => {
+              setShowPlanBuilder(true);
+              openSendPreview();
+            }}
+            disabled={saving}
+            style={({ pressed }) => [
+              styles.ctaPressPromo,
+              pressed && styles.ctaPressed,
+              saving && { opacity: 0.7 },
+            ]}
+          >
             <LinearGradient
-              colors={["#22C55E", "#16A34A"]}
+              colors={["#1FA971", "#3DDC97"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
-              style={styles.ctaBtnCompact}
+              style={styles.ctaBtnPromo}
             >
-              <Ionicons name="rocket" size={16} color="#fff" />
+              <Ionicons name="add-circle" size={20} color="#fff" />
               <Text style={styles.ctaText}>
-                {selectedInviteeIds.length > 0 || inviteWhatsApp
-                  ? "Preview & Send Invite"
-                  : "Select who to invite"}
+                {saving ? "Sending…" : "Create Hangout"}
               </Text>
             </LinearGradient>
           </Pressable>
@@ -1617,7 +1670,7 @@ export default function CreatePlanScreen() {
       <TabBar dark={true} />
       </View>
 
-      {/* READY TO SEND invite preview */}
+      {/* Who's coming? — enhanced premium invite sheet */}
       <Modal
         visible={showSendPreview}
         animationType="slide"
@@ -1626,60 +1679,237 @@ export default function CreatePlanScreen() {
       >
         <View style={styles.sendModalRoot}>
           <Pressable style={styles.sendModalDim} onPress={() => setShowSendPreview(false)} />
-          <View style={[styles.sendSheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+          <View style={[styles.inviteSheet, { paddingBottom: Math.max(insets.bottom, 14) }]}>
+            <LinearGradient
+              colors={["#1A1520", "#141218", "#101014"]}
+              style={StyleSheet.absoluteFillObject}
+            />
+            <LinearGradient
+              colors={[
+                "rgba(255,138,0,0.16)",
+                "rgba(255,45,122,0.1)",
+                "transparent",
+                "rgba(168,85,247,0.12)",
+              ]}
+              locations={[0, 0.28, 0.6, 1]}
+              style={StyleSheet.absoluteFillObject}
+            />
+
             <View style={styles.sendHandle} />
-            <Text style={styles.sendReady}>READY TO SEND</Text>
 
-            <View style={styles.sendCard}>
-              <View style={styles.sendMediaWrap}>
-                <InviteActivityMedia
-                  activityId={activityId}
-                  imageUrl={activity.image}
-                  icon3d={actMeta.icon3d}
+            <Pressable style={styles.inviteCloseBtn} onPress={() => setShowSendPreview(false)}>
+              <Ionicons name="close" size={16} color="rgba(255,255,255,0.8)" />
+            </Pressable>
+
+            <View style={styles.inviteSheetHead}>
+              <View style={styles.inviteSheetBadge}>
+                <LinearGradient
+                  colors={["#C9A227", "#E879A9"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={StyleSheet.absoluteFillObject}
                 />
+                <Ionicons name="paper-plane" size={11} color="#fff" />
+                <Text style={styles.inviteSheetBadgeText}>INVITE</Text>
               </View>
-
-              <Text style={styles.sendHangTitle}>
-                hang for {activity.name.toLowerCase()}?
+              <View style={styles.inviteTitleRow}>
+                <Text style={styles.inviteSheetTitle}>Who’s </Text>
+                <MaskedView
+                  maskElement={
+                    <Text style={[styles.inviteSheetTitle, styles.inviteTitleAccent]}>
+                      coming?
+                    </Text>
+                  }
+                >
+                  <LinearGradient
+                    colors={["#E879A9", "#E8A87C", "#C9A227"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                  >
+                    <Text
+                      style={[styles.inviteSheetTitle, styles.inviteTitleAccent, { opacity: 0 }]}
+                    >
+                      coming?
+                    </Text>
+                  </LinearGradient>
+                </MaskedView>
+                <Text style={styles.inviteSpark}>✨</Text>
+              </View>
+              <Text style={styles.inviteSheetSub}>
+                {activity.name} · {inviteTimeLabel} · {place.trim() || planCity.name}
               </Text>
-              <Text style={styles.sendTime}>{inviteTimeLabel}</Text>
-              <Text style={styles.sendTo}>{inviteTargetLabel}</Text>
+            </View>
 
-              {selectedInvitees.length > 0 ? (
-                <View style={styles.sendAvatarRow}>
-                  {selectedInvitees.slice(0, 4).map((m) => (
-                    <Image
+            <View style={styles.inviteVideoWrap}>
+              <InviteActivityMedia
+                activityId={activityId}
+                imageUrl={activity.image}
+                icon3d={actMeta.icon3d}
+              />
+              <LinearGradient
+                colors={["transparent", "rgba(10,8,14,0.75)"]}
+                style={styles.inviteVideoBottomFade}
+              />
+              <Text style={styles.inviteNeonCaption}>
+                Good vibes · great company · best {activity.name.toLowerCase()} 💜
+              </Text>
+            </View>
+
+            <View style={styles.inviteMetaCard}>
+              <View style={[styles.inviteMetaIconRing, { borderColor: `${actMeta.accent}88` }]}>
+                <Image source={{ uri: actMeta.icon3d }} style={styles.inviteMetaIcon} />
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.inviteMetaTitle} numberOfLines={1}>
+                  hang for {activity.name.toLowerCase()}?
+                </Text>
+                <View style={styles.inviteMetaLocRow}>
+                  <Ionicons name="location" size={11} color="rgba(255,255,255,0.55)" />
+                  <Text style={styles.inviteMetaSub} numberOfLines={1}>
+                    {place.trim() || planCity.name}
+                  </Text>
+                </View>
+                <View style={styles.inviteMetaLocRow}>
+                  <Ionicons name="time-outline" size={11} color="rgba(255,255,255,0.45)" />
+                  <Text style={styles.inviteMetaSub}>{upcomingTimeLine}</Text>
+                </View>
+              </View>
+              <View style={styles.inviteMetaCount}>
+                <Ionicons name="people" size={13} color="#A78BFA" />
+                <Text style={styles.inviteMetaCountText}>{maxPeople}</Text>
+                <Text style={styles.inviteMetaCountHint}>spots</Text>
+              </View>
+            </View>
+
+            <View style={styles.invitePickHead}>
+              <Text style={styles.invitePickLabel}>SEND TO</Text>
+              <View style={styles.invitePickCountPill}>
+                <Text style={styles.invitePickCountText}>
+                  {(inviteWhatsApp ? 1 : 0) + selectedInviteeIds.length} selected
+                </Text>
+              </View>
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.invitePeopleRow}
+            >
+              <Pressable
+                onPress={() => setInviteWhatsApp((v) => !v)}
+                style={styles.invitePersonCard}
+              >
+                <View
+                  style={[
+                    styles.invitePersonRing,
+                    inviteWhatsApp && styles.invitePersonRingOnWa,
+                  ]}
+                >
+                  <LinearGradient
+                    colors={inviteWhatsApp ? ["#22C55E", "#16A34A"] : ["#25D366", "#128C7E"]}
+                    style={styles.invitePersonOrb}
+                  >
+                    <Ionicons name="logo-whatsapp" size={22} color="#fff" />
+                  </LinearGradient>
+                  {inviteWhatsApp ? (
+                    <View style={[styles.invitePersonTick, { backgroundColor: "#22C55E" }]}>
+                      <Ionicons name="checkmark" size={9} color="#fff" />
+                    </View>
+                  ) : null}
+                </View>
+                <Text style={styles.invitePersonLabel} numberOfLines={1}>
+                  WhatsApp
+                </Text>
+              </Pressable>
+
+              {matches.length === 0 ? (
+                <View style={styles.invitePersonCard}>
+                  <View style={styles.invitePersonRing}>
+                    <View style={[styles.invitePersonOrb, styles.invitePersonOrbEmpty]}>
+                      <Ionicons name="people-outline" size={20} color="#C4B5FD" />
+                    </View>
+                  </View>
+                  <Text style={styles.invitePersonLabel}>No matches</Text>
+                </View>
+              ) : (
+                matches.map((m) => {
+                  const on = selectedInviteeIds.includes(m.id);
+                  return (
+                    <Pressable
                       key={m.id}
-                      source={{ uri: m.avatarUrl }}
-                      style={styles.sendTinyAvatar}
-                    />
-                  ))}
+                      onPress={() => toggleInvitee(m.id)}
+                      style={styles.invitePersonCard}
+                    >
+                      <View style={[styles.invitePersonRing, on && styles.invitePersonRingOn]}>
+                        <Image source={{ uri: m.avatarUrl }} style={styles.invitePersonPhoto} />
+                        {on ? (
+                          <View style={styles.invitePersonTick}>
+                            <Ionicons name="checkmark" size={9} color="#fff" />
+                          </View>
+                        ) : null}
+                      </View>
+                      <Text style={styles.invitePersonLabel} numberOfLines={1}>
+                        {m.name.split(" ")[0]}
+                      </Text>
+                    </Pressable>
+                  );
+                })
+              )}
+            </ScrollView>
+
+            <View style={styles.inviteSendingRow}>
+              {selectedInvitees.slice(0, 4).map((m, i) => (
+                <Image
+                  key={m.id}
+                  source={{ uri: m.avatarUrl }}
+                  style={[styles.inviteSendingAvatar, { marginLeft: i === 0 ? 0 : -8, zIndex: 4 - i }]}
+                />
+              ))}
+              {inviteWhatsApp ? (
+                <View
+                  style={[
+                    styles.inviteSendingAvatar,
+                    styles.inviteSendingWa,
+                    { marginLeft: selectedInvitees.length > 0 ? -8 : 0 },
+                  ]}
+                >
+                  <Ionicons name="logo-whatsapp" size={11} color="#fff" />
                 </View>
               ) : null}
+              <Text style={styles.invitePickSummary}>
+                {selectedInvitees.length > 0 || inviteWhatsApp ? (
+                  <>
+                    Ready to invite{" "}
+                    <Text style={{ color: "#86EFAC", fontFamily: VibeFonts.bold }}>
+                      {inviteTargetLabel.replace(/^to |^via /, "")}
+                    </Text>
+                  </>
+                ) : (
+                  "Pick WhatsApp or friends to invite"
+                )}
+              </Text>
             </View>
 
             <Pressable
-              onPress={handleCreate}
+              onPress={confirmSendInvite}
               disabled={saving}
-              style={styles.sendCtaPress}
+              style={({ pressed }) => [
+                styles.inviteSheetCta,
+                pressed && { opacity: 0.92, transform: [{ scale: 0.98 }] },
+                saving && { opacity: 0.7 },
+              ]}
             >
               <LinearGradient
-                colors={["#22C55E", "#16A34A"]}
+                colors={["#1FA971", "#3DDC97"]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
-                style={styles.sendCta}
+                style={styles.inviteSheetCtaGrad}
               >
-                <Text style={styles.sendCtaText} numberOfLines={1}>
-                  {saving
-                    ? "Sending…"
-                    : `hangora  ·  send ${inviteTargetLabel.replace(/^to /, "to ")}`}
+                <Ionicons name="paper-plane" size={17} color="#fff" />
+                <Text style={styles.inviteSheetCtaText}>
+                  {saving ? "Sending…" : "Send Invite"}
                 </Text>
-                <Ionicons name="arrow-up-outline" size={16} color="#fff" />
               </LinearGradient>
-            </Pressable>
-
-            <Pressable onPress={() => setShowSendPreview(false)} style={styles.sendCancel}>
-              <Text style={styles.sendCancelText}>Edit invite</Text>
             </Pressable>
           </View>
         </View>
@@ -1689,7 +1919,7 @@ export default function CreatePlanScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#070A14" },
+  root: { flex: 1, backgroundColor: "#08080A" },
   foreground: { flex: 1, zIndex: 1, backgroundColor: "transparent" },
   glowTop: {
     position: "absolute",
@@ -1733,19 +1963,20 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   iconBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: T.card,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.08)",
     borderWidth: 1,
-    borderColor: T.border,
+    borderColor: "rgba(255,255,255,0.16)",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#8B5CF6",
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    overflow: "hidden",
+    shadowColor: "transparent",
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 0,
   },
   headerCenter: { alignItems: "center" },
   headerBrand: { flexDirection: "row", alignItems: "center", gap: 4 },
@@ -1753,31 +1984,64 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: VibeFonts.bold,
     color: T.purple,
-    letterSpacing: 1.4,
+    letterSpacing: 1.6,
   },
   headerTitle: {
-    fontSize: 17,
+    fontSize: 18,
     fontFamily: VibeFonts.extraBold,
     color: T.ink,
     marginTop: 1,
+    letterSpacing: -0.3,
   },
-  scroll: { paddingHorizontal: 16, paddingTop: 2 },
-  heroWrap: { marginBottom: 14 },
+  scroll: { paddingHorizontal: 20, paddingTop: 6 },
+  heroWrap: { marginBottom: 22 },
   hero: {
     borderRadius: 24,
-    minHeight: 158,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    overflow: "visible",
+    minHeight: 208,
+    overflow: "hidden",
     borderWidth: 1,
-    borderColor: "rgba(167, 139, 250, 0.3)",
+    borderColor: "rgba(201,162,39,0.28)",
+    backgroundColor: "rgba(255,255,255,0.03)",
+  },
+  heroRow: {
     flexDirection: "row",
+    alignItems: "stretch",
+    paddingLeft: 18,
+    paddingTop: 18,
+    paddingBottom: 18,
+    minHeight: 208,
+  },
+  heroSparkle: {
+    position: "absolute",
+    top: 14,
+    right: 14,
+    zIndex: 5,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
     alignItems: "center",
-    shadowColor: "#8B5CF6",
-    shadowOpacity: 0.22,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 4,
+    justifyContent: "center",
+  },
+  heroFriendsWrap: {
+    width: SCREEN_W * 0.36,
+    maxWidth: 148,
+    justifyContent: "flex-end",
+    alignItems: "center",
+    marginRight: -2,
+  },
+  heroFriendsImg: {
+    width: "115%",
+    height: 172,
+    marginBottom: -6,
+  },
+  heroBgImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: "100%",
+    height: "100%",
+    opacity: 0.78,
   },
   heroBlobA: {
     position: "absolute",
@@ -1786,7 +2050,7 @@ const styles = StyleSheet.create({
     width: 110,
     height: 110,
     borderRadius: 55,
-    backgroundColor: "rgba(139,92,246,0.14)",
+    backgroundColor: "transparent",
   },
   heroBlobB: {
     position: "absolute",
@@ -1795,40 +2059,367 @@ const styles = StyleSheet.create({
     width: 90,
     height: 90,
     borderRadius: 45,
-    backgroundColor: "rgba(236,72,153,0.1)",
+    backgroundColor: "transparent",
   },
-  heroCopy: { flex: 1, paddingRight: 8, zIndex: 2 },
+  heroCopy: { flex: 1, zIndex: 2, paddingRight: 6, justifyContent: "center" },
+  heroMovesPill: {
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+    borderRadius: 999,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "rgba(201,162,39,0.35)",
+  },
+  heroMovesPillText: {
+    fontSize: 9,
+    fontFamily: VibeFonts.bold,
+    color: "#E8D5A3",
+    letterSpacing: 1.1,
+  },
   heroPill: {
     alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    backgroundColor: "rgba(139, 92, 246, 0.22)",
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 10,
-    marginBottom: 7,
+    backgroundColor: "rgba(0,0,0,0.22)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
   },
   heroPillText: {
     fontSize: 9,
     fontFamily: VibeFonts.bold,
-    color: "#C4B5FD",
-    letterSpacing: 0.9,
+    color: "rgba(255,255,255,0.9)",
+    letterSpacing: 1,
   },
   heroTitle: {
-    fontSize: 24,
+    fontSize: 27,
     fontFamily: VibeFonts.extraBold,
-    color: T.ink,
-    letterSpacing: -0.6,
-    lineHeight: 28,
+    color: "#F7F5F2",
+    letterSpacing: -0.9,
+    lineHeight: 32,
+  },
+  heroMemoriesMask: {
+    marginTop: 0,
+  },
+  heroTitleAccent: {
+    color: "#E879A9",
+  },
+  heroTitleAccentPink: {
+    color: "#E879A9",
+  },
+  heroTitleAccentMid: {
+    color: "#E8A87C",
+  },
+  heroTitleAccentOrange: {
+    color: "#C9A227",
   },
   heroSub: {
-    marginTop: 6,
+    marginTop: 10,
+    fontSize: 13,
+    fontFamily: VibeFonts.medium,
+    color: "rgba(247,245,242,0.58)",
+    lineHeight: 19,
+    maxWidth: SCREEN_W * 0.52,
+  },
+  heroCtaWrap: {
+    alignSelf: "flex-start",
+    marginTop: 16,
+  },
+  heroCta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingLeft: 18,
+    paddingRight: 7,
+    paddingVertical: 9,
+    borderRadius: 999,
+    shadowColor: "#C9A227",
+    shadowOpacity: 0.28,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
+  },
+  heroCtaText: {
+    fontSize: 14,
+    fontFamily: VibeFonts.bold,
+    color: "#0A0A0C",
+  },
+  heroCtaPlus: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "#F7F5F2",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroPillsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 12,
+  },
+  heroMiniPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+  },
+  heroMiniPillText: {
+    fontSize: 11,
+    fontFamily: VibeFonts.semiBold,
+    color: "#fff",
+  },
+  planTabs: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.16)",
+    padding: 4,
+    overflow: "hidden",
+  },
+  planTab: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+  },
+  planTabOn: {
+    flex: 1,
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+  },
+  planTabGrad: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  planTabText: {
+    fontSize: 11,
+    fontFamily: VibeFonts.semiBold,
+    color: "rgba(255,255,255,0.7)",
+  },
+  planTabTextOn: {
+    fontSize: 11,
+    fontFamily: VibeFonts.bold,
+    color: "#fff",
+  },
+  planTabDivider: {
+    width: 1,
+    height: 16,
+    backgroundColor: "rgba(255,255,255,0.12)",
+  },
+  pickHead: {
+    marginBottom: 12,
+  },
+  pickTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  pickViewAll: {
+    marginLeft: "auto",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+  },
+  pickViewAllText: {
+    fontSize: 12,
+    fontFamily: VibeFonts.semiBold,
+    color: "rgba(247,245,242,0.42)",
+  },
+  pickTitle: {
+    flex: 1,
+    fontSize: 17,
+    fontFamily: VibeFonts.extraBold,
+    color: "#F7F5F2",
+    letterSpacing: -0.4,
+  },
+  pickSub: {
+    marginTop: 2,
     fontSize: 12,
     fontFamily: VibeFonts.medium,
-    color: T.muted,
-    lineHeight: 16,
-    maxWidth: SCREEN_W * 0.52,
+    color: "rgba(255,255,255,0.45)",
+  },
+  hangSummary: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    marginBottom: 18,
+    marginTop: 4,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  hangSummaryIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(201,162,39,0.4)",
+  },
+  hangSummaryIcon: { width: 36, height: 36 },
+  upcomingCopy: { flex: 1, minWidth: 0 },
+  upcomingLabel: {
+    fontSize: 11,
+    fontFamily: VibeFonts.semiBold,
+    color: "#C9A227",
+    marginBottom: 4,
+    letterSpacing: 0.3,
+  },
+  upcomingDetailsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 6,
+  },
+  upcomingMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  hangSummaryCap: {
+    fontSize: 11,
+    fontFamily: VibeFonts.medium,
+    color: "rgba(247,245,242,0.42)",
+  },
+  hangSummaryTitle: {
+    fontSize: 15,
+    fontFamily: VibeFonts.bold,
+    color: "#F7F5F2",
+    letterSpacing: -0.2,
+  },
+  hangSummaryMeta: {
+    fontSize: 12,
+    fontFamily: VibeFonts.medium,
+    color: "rgba(247,245,242,0.52)",
+  },
+  hangAvatarStack: { flexDirection: "row", alignItems: "center" },
+  hangAvatarImg: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: "#141218",
+  },
+  hangAvatarGhost: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: "#0C0C10",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  hangAvatarMore: { backgroundColor: "rgba(255,255,255,0.16)" },
+  hangAvatarMoreText: {
+    fontSize: 8,
+    fontFamily: VibeFonts.bold,
+    color: "#fff",
+  },
+  inviteHeadRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 10,
+  },
+  inviteHeadTitle: {
+    fontSize: 16,
+    fontFamily: VibeFonts.extraBold,
+    color: "#FFFFFF",
+  },
+  inviteTeaserRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  inviteTeaserWa: {
+    flex: 1.1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    padding: 10,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+  },
+  inviteTeaserWaIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: "#22C55E",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  inviteTeaserMatch: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 12,
+    borderRadius: 18,
+    backgroundColor: "rgba(139,92,246,0.28)",
+    borderWidth: 1,
+    borderColor: "rgba(167,139,250,0.35)",
+  },
+  inviteTeaserAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+  },
+  inviteTeaserTitle: {
+    fontSize: 13,
+    fontFamily: VibeFonts.bold,
+    color: "#fff",
+  },
+  inviteTeaserSub: {
+    fontSize: 11,
+    fontFamily: VibeFonts.medium,
+    color: "rgba(255,255,255,0.7)",
+  },
+  inviteTeaserTip: {
+    flex: 1.15,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+    padding: 10,
+    borderRadius: 18,
+    backgroundColor: "rgba(88, 28, 135, 0.45)",
+    borderWidth: 1,
+    borderColor: "rgba(167,139,250,0.35)",
+  },
+  inviteTeaserTipText: {
+    flex: 1,
+    fontSize: 11,
+    fontFamily: VibeFonts.medium,
+    color: "rgba(255,255,255,0.75)",
   },
   heroStats: {
     flexDirection: "row",
@@ -1883,9 +2474,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#8B5CF6",
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
   sparkleA: { top: 6, left: 4 },
   sparkleB: { bottom: 14, right: 2 },
@@ -1903,9 +2494,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 2,
-    backgroundColor: T.pink,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 999,
   },
   xpPillText: {
@@ -1985,44 +2576,252 @@ const styles = StyleSheet.create({
     fontFamily: VibeFonts.bold,
     maxWidth: 90,
   },
-  section: { marginBottom: 14 },
+  section: { marginBottom: 18 },
   sectionCard: {
     backgroundColor: T.card,
     borderRadius: 22,
     borderWidth: 1,
     borderColor: T.border,
     padding: 14,
-    shadowColor: "#8B5CF6",
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
+    shadowColor: "transparent",
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 0,
   },
   sectionCardLight: {
-    backgroundColor: T.card,
-    borderRadius: 24,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderRadius: 28,
     borderWidth: 1,
-    borderColor: T.border,
+    borderColor: "rgba(255,255,255,0.16)",
     padding: 16,
     overflow: "hidden",
-    shadowColor: "#8B5CF6",
-    shadowOpacity: 0.14,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
+    shadowColor: "transparent",
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 0,
+  },
+  sectionPurple: {
+    borderColor: "rgba(167, 139, 250, 0.45)",
+    backgroundColor: "rgba(124, 58, 237, 0.10)",
+  },
+  sectionOrange: {
+    borderColor: "rgba(251, 146, 60, 0.45)",
+    backgroundColor: "rgba(249, 115, 22, 0.10)",
+  },
+  sectionYellow: {
+    borderColor: "rgba(251, 191, 36, 0.5)",
+    backgroundColor: "rgba(245, 158, 11, 0.12)",
+  },
+  whenCard: {
+    paddingBottom: 14,
+    borderColor: "rgba(255,255,255,0.14)",
+    backgroundColor: "rgba(255,255,255,0.06)",
+  },
+  wwColorDots: { flexDirection: "row", alignItems: "center", gap: 5 },
+  wwDot: { width: 8, height: 8, borderRadius: 4 },
+  wwSegRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  wwSeg: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    paddingVertical: 11,
+    paddingHorizontal: 6,
+    borderRadius: 999,
+    backgroundColor: "rgba(0,0,0,0.22)",
+    borderWidth: 1,
+  },
+  wwSegPurple: {
+    borderColor: "rgba(167, 139, 250, 0.35)",
+  },
+  wwSegPurpleOn: {
+    backgroundColor: "#8B5CF6",
+    borderColor: "#8B5CF6",
+  },
+  wwSegPromoOn: {
+    backgroundColor: "#FF8A3D",
+    borderColor: "#FF8A3D",
+  },
+  wwSegPinkOn: {
+    backgroundColor: "#FF4D8D",
+    borderColor: "#FF4D8D",
+  },
+  wwSegYellow: {
+    borderColor: "rgba(251, 191, 36, 0.35)",
+  },
+  wwSegYellowOn: {
+    backgroundColor: "#FBBF24",
+    borderColor: "#FBBF24",
+  },
+  wwSegText: {
+    fontSize: 12,
+    fontFamily: VibeFonts.semiBold,
+    color: "rgba(255,255,255,0.78)",
+  },
+  wwSegTextLight: {
+    color: "#FFFFFF",
+    fontFamily: VibeFonts.bold,
+  },
+  wwSegTextDark: {
+    color: "#0B0D12",
+    fontFamily: VibeFonts.bold,
+  },
+  wwMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 12,
+  },
+  wwPeople: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(0,0,0,0.22)",
+    borderRadius: 999,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: "rgba(255, 138, 61, 0.45)",
+  },
+  wwStepOrange: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255, 138, 61, 0.18)",
+  },
+  wwPeopleVal: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    minWidth: 52,
+    height: 32,
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    backgroundColor: "#FF8A3D",
+    justifyContent: "center",
+  },
+  wwPeopleNum: {
+    fontSize: 14,
+    fontFamily: VibeFonts.extraBold,
+    color: "#FFFFFF",
+  },
+  wwPrivacy: {
+    flex: 1,
+    flexDirection: "row",
+    backgroundColor: "rgba(0,0,0,0.22)",
+    borderRadius: 999,
+    padding: 3,
+    borderWidth: 1,
+    borderColor: "rgba(255, 77, 141, 0.4)",
+    gap: 2,
+  },
+  wwPrivBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    paddingVertical: 8,
+    borderRadius: 999,
+  },
+  wwPrivOn: {
+    backgroundColor: "#8B5CF6",
+  },
+  wwPrivPromoOn: {
+    backgroundColor: "#FF4D8D",
+  },
+  wwPrivText: {
+    fontSize: 11,
+    fontFamily: VibeFonts.semiBold,
+    color: "rgba(255,255,255,0.55)",
+  },
+  wwPrivTextOn: {
+    color: "#FFFFFF",
+    fontFamily: VibeFonts.bold,
+  },
+  wwCityRow: {
+    gap: 8,
+    paddingTop: 12,
+    paddingBottom: 2,
+  },
+  wwCityChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: "rgba(0,0,0,0.2)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  wwCityChipOn: {
+    backgroundColor: "rgba(249, 115, 22, 0.22)",
+    borderColor: "rgba(251, 146, 60, 0.6)",
+  },
+  wwCityEmoji: { fontSize: 13 },
+  wwCityText: {
+    fontSize: 12,
+    fontFamily: VibeFonts.semiBold,
+    color: "rgba(255,255,255,0.65)",
+  },
+  wwCityTextOn: {
+    color: T.orange,
+    fontFamily: VibeFonts.bold,
+  },
+  wwInput: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 10,
+    paddingHorizontal: 14,
+    minHeight: 46,
+    borderRadius: 16,
+    backgroundColor: "rgba(0,0,0,0.28)",
+    borderWidth: 1,
+  },
+  wwInputOrange: {
+    borderColor: "rgba(251, 146, 60, 0.35)",
+  },
+  wwInputPurple: {
+    borderColor: "rgba(236, 72, 153, 0.3)",
+  },
+  wwInputText: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: VibeFonts.medium,
+    color: "#FFFFFF",
+    paddingVertical: 12,
+  },
+  wwNote: {
+    alignItems: "flex-start",
+    paddingVertical: 10,
+    minHeight: 56,
+  },
+  wwNoteText: {
+    minHeight: 36,
+    textAlignVertical: "top",
+    paddingTop: 0,
   },
   sectionCardDark: {
-    backgroundColor: T.card,
-    borderRadius: 24,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderRadius: 28,
     borderWidth: 1,
-    borderColor: T.border,
+    borderColor: "rgba(255,255,255,0.14)",
     padding: 16,
     overflow: "hidden",
-    shadowColor: "#8B5CF6",
-    shadowOpacity: 0.14,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
+    shadowColor: "transparent",
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 0,
   },
   darkGlowA: {
     position: "absolute",
@@ -2097,17 +2896,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 999,
-    backgroundColor: T.softPurple,
+    backgroundColor: "rgba(255,255,255,0.1)",
     borderWidth: 1,
-    borderColor: "#DDD6FE",
+    borderColor: "rgba(255,255,255,0.16)",
+  },
+  optionalPillYellow: {
+    backgroundColor: "rgba(251, 191, 36, 0.16)",
+    borderColor: "rgba(251, 191, 36, 0.35)",
   },
   optionalPillText: {
     fontSize: 10,
     fontFamily: VibeFonts.bold,
-    color: T.purpleDeep,
+    color: "rgba(255,255,255,0.85)",
   },
   optionalPillDark: {
     paddingHorizontal: 8,
@@ -2125,7 +2928,7 @@ const styles = StyleSheet.create({
   simpleFieldLabel: {
     fontSize: 11,
     fontFamily: VibeFonts.bold,
-    color: "#64748B",
+    color: "rgba(255,255,255,0.45)",
     letterSpacing: 0.6,
     textTransform: "uppercase",
     marginBottom: 7,
@@ -2140,11 +2943,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 5,
-    paddingVertical: 10,
-    borderRadius: 14,
-    backgroundColor: "rgba(139, 92, 246, 0.16)",
+    paddingVertical: 11,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.07)",
     borderWidth: 1,
-    borderColor: "rgba(167, 139, 250, 0.28)",
+    borderColor: "rgba(255,255,255,0.12)",
   },
   simpleSegActiveWrap: {
     padding: 0,
@@ -2165,7 +2968,7 @@ const styles = StyleSheet.create({
   simpleSegText: {
     fontSize: 12,
     fontFamily: VibeFonts.semiBold,
-    color: "#7C3AED",
+    color: "rgba(255,255,255,0.72)",
   },
   simpleSegTextActive: {
     fontSize: 11,
@@ -2187,10 +2990,10 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingHorizontal: 14,
     marginTop: 10,
-    backgroundColor: "rgba(12, 16, 30, 0.85)",
-    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: T.border,
+    borderColor: "rgba(255,255,255,0.12)",
   },
   inputDark: {
     flex: 1,
@@ -2224,9 +3027,9 @@ const styles = StyleSheet.create({
     minWidth: 80,
     height: 36,
     borderRadius: 12,
-    backgroundColor: "rgba(139, 92, 246, 0.18)",
+    backgroundColor: "rgba(251, 191, 36, 0.18)",
     borderWidth: 1,
-    borderColor: "rgba(167, 139, 250, 0.3)",
+    borderColor: "rgba(251, 191, 36, 0.35)",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -2236,12 +3039,12 @@ const styles = StyleSheet.create({
   peopleValue: {
     fontSize: 17,
     fontFamily: VibeFonts.extraBold,
-    color: "#C4B5FD",
+    color: T.yellow,
   },
   peopleValueHint: {
     fontSize: 10,
     fontFamily: VibeFonts.bold,
-    color: "#A78BFA",
+    color: T.yellowDeep,
   },
   peopleChip: {
     minWidth: 32,
@@ -2435,8 +3238,8 @@ const styles = StyleSheet.create({
     borderColor: T.border,
   },
   cityPickChipActive: {
-    backgroundColor: "#7C3AED",
-    borderColor: "#7C3AED",
+    backgroundColor: T.yellowDeep,
+    borderColor: T.yellow,
   },
   cityPickEmoji: { fontSize: 14 },
   cityPickText: {
@@ -2536,33 +3339,33 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    rowGap: 10,
+    rowGap: 14,
   },
-  actCell: { width: "31%" },
+  actCell: { width: "22.8%" },
   actBtn: {
-    aspectRatio: 0.92,
-    borderRadius: 22,
-    backgroundColor: "#0B0B0F",
+    aspectRatio: 0.9,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.035)",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.12)",
+    borderColor: "rgba(255, 255, 255, 0.08)",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 4,
-    paddingTop: 10,
-    paddingBottom: 8,
+    paddingHorizontal: 2,
+    paddingTop: 12,
+    paddingBottom: 10,
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 4,
+    shadowColor: "transparent",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
   actCheck: {
     position: "absolute",
     top: 6,
     right: 6,
-    width: 17,
-    height: 17,
+    width: 18,
+    height: 18,
     borderRadius: 9,
     alignItems: "center",
     justifyContent: "center",
@@ -2595,19 +3398,19 @@ const styles = StyleSheet.create({
     top: 6,
   },
   actIconPad: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 4,
+    marginBottom: 2,
   },
   actIcon3d: {
-    width: 52,
-    height: 52,
+    width: 46,
+    height: 46,
   },
   actName: {
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: VibeFonts.bold,
     color: "#F4F6FB",
     textAlign: "center",
@@ -2752,46 +3555,107 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 10,
   },
-  liveDotWrap: { flexDirection: "row", alignItems: "center", gap: 6 },
+  liveDotWrap: { flexDirection: "row", alignItems: "center", gap: 8 },
+  livePulseWrap: {
+    width: 12,
+    height: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  livePulseRing: {
+    position: "absolute",
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#EF4444",
+  },
   liveDot: {
-    width: 7,
-    height: 7,
+    width: 8,
+    height: 8,
     borderRadius: 4,
     backgroundColor: "#EF4444",
   },
   previewLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: VibeFonts.bold,
-    color: T.faint,
-    letterSpacing: 1.4,
+    color: "rgba(255,255,255,0.72)",
+    letterSpacing: 1.6,
   },
   previewHintPill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: T.softPurple,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    backgroundColor: "rgba(167, 139, 250, 0.18)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(196, 181, 253, 0.28)",
   },
   previewHintText: {
     fontSize: 10,
     fontFamily: VibeFonts.semiBold,
-    color: T.purpleDeep,
+    color: T.purple,
   },
   previewCard: {
-    borderRadius: 24,
-    backgroundColor: T.card,
-    borderWidth: 1.5,
-    paddingVertical: 20,
-    paddingHorizontal: 18,
-    alignItems: "center",
+    borderRadius: 28,
+    padding: 0,
     overflow: "hidden",
-    shadowColor: "#8B5CF6",
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
+    borderWidth: 1.5,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    shadowColor: "#000",
+    shadowOpacity: 0.35,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 6,
+    alignItems: "stretch",
+  },
+  previewHero: {
+    minHeight: 188,
+    paddingTop: 14,
+    paddingBottom: 18,
+    paddingHorizontal: 16,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    overflow: "hidden",
+  },
+  previewHeroFade: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 90,
+  },
+  previewHeroIconWrap: {
+    width: 108,
+    height: 108,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 28,
+    marginBottom: 8,
+  },
+  previewHeroRing: {
+    position: "absolute",
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+  },
+  previewHeroOrb: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+    borderWidth: 2,
+    backgroundColor: "rgba(0,0,0,0.35)",
+  },
+  previewHeroIcon3d: { width: 62, height: 62 },
+  previewHeroSub: {
+    marginTop: 4,
+    fontSize: 12,
+    fontFamily: VibeFonts.semiBold,
+    color: "rgba(255,255,255,0.55)",
   },
   previewTopRow: {
     position: "absolute",
@@ -2801,30 +3665,39 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    zIndex: 4,
   },
   previewVibe: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 5,
     paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
   },
-  previewVibeText: { fontSize: 10, fontFamily: VibeFonts.bold },
+  previewVibeText: { fontSize: 11, fontFamily: VibeFonts.bold },
   previewLiveBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    backgroundColor: "#EF4444",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    gap: 5,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 999,
   },
+  previewLiveDotMini: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#EF4444",
+  },
   previewLiveText: {
-    fontSize: 9,
-    fontFamily: VibeFonts.bold,
-    color: "#fff",
-    letterSpacing: 0.6,
+    fontSize: 10,
+    fontFamily: VibeFonts.extraBold,
+    color: "#0B0D12",
+    letterSpacing: 0.8,
   },
   previewIconOrb: {
     width: 72,
@@ -2834,90 +3707,130 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginTop: 18,
     marginBottom: 6,
-    shadowColor: "#8B5CF6",
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
-    elevation: 4,
   },
   previewIcon3d: { width: 52, height: 52 },
   previewTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontFamily: VibeFonts.extraBold,
-    color: T.ink,
+    color: "#FFFFFF",
     textAlign: "center",
-    letterSpacing: -0.3,
+    letterSpacing: -0.4,
   },
-  previewMetaGrid: {
-    marginTop: 12,
-    alignItems: "center",
-    gap: 6,
+  previewChipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingTop: 14,
+    paddingBottom: 4,
   },
-  previewMetaItem: {
+  previewChip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 6,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    maxWidth: "100%",
   },
-  previewMetaText: {
-    fontSize: 13,
+  previewChipWide: { flexGrow: 1, flexShrink: 1 },
+  previewChipMuted: {
+    borderStyle: "dashed",
+    borderColor: "rgba(255,255,255,0.18)",
+  },
+  previewChipText: {
+    fontSize: 12,
     fontFamily: VibeFonts.semiBold,
+    color: "rgba(255,255,255,0.82)",
+    maxWidth: 140,
   },
-  previewMetaMuted: {
-    fontSize: 13,
-    fontFamily: VibeFonts.medium,
-    color: T.muted,
-  },
+  previewMetaGrid: { marginTop: 12, alignItems: "center", gap: 6 },
+  previewMetaItem: { flexDirection: "row", alignItems: "center", gap: 5 },
+  previewMetaText: { fontSize: 13, fontFamily: VibeFonts.semiBold },
+  previewMetaMuted: { fontSize: 13, fontFamily: VibeFonts.medium, color: T.muted },
   previewQuote: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 6,
-    marginTop: 12,
+    gap: 8,
+    marginTop: 10,
+    marginHorizontal: 14,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: "rgba(237,231,255,0.7)",
-    borderRadius: 12,
+    paddingVertical: 10,
+    backgroundColor: "rgba(167, 139, 250, 0.12)",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(196, 181, 253, 0.22)",
+  },
+  previewQuoteEmpty: {
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: "rgba(255,255,255,0.1)",
+    borderStyle: "dashed",
   },
   previewDesc: {
     flex: 1,
-    fontSize: 12,
-    fontFamily: VibeFonts.regular,
-    color: T.muted,
+    fontSize: 13,
+    fontFamily: VibeFonts.medium,
+    color: "rgba(255,255,255,0.78)",
     fontStyle: "italic",
+    lineHeight: 18,
   },
   previewFooter: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginTop: 16,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: T.border,
-    width: "100%",
-    justifyContent: "center",
+    gap: 10,
+    marginTop: 12,
+    marginHorizontal: 12,
+    marginBottom: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
   },
   avatarStack: { flexDirection: "row", alignItems: "center" },
   avatarGhost: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 1.5,
-    borderColor: "#fff",
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: "#161822",
     alignItems: "center",
     justifyContent: "center",
   },
+  avatarMore: { backgroundColor: "rgba(255,255,255,0.16)" },
+  avatarMoreText: { fontSize: 8, fontFamily: VibeFonts.bold, color: "#fff" },
+  previewFooterTitle: {
+    fontSize: 12,
+    fontFamily: VibeFonts.bold,
+    color: "#FFFFFF",
+  },
   previewFooterText: {
-    fontSize: 11,
-    fontFamily: VibeFonts.semiBold,
+    fontSize: 10,
+    fontFamily: VibeFonts.medium,
     color: T.faint,
+    marginTop: 1,
+  },
+  previewGoPill: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
   },
   tipBanner: { marginBottom: 8 },
   tipInner: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    borderRadius: 18,
+    borderRadius: 28,
     padding: 14,
     borderWidth: 1,
-    borderColor: "rgba(167, 139, 250, 0.28)",
+    borderColor: "rgba(255,255,255,0.14)",
+    backgroundColor: "rgba(255,255,255,0.06)",
   },
   tipIcon: {
     width: 36,
@@ -2944,37 +3857,85 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: T.bg,
+    backgroundColor: "transparent",
   },
   footerFade: {
     position: "absolute",
-    top: -36,
+    top: -48,
     left: 0,
     right: 0,
-    height: 40,
+    height: 56,
   },
   ctaWrap: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 28,
     paddingTop: 8,
     paddingBottom: 8,
+    alignItems: "center",
   },
   ctaPress: {
-    borderRadius: 20,
+    borderRadius: 999,
     overflow: "hidden",
-    shadowColor: "#8B5CF6",
-    shadowOpacity: 0.4,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 7 },
+    shadowColor: "#fff",
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
     elevation: 6,
   },
-  ctaPressGreen: {
-    borderRadius: 20,
+  ctaPressPromo: {
+    alignSelf: "stretch",
+    borderRadius: 999,
     overflow: "hidden",
-    shadowColor: "#16A34A",
-    shadowOpacity: 0.4,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 7 },
+    shadowColor: "#1FA971",
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
     elevation: 6,
+  },
+  ctaBtnPromo: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    minHeight: 48,
+    paddingVertical: 12,
+    paddingHorizontal: 22,
+    borderRadius: 999,
+  },
+  ctaEmoji: { fontSize: 16 },
+  ctaPressGreen: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "center",
+    gap: 8,
+    minHeight: 44,
+    minWidth: 0,
+    maxWidth: "82%",
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 999,
+    backgroundColor: "#22C55E",
+    borderWidth: 1.5,
+    borderColor: "#86EFAC",
+    shadowColor: "transparent",
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 0,
+  },
+  ctaPressed: {
+    transform: [{ scale: 0.97 }],
+    opacity: 0.92,
+  },
+  ctaPressWhite: {
+    borderRadius: 999,
+    overflow: "hidden",
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
   },
   ctaBtn: {
     flexDirection: "row",
@@ -2983,17 +3944,39 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 13,
     paddingHorizontal: 14,
-    borderRadius: 20,
+    borderRadius: 999,
   },
   ctaBtnCompact: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 14,
-    minHeight: 46,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 999,
+    minHeight: 52,
+  },
+  ctaBtnWhite: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 15,
+    paddingHorizontal: 22,
+    borderRadius: 999,
+    minHeight: 54,
+    backgroundColor: "#FFFFFF",
+  },
+  ctaBtnGreen: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 15,
+    paddingHorizontal: 22,
+    borderRadius: 999,
+    minHeight: 54,
+    backgroundColor: "#22C55E",
   },
   ctaIconBubble: {
     width: 36,
@@ -3004,17 +3987,25 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   ctaIconBubbleGreen: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#fff",
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
   },
   ctaText: {
-    color: "#fff",
+    flexShrink: 1,
+    color: "#FFFFFF",
     fontSize: 14,
     fontFamily: VibeFonts.bold,
+    letterSpacing: -0.2,
+  },
+  ctaTextDark: {
+    color: "#0B0D12",
+    fontSize: 15,
+    fontFamily: VibeFonts.extraBold,
+    letterSpacing: -0.2,
   },
   ctaSub: {
     color: "rgba(255,255,255,0.85)",
@@ -3031,16 +4022,16 @@ const styles = StyleSheet.create({
   inviteWaCard: {
     width: 92,
     alignItems: "center",
-    backgroundColor: "rgba(22, 26, 46, 0.94)",
-    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderRadius: 22,
     paddingVertical: 12,
     paddingHorizontal: 8,
     borderWidth: 1.5,
-    borderColor: T.border,
+    borderColor: "rgba(255,255,255,0.14)",
   },
   inviteWaCardActive: {
     borderColor: "#22C55E",
-    backgroundColor: "rgba(34, 197, 94, 0.12)",
+    backgroundColor: "rgba(34, 197, 94, 0.18)",
   },
   inviteWaIcon: {
     width: 44,
@@ -3064,15 +4055,16 @@ const styles = StyleSheet.create({
   },
   inviteEmptyCard: {
     width: 140,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: T.border,
-    borderStyle: "dashed",
     alignItems: "center",
     justifyContent: "center",
-    padding: 14,
     gap: 6,
-    backgroundColor: T.softPurple,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderRadius: 22,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    borderStyle: "dashed",
   },
   inviteEmptyText: {
     fontSize: 12,
@@ -3087,16 +4079,16 @@ const styles = StyleSheet.create({
   inviteMatchCard: {
     width: 84,
     alignItems: "center",
-    backgroundColor: "rgba(22, 26, 46, 0.94)",
-    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderRadius: 22,
     paddingVertical: 10,
     paddingHorizontal: 8,
     borderWidth: 1.5,
-    borderColor: T.border,
+    borderColor: "rgba(255,255,255,0.14)",
   },
   inviteMatchCardActive: {
-    borderColor: T.purple,
-    backgroundColor: "rgba(139, 92, 246, 0.16)",
+    borderColor: T.orange,
+    backgroundColor: "rgba(249, 115, 22, 0.18)",
   },
   inviteMatchAvatar: {
     width: 48,
@@ -3104,7 +4096,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     marginBottom: 8,
     borderWidth: 2,
-    borderColor: "#1A2238",
+    borderColor: "rgba(255,255,255,0.2)",
   },
   inviteMatchName: {
     fontSize: 12,
@@ -3120,7 +4112,7 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: "#22C55E",
+    backgroundColor: T.orangeDeep,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -3129,18 +4121,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     marginTop: 12,
-    backgroundColor: "rgba(52, 211, 153, 0.12)",
+    backgroundColor: "rgba(249, 115, 22, 0.14)",
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: "rgba(52, 211, 153, 0.28)",
+    borderColor: "rgba(251, 146, 60, 0.35)",
   },
   inviteSummaryText: {
     flex: 1,
     fontSize: 12,
     fontFamily: VibeFonts.semiBold,
-    color: T.green,
+    color: T.orange,
   },
 
   sendModalRoot: {
@@ -3149,7 +4141,433 @@ const styles = StyleSheet.create({
   },
   sendModalDim: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.65)",
+    backgroundColor: "rgba(0,0,0,0.55)",
+  },
+  inviteSheet: {
+    backgroundColor: "#141218",
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    maxHeight: "88%",
+    overflow: "hidden",
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+  inviteCloseBtn: {
+    position: "absolute",
+    top: 12,
+    right: 14,
+    zIndex: 5,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  inviteSheetHead: { alignItems: "center", marginBottom: 10, paddingTop: 4 },
+  inviteSheetBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 999,
+    marginBottom: 8,
+    overflow: "hidden",
+  },
+  inviteSheetBadgeText: {
+    fontSize: 9,
+    fontFamily: VibeFonts.extraBold,
+    color: "#FFFFFF",
+    letterSpacing: 1.1,
+  },
+  inviteTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  inviteSpark: { fontSize: 14, marginLeft: 2 },
+  inviteSheetTitle: {
+    fontSize: 24,
+    fontFamily: VibeFonts.extraBold,
+    color: "#FFFFFF",
+    letterSpacing: -0.5,
+  },
+  inviteTitleAccent: { color: "#FF8A3D" },
+  inviteSheetSub: {
+    marginTop: 4,
+    fontSize: 12,
+    fontFamily: VibeFonts.medium,
+    color: "rgba(255,255,255,0.55)",
+    textAlign: "center",
+    paddingHorizontal: 20,
+  },
+  inviteVideoWrap: {
+    width: "100%",
+    height: 132,
+    borderRadius: 18,
+    overflow: "hidden",
+    backgroundColor: "rgba(0,0,0,0.3)",
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+  },
+  inviteVideoBottomFade: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 56,
+  },
+  inviteNeonCaption: {
+    position: "absolute",
+    left: 12,
+    bottom: 10,
+    right: 40,
+    fontSize: 13,
+    fontFamily: VibeFonts.bold,
+    fontStyle: "italic",
+    color: "#FF6BA8",
+    textShadowColor: "rgba(255,77,154,0.7)",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8,
+  },
+  inviteVideoFade: {},
+  inviteMetaBorder: {
+    borderRadius: 16,
+    padding: 1.5,
+    marginBottom: 10,
+  },
+  inviteMetaCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    marginBottom: 12,
+  },
+  inviteMetaIconRing: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.06)",
+  },
+  inviteMetaIcon: { width: 34, height: 34 },
+  inviteMetaTitle: {
+    fontSize: 14,
+    fontFamily: VibeFonts.bold,
+    color: "#FFFFFF",
+  },
+  inviteMetaLocRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 2,
+  },
+  inviteMetaSub: {
+    flex: 1,
+    fontSize: 11,
+    fontFamily: VibeFonts.medium,
+    color: "rgba(255,255,255,0.55)",
+  },
+  inviteMetaCount: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 14,
+    backgroundColor: "rgba(167,139,250,0.14)",
+    borderWidth: 1,
+    borderColor: "rgba(167,139,250,0.28)",
+  },
+  inviteMetaCountText: {
+    fontSize: 15,
+    fontFamily: VibeFonts.extraBold,
+    color: "#E9D5FF",
+  },
+  inviteMetaCountHint: {
+    fontSize: 9,
+    fontFamily: VibeFonts.medium,
+    color: "rgba(255,255,255,0.45)",
+  },
+  invitePickHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  invitePickLabel: {
+    fontSize: 10,
+    fontFamily: VibeFonts.bold,
+    color: "rgba(255,255,255,0.45)",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+  },
+  invitePickCountPill: {
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: "rgba(34,197,94,0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(34,197,94,0.3)",
+  },
+  invitePickCountText: {
+    fontSize: 10,
+    fontFamily: VibeFonts.bold,
+    color: "#86EFAC",
+  },
+  invitePeopleRow: {
+    gap: 14,
+    paddingBottom: 4,
+    paddingRight: 8,
+  },
+  invitePersonCard: {
+    width: 68,
+    alignItems: "center",
+    gap: 6,
+  },
+  invitePersonRing: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.16)",
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  invitePersonRingOn: {
+    borderColor: "#A855F7",
+  },
+  invitePersonRingOnWa: {
+    borderColor: "#22C55E",
+  },
+  invitePersonOrb: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  invitePersonOrbEmpty: {
+    backgroundColor: "rgba(167,139,250,0.18)",
+  },
+  invitePersonPhoto: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+  },
+  invitePersonTick: {
+    position: "absolute",
+    bottom: -1,
+    right: -1,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "#A855F7",
+    borderWidth: 2,
+    borderColor: "#141218",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  invitePersonLabel: {
+    fontSize: 11,
+    fontFamily: VibeFonts.semiBold,
+    color: "rgba(255,255,255,0.8)",
+    textAlign: "center",
+    maxWidth: 68,
+  },
+  inviteSendGrid: {
+    flexDirection: "row",
+    gap: 7,
+    marginBottom: 4,
+  },
+  inviteSendBorder: {
+    flex: 1,
+    borderRadius: 14,
+    padding: 1.5,
+  },
+  inviteSendRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    paddingVertical: 7,
+    paddingHorizontal: 8,
+    borderRadius: 13,
+    backgroundColor: "#1C1C24",
+  },
+  inviteSendRowWaOn: {
+    backgroundColor: "rgba(34,197,94,0.12)",
+  },
+  inviteSendRowMatchOn: {
+    backgroundColor: "rgba(168,85,247,0.14)",
+  },
+  inviteRowIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  inviteRowAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+  },
+  inviteRowCheck: {
+    position: "absolute",
+    top: -3,
+    right: -3,
+    width: 13,
+    height: 13,
+    borderRadius: 7,
+    backgroundColor: "#A855F7",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#fff",
+    zIndex: 2,
+  },
+  inviteSendName: {
+    fontSize: 11,
+    fontFamily: VibeFonts.bold,
+    color: "#FFFFFF",
+  },
+  inviteSendHint: {
+    marginTop: 0,
+    fontSize: 9,
+    fontFamily: VibeFonts.medium,
+    color: "rgba(255,255,255,0.42)",
+  },
+  inviteMoreRow: { gap: 6, paddingBottom: 2 },
+  inviteChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingVertical: 4,
+    paddingHorizontal: 7,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  inviteChipOn: {
+    borderColor: "rgba(168,85,247,0.6)",
+    backgroundColor: "rgba(168,85,247,0.15)",
+  },
+  inviteChipAvatar: { width: 18, height: 18, borderRadius: 9 },
+  inviteChipName: {
+    fontSize: 10,
+    fontFamily: VibeFonts.semiBold,
+    color: "#fff",
+    maxWidth: 56,
+  },
+  invitePersonWa: { backgroundColor: "#25D366" },
+  invitePersonIconEmpty: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(167,139,250,0.2)",
+  },
+  invitePersonIcon: {},
+  invitePersonCheck: {},
+  invitePerson: {},
+  invitePersonAvatar: {},
+  invitePersonName: {},
+  invitePersonOn: {},
+  inviteSendingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 12,
+    marginBottom: 6,
+    minHeight: 22,
+  },
+  inviteSendingAvatar: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderColor: "#141218",
+  },
+  inviteSendingWa: {
+    backgroundColor: "#25D366",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  invitePickSummary: {
+    fontSize: 12,
+    fontFamily: VibeFonts.medium,
+    color: "rgba(255,255,255,0.55)",
+    marginLeft: 4,
+  },
+  inviteSheetCta: {
+    marginTop: 6,
+    borderRadius: 999,
+    overflow: "hidden",
+    shadowColor: "#22C55E",
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  inviteSheetCtaGrad: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    minHeight: 52,
+    paddingVertical: 14,
+    borderRadius: 999,
+  },
+  inviteSheetCtaText: {
+    fontSize: 16,
+    fontFamily: VibeFonts.extraBold,
+    color: "#FFFFFF",
+  },
+  invitePickRow: {},
+  inviteSendCard: {},
+  inviteSendCardWaOn: {},
+  inviteSendCardMatchOn: {},
+  inviteSendAvatar: {},
+  inviteVideoFade: {},
+  inviteVideoCaption: {},
+  invitePickCard: {},
+  invitePickCardOn: {},
+  invitePickAvatar: {},
+  invitePickWa: {},
+  invitePickName: {},
+  invitePickCheck: {},
+  invitePickEmpty: {},
+  invitePickEmptyText: {},
+  inviteMiniCard: {},
+  inviteMiniIcon: {},
+  inviteMiniTitle: {},
+  inviteMiniMeta: {},
+  sendHandle: {
+    alignSelf: "center",
+    width: 34,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: "rgba(255,255,255,0.28)",
+    marginBottom: 6,
   },
   sendSheet: {
     backgroundColor: "#0D1220",
@@ -3165,7 +4583,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 4,
     borderRadius: 2,
-    backgroundColor: "rgba(160,170,200,0.35)",
+    backgroundColor: "rgba(255,255,255,0.45)",
     marginBottom: 14,
   },
   sendReady: {

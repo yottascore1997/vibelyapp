@@ -1,730 +1,489 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   Dimensions,
   Image,
-  ScrollView,
+  ImageBackground,
+  FlatList,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
-import { Colors, Radius, Spacing } from "../../constants/theme";
+import { useFonts, Satisfy_400Regular } from "@expo-google-fonts/satisfy";
 import { VibeFonts } from "../../constants/vibeTheme";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withRepeat,
-  withSequence,
-  withDelay,
-  Easing,
-  runOnJS,
-} from "react-native-reanimated";
 
-const { width } = Dimensions.get("window");
+/**
+ * Hero = Figma crop. Copy / CTA / footer = coded, device-stable.
+ */
+
+const { width: W, height: H } = Dimensions.get("window");
+
+const FW = 402;
+const FH = 874;
+const STATUS = 48;
+const COPY_START = 520;
+
+/** Same scale on every device (width-locked, no topPad drift) */
+const s = W / FW;
+const fx = (n: number) => n * s;
+const fy = (n: number) => (n - STATUS) * s;
+
+const welcomeFull = require("../../assets/onboarding/welcome-full.png");
+const loveFull = require("../../assets/onboarding/love-full.png");
+const peopleFull = require("../../assets/onboarding/people-full.png");
+const bgSpotlight = require("../../assets/onboarding/bg-spotlight.png");
+const pinkBrush = require("../../assets/onboarding/pink-brush.png");
+
+type OnboardKey = "love" | "people";
+const ONBOARD: OnboardKey[] = ["love", "people"];
+
+function TypingWord({
+  text,
+  active,
+  fontSize = 34,
+  msPerChar = 65,
+  fontReady,
+}: {
+  text: string;
+  active: boolean;
+  fontSize?: number;
+  msPerChar?: number;
+  fontReady: boolean;
+}) {
+  const [shown, setShown] = useState("");
+
+  useEffect(() => {
+    if (!active || !fontReady) {
+      setShown(active && fontReady ? "" : active ? text : "");
+      return;
+    }
+    setShown("");
+    let i = 0;
+    const id = setInterval(() => {
+      i += 1;
+      setShown(text.slice(0, i));
+      if (i >= text.length) clearInterval(id);
+    }, msPerChar);
+    return () => clearInterval(id);
+  }, [active, text, msPerChar, fontReady]);
+
+  const display = fontReady ? (shown.length ? shown : " ") : text;
+  const size = fx(fontSize);
+
+  return (
+    <ImageBackground
+      source={pinkBrush}
+      resizeMode="stretch"
+      style={styles.scriptChip}
+      imageStyle={styles.scriptBrushImg}
+    >
+      <Text
+        numberOfLines={1}
+        style={[
+          styles.scriptText,
+          {
+            fontSize: size,
+            lineHeight: size * 1.4,
+            fontFamily: fontReady ? "Satisfy_400Regular" : VibeFonts.extraBold,
+            fontStyle: fontReady ? "normal" : "italic",
+          },
+        ]}
+      >
+        {display}
+      </Text>
+    </ImageBackground>
+  );
+}
+
+function HeroShot({ source }: { source: number }) {
+  const clipH = (COPY_START - STATUS) * s;
+  return (
+    <View style={[styles.frameClip, { height: clipH }]}>
+      <Image
+        source={source}
+        style={{ width: W, height: FH * s, marginTop: -STATUS * s }}
+        resizeMode="stretch"
+      />
+    </View>
+  );
+}
+
+function ScreenShell({ children }: { children: React.ReactNode }) {
+  return (
+    <View style={styles.page}>
+      <View style={styles.bgFill} />
+      <Image source={bgSpotlight} style={styles.bgImage} resizeMode="cover" />
+      {children}
+    </View>
+  );
+}
+
+function PageWelcome({
+  onStart,
+  fontReady,
+  bottomPad,
+}: {
+  onStart: () => void;
+  fontReady: boolean;
+  bottomPad: number;
+}) {
+  return (
+    <ScreenShell>
+      <HeroShot source={welcomeFull} />
+
+      <View style={[styles.bottomStack, { paddingBottom: bottomPad + fx(12) }]}>
+        <View style={styles.copyBlockLeft}>
+          <Text style={styles.h1Left}>Make Plans</Text>
+          <View style={styles.rowNowrap}>
+            <Text style={styles.h1Left}>Make </Text>
+            <TypingWord text="Memories" active fontReady={fontReady} fontSize={34} />
+          </View>
+          <Text style={styles.subLeft}>
+            Find your people, discover new experiences into real-life hangouts.
+          </Text>
+        </View>
+
+        <Pressable
+          onPress={onStart}
+          style={styles.ctaPress}
+          accessibilityRole="button"
+          accessibilityLabel="Get Started"
+        >
+          <LinearGradient colors={["#93BEFF", "#0166FF"]} style={styles.ctaBtn}>
+            <Text style={styles.ctaText}>Get Started</Text>
+          </LinearGradient>
+        </Pressable>
+      </View>
+    </ScreenShell>
+  );
+}
+
+function PageLove({ active, fontReady }: { active: boolean; fontReady: boolean }) {
+  return (
+    <ScreenShell>
+      <HeroShot source={loveFull} />
+
+      <View style={styles.copyBlockCenter}>
+        <Text style={[styles.h1, styles.center]}>Everything You Love</Text>
+        <View style={styles.rowNowrapCenter}>
+          <Text style={styles.h1Soft}>all in </Text>
+          <TypingWord text="One Place" active={active} fontReady={fontReady} fontSize={32} />
+        </View>
+        <Text style={[styles.sub, styles.center]}>
+          Discover people, create plans{"\n"}Vibe together
+        </Text>
+      </View>
+    </ScreenShell>
+  );
+}
+
+function PagePeople({ active, fontReady }: { active: boolean; fontReady: boolean }) {
+  return (
+    <ScreenShell>
+      <HeroShot source={peopleFull} />
+
+      <View style={styles.copyBlockCenter}>
+        <Text style={[styles.h1, styles.center]}>Your People, Your</Text>
+        <View style={styles.rowNowrapCenter}>
+          <Text style={styles.h1}>Vibe Your </Text>
+          <TypingWord text="Hangout" active={active} fontReady={fontReady} fontSize={32} />
+        </View>
+        <Text style={[styles.sub, styles.center]}>
+          Join a community that's always{"\n"}up to something fun
+        </Text>
+      </View>
+    </ScreenShell>
+  );
+}
+
+function OnboardFooter({
+  index,
+  onSkip,
+  onNext,
+  bottomPad,
+}: {
+  index: number;
+  onSkip: () => void;
+  onNext: () => void;
+  bottomPad: number;
+}) {
+  const activeDot = index + 1;
+  return (
+    <View style={[styles.footerBar, { paddingBottom: Math.max(bottomPad, 16) }]}>
+      <Pressable onPress={onSkip} hitSlop={12} style={styles.skipHit}>
+        <Text style={styles.skip}>Skip</Text>
+      </Pressable>
+      <View style={styles.dotsRow}>
+        {[0, 1, 2].map((i) => (
+          <View key={i} style={[styles.dot, i === activeDot && styles.dotOn]} />
+        ))}
+      </View>
+      <Pressable onPress={onNext} style={styles.nextHit} accessibilityLabel="Next">
+        <View style={styles.nextRing}>
+          <LinearGradient colors={["#93BEFF", "#0166FF"]} style={styles.nextInner}>
+            <Ionicons name="chevron-forward" size={fx(22)} color="#fff" />
+          </LinearGradient>
+        </View>
+      </Pressable>
+    </View>
+  );
+}
 
 export default function WelcomeScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const listRef = useRef<FlatList>(null);
+  const [started, setStarted] = useState(false);
+  const [onboardIndex, setOnboardIndex] = useState(0);
+  const [fontReady] = useFonts({ Satisfy_400Regular });
 
-  // Carousel State
-  const [activeIndex, setActiveIndex] = useState(0);
-  const cardOpacity = useSharedValue(1);
-  const cardScale = useSharedValue(1);
+  const goLogin = () => router.replace("/(auth)/login");
 
-  // Floating Member Badges Shared Values
-  const av1Y = useSharedValue(0);
-  const av2Y = useSharedValue(0);
-
-  // Mount Animations
-  const logoOpacity = useSharedValue(0);
-  const logoTranslateY = useSharedValue(-15);
-
-  const statsOpacity = useSharedValue(0);
-  const statsTranslateY = useSharedValue(15);
-
-  const carouselOpacity = useSharedValue(0);
-  const carouselScale = useSharedValue(0.95);
-
-  const actionsOpacity = useSharedValue(0);
-  const actionsTranslateY = useSharedValue(20);
-
-  // Floating Member Badges Drift
-  useEffect(() => {
-    av1Y.value = withRepeat(
-      withSequence(
-        withTiming(-8, { duration: 3500, easing: Easing.inOut(Easing.ease) }),
-        withTiming(8, { duration: 3500, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      true
-    );
-
-    av2Y.value = withRepeat(
-      withSequence(
-        withTiming(8, { duration: 4000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(-8, { duration: 4000, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      true
-    );
-  }, []);
-
-  // Entry Animations on mount
-  useEffect(() => {
-    logoOpacity.value = withDelay(100, withTiming(1, { duration: 500 }));
-    logoTranslateY.value = withDelay(100, withTiming(0, { duration: 500 }));
-
-    statsOpacity.value = withDelay(220, withTiming(1, { duration: 500 }));
-    statsTranslateY.value = withDelay(220, withTiming(0, { duration: 500 }));
-
-    carouselOpacity.value = withDelay(340, withTiming(1, { duration: 500 }));
-    carouselScale.value = withDelay(340, withTiming(1, { duration: 500 }));
-
-    actionsOpacity.value = withDelay(460, withTiming(1, { duration: 500 }));
-    actionsTranslateY.value = withDelay(460, withTiming(0, { duration: 500 }));
-  }, []);
-
-  // Feature Carousel Auto-Rotation
-  useEffect(() => {
-    const interval = setInterval(() => {
-      cardOpacity.value = withTiming(0, { duration: 220 }, (finished) => {
-        if (finished) {
-          runOnJS(setActiveIndex)((prev) => (prev + 1) % 3);
-        }
-      });
-    }, 4200);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  // Fade-in/scale-up card when active index changes
-  useEffect(() => {
-    cardScale.value = 0.97;
-    cardOpacity.value = withTiming(1, { duration: 300 });
-    cardScale.value = withTiming(1, { duration: 300 });
-  }, [activeIndex]);
-
-  // Animated styles
-  const av1Style = useAnimatedStyle(() => ({
-    transform: [{ translateY: av1Y.value }],
-  }));
-
-  const av2Style = useAnimatedStyle(() => ({
-    transform: [{ translateY: av2Y.value }],
-  }));
-
-  const logoAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: logoOpacity.value,
-    transform: [{ translateY: logoTranslateY.value }],
-  }));
-
-  const statsAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: statsOpacity.value,
-    transform: [{ translateY: statsTranslateY.value }],
-  }));
-
-  const carouselAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: carouselOpacity.value,
-    transform: [{ scale: carouselScale.value }],
-  }));
-
-  const actionsAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: actionsOpacity.value,
-    transform: [{ translateY: actionsTranslateY.value }],
-  }));
-
-  const cardAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: cardOpacity.value,
-    transform: [{ scale: cardScale.value }],
-  }));
-
-  const renderCarouselCard = () => {
-    switch (activeIndex) {
-      case 0:
-        return (
-          <View style={styles.carouselCardLight}>
-            <Image
-              source={{
-                uri: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&h=300&fit=crop&q=80",
-              }}
-              style={styles.cardImageHero}
-            />
-            <View style={styles.cardOverlayBadge}>
-              <Text style={styles.overlayBadgeText}>☕ Instant Coffee Spot</Text>
-            </View>
-            <View style={styles.cardBody}>
-              <View style={styles.cardHeaderRow}>
-                <Image
-                  source={{
-                    uri: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&q=80",
-                  }}
-                  style={styles.cardAvatar}
-                />
-                <View style={{ flex: 1 }}>
-                  <View style={styles.titleRow}>
-                    <Text style={styles.cardTitle}>Aisha, 22</Text>
-                    <View style={styles.verifiedDot}>
-                      <Ionicons name="checkmark" size={9} color="#FFF" />
-                    </View>
-                  </View>
-                  <Text style={styles.cardSubtitle}>Starbucks • FC Road</Text>
-                </View>
-                <View style={styles.vibePill}>
-                  <Text style={styles.vibePillText}>Lessgo! 🟢</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-        );
-      case 1:
-        return (
-          <View style={styles.carouselCardLight}>
-            <Image
-              source={{
-                uri: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=600&h=300&fit=crop&q=80",
-              }}
-              style={styles.cardImageHero}
-            />
-            <View style={[styles.cardOverlayBadge, { backgroundColor: "#8A56FF" }]}>
-              <Text style={styles.overlayBadgeText}>🍕 Group Hangout</Text>
-            </View>
-            <View style={styles.cardBody}>
-              <View style={styles.cardHeaderRow}>
-                <Image
-                  source={{
-                    uri: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&q=80",
-                  }}
-                  style={styles.cardAvatar}
-                />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.cardTitle}>Late Night Pizza Move</Text>
-                  <Text style={styles.cardSubtitle}>Domino's Central • Tonight 9 PM</Text>
-                </View>
-                <View style={[styles.vibePill, { backgroundColor: "#F3E8FF" }]}>
-                  <Text style={[styles.vibePillText, { color: "#7C3AED" }]}>5 Joined 🔥</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-        );
-      case 2:
-        return (
-          <View style={styles.carouselCardLight}>
-            <Image
-              source={{
-                uri: "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=600&h=300&fit=crop&q=80",
-              }}
-              style={styles.cardImageHero}
-            />
-            <View style={[styles.cardOverlayBadge, { backgroundColor: "#22C55E" }]}>
-              <Text style={styles.overlayBadgeText}>🟢 Real-Time Vibe Status</Text>
-            </View>
-            <View style={styles.cardBody}>
-              <View style={styles.cardHeaderRow}>
-                <Image
-                  source={{
-                    uri: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&q=80",
-                  }}
-                  style={styles.cardAvatar}
-                />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.cardTitle}>Set Your Energy Mood</Text>
-                  <Text style={styles.cardSubtitle}>Signal friends when you're free</Text>
-                </View>
-                <View style={[styles.vibePill, { backgroundColor: "#DCFCE7" }]}>
-                  <Text style={[styles.vibePillText, { color: "#15803D" }]}>Active ⚡</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-        );
-      default:
-        return null;
+  const goNext = () => {
+    if (onboardIndex >= ONBOARD.length - 1) {
+      goLogin();
+      return;
     }
+    const next = onboardIndex + 1;
+    listRef.current?.scrollToIndex({ index: next, animated: true });
+    setOnboardIndex(next);
   };
 
+  const onScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const i = Math.round(e.nativeEvent.contentOffset.x / W);
+    if (i !== onboardIndex) setOnboardIndex(i);
+  };
+
+  const bottomPad = Math.max(insets.bottom, 12);
+
   return (
-    <View style={styles.container}>
-      <StatusBar style="dark" translucent />
+    <View style={styles.root}>
+      <StatusBar style="light" />
 
-      {/* Fresh Light Ambient Gradient Top Backdrop matching Hangout theme */}
-      <LinearGradient
-        colors={["#F8F9FD", "#F3E8FF", "#F8F9FD"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0.6 }}
-        style={StyleSheet.absoluteFill}
-      />
-
-      {/* Soft Ambient Mesh Glows */}
-      <View style={styles.ambientGlowPink} />
-      <View style={styles.ambientGlowPurple} />
-
-      <SafeAreaView style={styles.safe}>
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-          bounces={false}
-        >
-          {/* Header Section */}
-          <Animated.View style={[styles.headerArea, logoAnimatedStyle]}>
-            <View style={styles.pillBadge}>
-              <Ionicons name="sparkles" size={12} color="#7C3AED" />
-              <Text style={styles.pillBadgeText}>REAL TIME MEETUPS</Text>
-            </View>
-
-            <View style={styles.logoRow}>
-              <Text style={styles.logoText}>Hangora</Text>
-              <Ionicons name="flash" size={26} color="#7C3AED" style={{ marginLeft: 3 }} />
-            </View>
-            <Text style={styles.tagline}>Real vibes. Real people. Right now. ✨</Text>
-          </Animated.View>
-
-          {/* Floating Active Member Chips */}
-          <View style={styles.floatingAvatarsRow}>
-            <Animated.View style={[styles.floatingChip, av1Style]}>
-              <Image
-                source={{
-                  uri: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&h=80&fit=crop&q=80",
-                }}
-                style={styles.floatingChipImg}
-              />
-              <View>
-                <Text style={styles.floatingChipName}>Simran, 23</Text>
-                <Text style={styles.floatingChipSub}>🟢 Lessgo!</Text>
+      {!started ? (
+        <PageWelcome
+          onStart={() => setStarted(true)}
+          fontReady={!!fontReady}
+          bottomPad={bottomPad}
+        />
+      ) : (
+        <View style={styles.root}>
+          <FlatList
+            ref={listRef}
+            style={styles.list}
+            data={ONBOARD}
+            horizontal
+            pagingEnabled
+            bounces={false}
+            overScrollMode="never"
+            showsHorizontalScrollIndicator={false}
+            keyExtractor={(k) => k}
+            onMomentumScrollEnd={onScrollEnd}
+            getItemLayout={(_, i) => ({ length: W, offset: W * i, index: i })}
+            renderItem={({ item, index }) => (
+              <View style={styles.slide}>
+                {item === "love" ? (
+                  <PageLove active={onboardIndex === index} fontReady={!!fontReady} />
+                ) : (
+                  <PagePeople active={onboardIndex === index} fontReady={!!fontReady} />
+                )}
               </View>
-            </Animated.View>
-
-            <Animated.View style={[styles.floatingChip, av2Style]}>
-              <Image
-                source={{
-                  uri: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&h=80&fit=crop&q=80",
-                }}
-                style={styles.floatingChipImg}
-              />
-              <View>
-                <Text style={styles.floatingChipName}>Kabir, 25</Text>
-                <Text style={styles.floatingChipSub}>☕ Coffee</Text>
-              </View>
-            </Animated.View>
-          </View>
-
-          {/* Showcase Feature Carousel */}
-          <Animated.View style={[styles.carouselContainer, carouselAnimatedStyle]}>
-            <Animated.View style={[styles.carouselCardContainer, cardAnimatedStyle]}>
-              {renderCarouselCard()}
-            </Animated.View>
-
-            {/* Carousel Dots */}
-            <View style={styles.indicatorContainer}>
-              {[0, 1, 2].map((i) => (
-                <View
-                  key={i}
-                  style={[
-                    styles.indicatorDot,
-                    activeIndex === i ? styles.indicatorDotActive : null,
-                  ]}
-                />
-              ))}
-            </View>
-          </Animated.View>
-
-          {/* Compact Light Stats Card */}
-          <Animated.View style={[styles.statsCardWrapper, statsAnimatedStyle]}>
-            <View style={styles.statsCardLight}>
-              <View style={styles.statItem}>
-                <Text style={styles.statVal}>50K+</Text>
-                <Text style={styles.statLabel}>Members</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statVal}>4.9★</Text>
-                <Text style={styles.statLabel}>Rating</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statVal}>3.4K+</Text>
-                <Text style={styles.statLabel}>Live Spots</Text>
-              </View>
-            </View>
-          </Animated.View>
-
-          {/* Actions & Security */}
-          <Animated.View style={[styles.actionsArea, actionsAnimatedStyle]}>
-            <TouchableOpacity
-              onPress={() => router.push("/(auth)/login")}
-              activeOpacity={0.88}
-              style={styles.primaryBtnTouchable}
-            >
-              <LinearGradient
-                colors={["#7C3AED", "#8B5CF6"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.primaryBtn}
-              >
-                <Text style={styles.primaryText}>Continue with mobile</Text>
-                <Ionicons name="phone-portrait-outline" size={19} color="#FFF" />
-              </LinearGradient>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.secondaryBtn}
-              onPress={() => router.push("/(auth)/login")}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.secondaryText}>Already a member? </Text>
-              <Text style={styles.secondaryBold}>Sign In</Text>
-            </TouchableOpacity>
-
-            {/* Bottom Security Row */}
-            <View style={styles.featuresRow}>
-              {[
-                { icon: "shield-checkmark-outline", text: "100% Verified" },
-                { icon: "flash-outline", text: "Instant Meets" },
-                { icon: "lock-closed-outline", text: "Privacy Safe" },
-              ].map((f) => (
-                <View key={f.text} style={styles.featureItem}>
-                  <Ionicons name={f.icon as any} size={13} color="#7C3AED" />
-                  <Text style={styles.featureText}>{f.text}</Text>
-                </View>
-              ))}
-            </View>
-          </Animated.View>
-        </ScrollView>
-      </SafeAreaView>
+            )}
+          />
+          <OnboardFooter
+            index={onboardIndex}
+            onSkip={goLogin}
+            onNext={goNext}
+            bottomPad={bottomPad}
+          />
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F8F9FD",
-  },
-  safe: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: "space-between",
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xs,
-    paddingBottom: Spacing.lg,
-  },
-
-  // Soft Ambient Glows (Hangout theme)
-  ambientGlowPink: {
+  root: { flex: 1, backgroundColor: "#010103" },
+  list: { flex: 1, backgroundColor: "transparent" },
+  slide: { width: W, height: H, backgroundColor: "#010103" },
+  page: { flex: 1, width: W, height: H, backgroundColor: "#010103" },
+  bgFill: { ...StyleSheet.absoluteFillObject, backgroundColor: "#010103" },
+  bgImage: { ...StyleSheet.absoluteFillObject, width: W, height: H, opacity: 0.85 },
+  frameClip: {
     position: "absolute",
-    top: -60,
-    right: -60,
-    width: 240,
-    height: 240,
-    borderRadius: 120,
-    backgroundColor: "rgba(124, 58, 237, 0.08)",
-  },
-  ambientGlowPurple: {
-    position: "absolute",
-    top: 180,
-    left: -70,
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: "rgba(139, 92, 246, 0.06)",
-  },
-
-  // Header Area
-  headerArea: {
-    alignItems: "center",
-    marginTop: Spacing.xs,
-  },
-  pillBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: Radius.full,
-    backgroundColor: "rgba(124, 58, 237, 0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(124, 58, 237, 0.2)",
-    marginBottom: 8,
-  },
-  pillBadgeText: {
-    color: "#7C3AED",
-    fontSize: 10,
-    fontFamily: VibeFonts.bold,
-    letterSpacing: 1.1,
-  },
-  logoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  logoText: {
-    fontSize: 38,
-    fontFamily: VibeFonts.extraBold,
-    color: "#18181B",
-    letterSpacing: -0.5,
-  },
-  tagline: {
-    fontSize: 13,
-    fontFamily: VibeFonts.medium,
-    color: "#64748B",
-    marginTop: 4,
-    textAlign: "center",
-  },
-
-  // Floating Avatars Row
-  floatingAvatarsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginVertical: 10,
-    paddingHorizontal: Spacing.xs,
-  },
-  floatingChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#FFFFFF",
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: Radius.full,
-    borderWidth: 1,
-    borderColor: "rgba(124, 58, 237, 0.15)",
-    shadowColor: "#7C3AED",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  floatingChipImg: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: "#7C3AED",
-  },
-  floatingChipName: {
-    fontSize: 10,
-    fontFamily: VibeFonts.bold,
-    color: "#18181B",
-  },
-  floatingChipSub: {
-    fontSize: 9,
-    fontFamily: VibeFonts.medium,
-    color: "#64748B",
-  },
-
-  // Carousel Container
-  carouselContainer: {
-    alignItems: "center",
-    marginVertical: 6,
-    width: "100%",
-  },
-  carouselCardContainer: {
-    width: "100%",
-  },
-  carouselCardLight: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: Radius.xxl,
+    top: 0,
+    left: 0,
+    width: W,
     overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(124, 58, 237, 0.12)",
-    shadowColor: "#7C3AED",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
+    zIndex: 1,
   },
-  cardImageHero: {
-    width: "100%",
-    height: 140,
-  },
-  cardOverlayBadge: {
+
+  bottomStack: {
     position: "absolute",
-    top: 10,
-    left: 10,
-    backgroundColor: "#7C3AED",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: Radius.full,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: fx(15),
+    zIndex: 40,
   },
-  overlayBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 10,
-    fontFamily: VibeFonts.bold,
+  copyBlockLeft: {
+    marginBottom: fx(18),
   },
-  cardBody: {
-    padding: Spacing.md,
-  },
-  cardHeaderRow: {
-    flexDirection: "row",
+  copyBlockCenter: {
+    position: "absolute",
+    left: fx(16),
+    right: fx(16),
+    top: fy(534),
     alignItems: "center",
-    gap: Spacing.sm,
-  },
-  cardAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: "#7C3AED",
-  },
-  titleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  cardTitle: {
-    fontSize: 15,
-    fontFamily: VibeFonts.bold,
-    color: "#18181B",
-  },
-  verifiedDot: {
-    width: 13,
-    height: 13,
-    borderRadius: 7,
-    backgroundColor: "#7C3AED",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cardSubtitle: {
-    fontSize: 11,
-    fontFamily: VibeFonts.regular,
-    color: "#64748B",
-    marginTop: 1,
-  },
-  vibePill: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: Radius.full,
-    backgroundColor: "#F3E8FF",
-  },
-  vibePillText: {
-    fontSize: 10,
-    fontFamily: VibeFonts.bold,
-    color: "#7C3AED",
+    zIndex: 40,
   },
 
-  // Carousel Indicators
-  indicatorContainer: {
+  rowNowrap: {
     flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "nowrap",
+  },
+  rowNowrapCenter: {
+    flexDirection: "row",
+    alignItems: "center",
     justifyContent: "center",
-    gap: 6,
-    marginTop: 10,
+    flexWrap: "nowrap",
+    marginTop: fx(4),
+    width: "100%",
   },
-  indicatorDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#E2E8F0",
-  },
-  indicatorDotActive: {
-    backgroundColor: "#7C3AED",
-    width: 18,
-  },
+  center: { textAlign: "center" },
 
-  // Stats Card
-  statsCardWrapper: {
-    marginVertical: 6,
-  },
-  statsCardLight: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: Radius.xl,
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: "rgba(124, 58, 237, 0.1)",
-    shadowColor: "#7C3AED",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  statItem: {
-    alignItems: "center",
-    flex: 1,
-  },
-  statVal: {
-    fontSize: 18,
+  h1: {
+    fontSize: fx(30),
     fontFamily: VibeFonts.extraBold,
-    color: "#18181B",
+    color: "#FFFFFF",
+    letterSpacing: fx(0.5),
+    lineHeight: fx(40),
   },
-  statLabel: {
-    fontSize: 10,
-    fontFamily: VibeFonts.medium,
-    color: "#64748B",
-    marginTop: 2,
+  h1Left: {
+    fontSize: fx(32),
+    fontFamily: VibeFonts.extraBold,
+    color: "#FFFFFF",
+    letterSpacing: fx(0.5),
+    lineHeight: fx(42),
   },
-  statDivider: {
-    width: 1,
-    height: 20,
-    backgroundColor: "#E2E8F0",
-  },
-
-  // Actions Area
-  actionsArea: {
-    gap: Spacing.xs,
-    marginTop: 6,
-  },
-  primaryBtnTouchable: {
-    shadowColor: "#7C3AED",
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 6,
-  },
-  primaryBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 15,
-    borderRadius: Radius.full,
-  },
-  primaryText: {
-    fontSize: 16,
+  h1Soft: {
+    fontSize: fx(28),
     fontFamily: VibeFonts.bold,
     color: "#FFFFFF",
-    letterSpacing: 0.3,
+    letterSpacing: fx(0.4),
+    lineHeight: fx(40),
+    flexShrink: 0,
   },
-  secondaryBtn: {
-    flexDirection: "row",
-    justifyContent: "center",
-    paddingVertical: 6,
+  sub: {
+    marginTop: fx(16),
+    fontSize: fx(15.5),
+    fontFamily: VibeFonts.medium,
+    color: "#FFFFFF",
+    letterSpacing: fx(0.3),
+    lineHeight: fx(21),
   },
-  secondaryText: {
-    color: "#64748B",
-    fontSize: 13,
-    fontFamily: VibeFonts.regular,
-  },
-  secondaryBold: {
-    color: "#7C3AED",
-    fontSize: 13,
-    fontFamily: VibeFonts.bold,
+  subLeft: {
+    marginTop: fx(14),
+    fontSize: fx(15.5),
+    fontFamily: VibeFonts.medium,
+    color: "#FFFFFF",
+    letterSpacing: fx(0.3),
+    lineHeight: fx(21),
+    paddingRight: fx(8),
   },
 
-  // Security Features Row
-  featuresRow: {
-    flexDirection: "row",
+  scriptChip: {
+    flexShrink: 0,
+    paddingLeft: fx(16),
+    paddingRight: fx(22),
+    paddingTop: fx(10),
+    paddingBottom: fx(12),
+    alignItems: "center",
     justifyContent: "center",
-    gap: Spacing.lg,
-    marginTop: 4,
+    alignSelf: "center",
+    transform: [{ rotate: "-1.5deg" }],
   },
-  featureItem: {
+  scriptBrushImg: {
+    resizeMode: "stretch",
+  },
+  scriptText: {
+    color: "#FFFFFF",
+    letterSpacing: fx(0.35),
+    textAlign: "center",
+    includeFontPadding: false,
+    textAlignVertical: "center",
+  },
+
+  ctaPress: {
+    width: "100%",
+    height: fx(54),
+    borderRadius: fx(36),
+    overflow: "hidden",
+  },
+  ctaBtn: {
+    flex: 1,
+    borderRadius: fx(36),
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ctaText: {
+    fontSize: fx(20),
+    fontFamily: VibeFonts.semiBold,
+    color: "#FFFFFF",
+    letterSpacing: fx(0.4),
+  },
+
+  footerBar: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingTop: 10,
+    paddingHorizontal: fx(15),
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    justifyContent: "space-between",
+    backgroundColor: "#010103",
+    zIndex: 50,
   },
-  featureText: {
-    color: "#64748B",
-    fontSize: 10,
+  skipHit: { minWidth: fx(56), paddingVertical: 8 },
+  skip: {
+    fontSize: fx(14.2),
     fontFamily: VibeFonts.semiBold,
+    color: "#FFFFFF",
+    letterSpacing: fx(0.42),
+  },
+  dotsRow: { flexDirection: "row", alignItems: "center", gap: fx(8) },
+  dot: {
+    width: fx(10),
+    height: fx(10),
+    borderRadius: fx(5),
+    backgroundColor: "rgba(255,255,255,0.85)",
+  },
+  dotOn: { backgroundColor: "#0166FF" },
+  nextHit: { width: fx(65), height: fx(65), alignItems: "center", justifyContent: "center" },
+  nextRing: {
+    width: fx(65),
+    height: fx(65),
+    borderRadius: fx(32.5),
+    borderWidth: Math.max(1.5, fx(1.5)),
+    borderColor: "rgba(255,255,255,0.92)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  nextInner: {
+    width: fx(48),
+    height: fx(48),
+    borderRadius: fx(24),
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

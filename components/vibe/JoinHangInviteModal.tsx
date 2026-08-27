@@ -32,34 +32,26 @@ import { VibeFonts } from "../../constants/vibeTheme";
 import CounterSettleSheet from "./CounterSettleSheet";
 
 const { width: SCREEN_W } = Dimensions.get("window");
-const SHEET_W = Math.min(SCREEN_W - 40, 380);
+const SHEET_W = Math.min(SCREEN_W - 36, 380);
 
-const coffeeVideo = require("../../assets/cofee.mp4");
-const smokeVideo = require("../../assets/smoke.mp4");
-const drinkVideo = require("../../assets/drink.mp4");
+const recSmokeVideo = require("../../assets/recsmoke.mp4");
+const accSmokeVideo = require("../../assets/accsmoke.mp4");
 
-const ACT_VIDEOS: Record<string, number> = {
-  coffee: coffeeVideo,
-  cafe: coffeeVideo,
-  sutta: smokeVideo,
-  smoke: smokeVideo,
-  cigarette: smokeVideo,
-  drinks: drinkVideo,
-  drink: drinkVideo,
-  beer: drinkVideo,
+/** Match create-hang / Who’s coming palette */
+const T = {
+  bg: "#121216",
+  card: "#1A1A22",
+  ink: "#FFFFFF",
+  muted: "rgba(255,255,255,0.55)",
+  faint: "rgba(255,255,255,0.4)",
+  purple: "#A855F7",
+  lilac: "#C4B5FD",
+  pink: "#EC4899",
+  orange: "#F97316",
+  peach: "#FF9A72",
+  cta: ["#EC4899", "#F97316"] as const,
+  inviteBadge: ["#FF8A00", "#FF2D7A"] as const,
 };
-
-function resolveVideo(activityName?: string, emoji?: string) {
-  const n = (activityName || "").toLowerCase();
-  if (n.includes("sutta") || n.includes("smoke") || emoji === "🚬") return smokeVideo;
-  if (n.includes("coffee") || n.includes("cafe") || emoji === "☕") return coffeeVideo;
-  if (n.includes("drink") || n.includes("beer") || emoji === "🍸" || emoji === "🍺")
-    return drinkVideo;
-  for (const [k, v] of Object.entries(ACT_VIDEOS)) {
-    if (n.includes(k)) return v;
-  }
-  return coffeeVideo;
-}
 
 function activityShortLabel(name?: string) {
   const n = (name || "hang").trim();
@@ -136,14 +128,32 @@ const COUNTER_ACTS = [
 function LoopVideo({ source }: { source: number }) {
   const player = useVideoPlayer(source, (p) => {
     p.loop = true;
-    p.muted = true;
+    p.muted = false;
+    p.volume = 1;
     p.play();
   });
   return (
     <VideoView
       player={player}
       style={StyleSheet.absoluteFill}
-      contentFit="cover"
+      contentFit="contain"
+      nativeControls={false}
+    />
+  );
+}
+
+function CelebrationVideo({ source }: { source: number }) {
+  const player = useVideoPlayer(source, (p) => {
+    p.loop = false;
+    p.muted = false;
+    p.volume = 1;
+    p.play();
+  });
+  return (
+    <VideoView
+      player={player}
+      style={StyleSheet.absoluteFill}
+      contentFit="contain"
       nativeControls={false}
     />
   );
@@ -183,7 +193,7 @@ function BurstSpark({
 }
 
 function CelebrationBurst() {
-  const colors = ["#22C55E", "#A78BFA", "#F472B6", "#FBBF24", "#60A5FA", "#34D399"];
+  const colors = [T.orange, T.pink, T.purple, "#FBBF24", T.lilac, "#FF6B9D"];
   const sparks = Array.from({ length: 18 }, (_, i) => ({
     angle: i * 20,
     delay: 30 + (i % 5) * 40,
@@ -238,10 +248,9 @@ export default function JoinHangInviteModal({
   }, [visible, phase, invite?.id]);
 
   const videoSource = useMemo(() => {
-    const name = phase === "joined" ? joined?.activityName : invite?.activityName;
-    const emoji = phase === "joined" ? joined?.activityEmoji : invite?.activityEmoji;
-    return resolveVideo(name, emoji);
-  }, [phase, invite, joined]);
+    if (phase === "joined") return accSmokeVideo;
+    return recSmokeVideo;
+  }, [phase]);
 
   if (!visible) return null;
   if (phase === "invite" && !invite) return null;
@@ -291,8 +300,7 @@ export default function JoinHangInviteModal({
                     activityName:
                       invite.parentActivity?.activityName || invite.activityName,
                     activityEmoji:
-                      invite.parentActivity?.activityEmoji ||
-                      invite.activityEmoji,
+                      invite.parentActivity?.activityEmoji || invite.activityEmoji,
                   }
                 : {
                     name: invite.senderName,
@@ -310,46 +318,66 @@ export default function JoinHangInviteModal({
                 : {
                     name: "You",
                     activityName:
-                      invite.parentActivity?.activityName ||
-                      invite.activityName,
+                      invite.parentActivity?.activityName || invite.activityName,
                     activityEmoji:
-                      invite.parentActivity?.activityEmoji ||
-                      invite.activityEmoji,
+                      invite.parentActivity?.activityEmoji || invite.activityEmoji,
                   }
             }
             loading={loading}
             onAcceptTheirs={() => onJoin()}
-            onSettledDone={(info) =>
-              onSettleDone ? onSettleDone(info) : onJoin()
-            }
+            onSettledDone={(info) => (onSettleDone ? onSettleDone(info) : onJoin())}
             onDecline={onDecline}
           />
         ) : (
           <Animated.View entering={ZoomIn.duration(280)} style={styles.sheet}>
+            <LinearGradient
+              colors={["#1C1C22", "#16161C", "#121216"]}
+              style={StyleSheet.absoluteFillObject}
+            />
+            <LinearGradient
+              colors={[
+                "rgba(168,85,247,0.16)",
+                "rgba(236,72,153,0.08)",
+                "transparent",
+                "rgba(249,115,22,0.12)",
+              ]}
+              locations={[0, 0.35, 0.7, 1]}
+              style={StyleSheet.absoluteFillObject}
+            />
+
             <View
               style={[
                 styles.videoHeader,
                 phase === "joined" && styles.videoHeaderJoined,
               ]}
             >
-              <LoopVideo key={`${phase}-${short}`} source={videoSource} />
+              {phase === "joined" ? (
+                <CelebrationVideo key="acc-smoke" source={videoSource} />
+              ) : (
+                <LoopVideo key="rec-smoke" source={videoSource} />
+              )}
               <LinearGradient
                 colors={
                   phase === "joined"
-                    ? ["rgba(34,197,94,0.35)", "rgba(8,10,18,0.98)"]
-                    : ["rgba(8,10,18,0.15)", "rgba(8,10,18,0.92)"]
+                    ? ["rgba(236,72,153,0.28)", "rgba(18,18,22,0.96)"]
+                    : ["rgba(18,18,22,0.12)", "rgba(18,18,22,0.92)"]
                 }
                 style={StyleSheet.absoluteFill}
               />
               <Pressable onPress={onDismiss} style={styles.closeBtn} hitSlop={10}>
-                <Ionicons name="close" size={16} color="#fff" />
+                <Ionicons name="close" size={15} color="rgba(255,255,255,0.8)" />
               </Pressable>
               {phase === "joined" && <CelebrationBurst />}
               {phase === "invite" ? (
-                <View style={styles.headerBadge}>
-                  <Ionicons name="sparkles" size={11} color="#FBBF24" />
+                <LinearGradient
+                  colors={[...T.inviteBadge]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.headerBadge}
+                >
+                  <Ionicons name="paper-plane" size={10} color="#fff" />
                   <Text style={styles.headerBadgeText}>INVITE</Text>
-                </View>
+                </LinearGradient>
               ) : null}
             </View>
 
@@ -357,6 +385,7 @@ export default function JoinHangInviteModal({
               <ScrollView
                 keyboardShouldPersistTaps="handled"
                 bounces={false}
+                showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.body}
               >
                 <View style={styles.hostCard}>
@@ -373,19 +402,26 @@ export default function JoinHangInviteModal({
                 </View>
 
                 <Animated.Text entering={FadeInDown.duration(280)} style={styles.downFor}>
-                  down for {short}?
+                  down for <Text style={styles.downForAccent}>{short}</Text>?
                 </Animated.Text>
 
                 {!!timeLabel && (
-                  <View style={styles.whenCard}>
-                    <View style={styles.whenIcon}>
-                      <Ionicons name="time-outline" size={16} color="#FBBF24" />
+                  <LinearGradient
+                    colors={[T.purple, T.pink, T.orange]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.whenBorder}
+                  >
+                    <View style={styles.whenCard}>
+                      <View style={styles.whenIcon}>
+                        <Ionicons name="time-outline" size={15} color={T.lilac} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.whenEyebrow}>WHEN</Text>
+                        <Text style={styles.whenValue}>{timeLabel}</Text>
+                      </View>
                     </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.whenEyebrow}>WHEN</Text>
-                      <Text style={styles.whenValue}>{timeLabel}</Text>
-                    </View>
-                  </View>
+                  </LinearGradient>
                 )}
 
                 <View style={styles.remarkWrap}>
@@ -409,16 +445,16 @@ export default function JoinHangInviteModal({
                   disabled={loading}
                 >
                   <LinearGradient
-                    colors={["#34D399", "#22C55E", "#16A34A"]}
+                    colors={[...T.cta]}
                     start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
+                    end={{ x: 1, y: 0 }}
                     style={styles.joinBtn}
                   >
                     {loading ? (
-                      <ActivityIndicator color="#04140A" />
+                      <ActivityIndicator color="#fff" />
                     ) : (
                       <>
-                        <Ionicons name="checkmark-circle" size={18} color="#04140A" />
+                        <Ionicons name="checkmark-circle" size={18} color="#fff" />
                         <Text style={styles.joinBtnText}>Join the hang</Text>
                       </>
                     )}
@@ -470,7 +506,7 @@ export default function JoinHangInviteModal({
                     style={[styles.joinedAvatar, styles.avatarRight]}
                   />
                   <View style={styles.emojiBadge}>
-                    <Text style={{ fontSize: 18 }}>{emoji}</Text>
+                    <Text style={{ fontSize: 16 }}>{emoji}</Text>
                   </View>
                 </View>
 
@@ -501,8 +537,18 @@ export default function JoinHangInviteModal({
 
                 <Text style={styles.joinedSub}>you&apos;re both locked in</Text>
 
-                <Pressable style={styles.seePlanBtn} onPress={onJoinedDone || onDismiss}>
-                  <Text style={styles.seePlanBtnText}>See plan</Text>
+                <Pressable
+                  style={styles.seePlanBtnWrap}
+                  onPress={onJoinedDone || onDismiss}
+                >
+                  <LinearGradient
+                    colors={[...T.cta]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.seePlanBtn}
+                  >
+                    <Text style={styles.seePlanBtnText}>See plan</Text>
+                  </LinearGradient>
                 </Pressable>
               </View>
             ) : null}
@@ -516,32 +562,32 @@ export default function JoinHangInviteModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(4,6,14,0.78)",
+    backgroundColor: "rgba(0,0,0,0.55)",
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
   },
   sheet: {
     width: SHEET_W,
     maxHeight: "88%",
     borderRadius: 28,
     overflow: "hidden",
-    backgroundColor: "#0B0F1A",
+    backgroundColor: "rgba(18,18,22,0.94)",
     borderWidth: 1,
-    borderColor: "rgba(251,191,36,0.18)",
-    shadowColor: "#000",
-    shadowOpacity: 0.45,
-    shadowRadius: 28,
-    shadowOffset: { width: 0, height: 16 },
-    elevation: 20,
+    borderColor: "rgba(255,255,255,0.12)",
+    shadowColor: "transparent",
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 0,
   },
   videoHeader: {
-    height: 128,
+    height: 200,
     backgroundColor: "#111",
     overflow: "hidden",
   },
   videoHeaderJoined: {
-    height: 136,
+    height: 220,
   },
   headerBadge: {
     position: "absolute",
@@ -549,33 +595,28 @@ const styles = StyleSheet.create({
     top: 14,
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    backgroundColor: "rgba(0,0,0,0.45)",
+    gap: 4,
     borderRadius: 999,
     paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderWidth: 1,
-    borderColor: "rgba(251,191,36,0.35)",
+    paddingVertical: 4,
   },
   headerBadgeText: {
-    color: "#FBBF24",
-    fontSize: 10,
+    color: "#FFFFFF",
+    fontSize: 9,
     fontFamily: VibeFonts.extraBold,
-    letterSpacing: 1.1,
+    letterSpacing: 1,
   },
   closeBtn: {
     position: "absolute",
     top: 12,
     right: 12,
-    width: 32,
-    height: 32,
-    borderRadius: 12,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.12)",
     alignItems: "center",
     justifyContent: "center",
     zIndex: 5,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
   },
   burstWrap: {
     ...StyleSheet.absoluteFillObject,
@@ -589,115 +630,121 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   body: {
-    paddingHorizontal: 18,
-    paddingTop: 16,
-    paddingBottom: 20,
-    gap: 12,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 16,
+    gap: 10,
   },
   bodyJoined: {
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     paddingTop: 10,
-    paddingBottom: 20,
+    paddingBottom: 18,
     alignItems: "center",
     gap: 8,
   },
   hostCard: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderRadius: 18,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-  },
-  hostAvatar: {
-    width: 48,
-    height: 48,
+    gap: 10,
+    backgroundColor: "rgba(255,255,255,0.05)",
     borderRadius: 16,
-    borderWidth: 2,
-    borderColor: "rgba(251,191,36,0.45)",
-  },
-  hostEyebrow: {
-    color: "rgba(255,255,255,0.45)",
-    fontSize: 11,
-    fontFamily: VibeFonts.medium,
-    letterSpacing: 0.3,
-  },
-  hostName: {
-    color: "#fff",
-    fontSize: 17,
-    fontFamily: VibeFonts.extraBold,
-    marginTop: 2,
-  },
-  actChip: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    alignItems: "center",
-    justifyContent: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 10,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
   },
-  actChipEmoji: { fontSize: 20 },
-  downFor: {
-    color: "#fff",
-    fontSize: 26,
+  hostAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: "rgba(168,85,247,0.55)",
+  },
+  hostEyebrow: {
+    color: T.faint,
+    fontSize: 11,
+    fontFamily: VibeFonts.medium,
+    letterSpacing: 0.2,
+  },
+  hostName: {
+    color: T.ink,
+    fontSize: 16,
     fontFamily: VibeFonts.extraBold,
-    letterSpacing: -0.5,
-    lineHeight: 32,
+    marginTop: 1,
+  },
+  actChip: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: "rgba(236,72,153,0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(236,72,153,0.28)",
+  },
+  actChipEmoji: { fontSize: 18 },
+  downFor: {
+    color: T.ink,
+    fontSize: 24,
+    fontFamily: VibeFonts.extraBold,
+    letterSpacing: -0.4,
+    lineHeight: 30,
+  },
+  downForAccent: {
+    color: T.peach,
+  },
+  whenBorder: {
+    borderRadius: 14,
+    padding: 1.5,
   },
   whenCard: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    backgroundColor: "rgba(251,191,36,0.08)",
-    borderRadius: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: "rgba(251,191,36,0.22)",
+    gap: 10,
+    backgroundColor: T.card,
+    borderRadius: 13,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
   },
   whenIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 12,
-    backgroundColor: "rgba(251,191,36,0.12)",
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: "rgba(168,85,247,0.16)",
     alignItems: "center",
     justifyContent: "center",
   },
   whenEyebrow: {
-    color: "rgba(251,191,36,0.7)",
-    fontSize: 10,
+    color: T.lilac,
+    fontSize: 9,
     fontFamily: VibeFonts.bold,
     letterSpacing: 1,
   },
   whenValue: {
-    color: "#FDE68A",
-    fontSize: 15,
+    color: "#fff",
+    fontSize: 14,
     fontFamily: VibeFonts.semiBold,
     marginTop: 1,
   },
   remarkWrap: {
-    gap: 6,
+    gap: 5,
   },
   remarkLabel: {
-    color: "rgba(255,255,255,0.5)",
-    fontSize: 12,
+    color: T.faint,
+    fontSize: 11,
     fontFamily: VibeFonts.medium,
   },
   remarkInput: {
-    minHeight: 72,
-    borderRadius: 16,
+    minHeight: 64,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.12)",
     backgroundColor: "rgba(255,255,255,0.04)",
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 12,
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 10,
     color: "#fff",
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: VibeFonts.medium,
     textAlignVertical: "top",
   },
@@ -710,56 +757,62 @@ const styles = StyleSheet.create({
   joinBtnWrap: {
     alignSelf: "stretch",
     marginTop: 2,
-    borderRadius: 18,
+    borderRadius: 999,
     overflow: "hidden",
   },
   joinBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    paddingVertical: 15,
+    gap: 7,
+    minHeight: 46,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 999,
   },
   joinBtnText: {
-    color: "#04140A",
-    fontSize: 16,
+    color: "#FFFFFF",
+    fontSize: 15,
     fontFamily: VibeFonts.extraBold,
   },
-  seePlanBtn: {
+  seePlanBtnWrap: {
     alignSelf: "stretch",
-    backgroundColor: "#22C55E",
-    borderRadius: 999,
-    paddingVertical: 14,
-    alignItems: "center",
     marginTop: 6,
+    borderRadius: 999,
+    overflow: "hidden",
+  },
+  seePlanBtn: {
+    borderRadius: 999,
+    paddingVertical: 13,
+    alignItems: "center",
   },
   seePlanBtnText: {
-    color: "#04140A",
-    fontSize: 16,
+    color: "#FFFFFF",
+    fontSize: 15,
     fontFamily: VibeFonts.extraBold,
   },
   counterHint: {
-    color: "rgba(255,255,255,0.4)",
-    fontSize: 12,
+    color: T.faint,
+    fontSize: 11,
     fontFamily: VibeFonts.medium,
     textAlign: "center",
   },
   counterRow: {
     flexDirection: "row",
-    gap: 8,
+    gap: 7,
     alignSelf: "stretch",
   },
   counterChip: {
     flex: 1,
-    backgroundColor: "#141A28",
+    backgroundColor: "rgba(255,255,255,0.05)",
     borderRadius: 14,
-    paddingVertical: 12,
+    paddingVertical: 10,
     alignItems: "center",
-    gap: 4,
+    gap: 3,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,255,255,0.1)",
   },
-  counterEmoji: { fontSize: 22 },
+  counterEmoji: { fontSize: 20 },
   counterName: {
     color: "rgba(255,255,255,0.8)",
     fontSize: 11,
@@ -768,7 +821,7 @@ const styles = StyleSheet.create({
   declineLink: {
     alignItems: "center",
     paddingTop: 2,
-    paddingBottom: 4,
+    paddingBottom: 2,
   },
   declineText: {
     color: "rgba(255,255,255,0.35)",
@@ -788,14 +841,14 @@ const styles = StyleSheet.create({
     height: 88,
     borderRadius: 44,
     borderWidth: 2,
-    borderColor: "#22C55E",
+    borderColor: T.pink,
   },
   joinedAvatar: {
     width: 52,
     height: 52,
     borderRadius: 18,
     borderWidth: 2,
-    borderColor: "#0D1220",
+    borderColor: "#1C1C22",
     position: "absolute",
   },
   avatarLeft: { left: 12, zIndex: 1 },
@@ -807,35 +860,35 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 10,
-    backgroundColor: "#161B2E",
+    backgroundColor: "#1A1A22",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
+    borderColor: "rgba(168,85,247,0.4)",
   },
   celebTitle: {
-    color: "#FBBF24",
-    fontSize: 13,
+    color: T.peach,
+    fontSize: 12,
     fontFamily: VibeFonts.extraBold,
     letterSpacing: 1.2,
     textTransform: "uppercase",
   },
   youPlus: {
     color: "#fff",
-    fontSize: 28,
+    fontSize: 26,
     fontFamily: VibeFonts.extraBold,
-    letterSpacing: -0.5,
+    letterSpacing: -0.4,
   },
   youPlusName: {
-    color: "#22C55E",
+    color: T.lilac,
   },
   joinedPill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "rgba(34,197,94,0.12)",
+    backgroundColor: "rgba(168,85,247,0.14)",
     borderWidth: 1,
-    borderColor: "rgba(34,197,94,0.28)",
+    borderColor: "rgba(236,72,153,0.3)",
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 999,
@@ -844,7 +897,7 @@ const styles = StyleSheet.create({
   joinedPillEmoji: { fontSize: 14 },
   joinedPillText: {
     color: "#fff",
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: VibeFonts.semiBold,
   },
   joinedPillDot: {
@@ -857,7 +910,7 @@ const styles = StyleSheet.create({
     fontFamily: VibeFonts.medium,
   },
   joinedSub: {
-    color: "rgba(255,255,255,0.4)",
+    color: T.faint,
     fontSize: 12,
     fontFamily: VibeFonts.medium,
     marginBottom: 2,

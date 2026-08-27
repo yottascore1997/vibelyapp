@@ -303,6 +303,7 @@ export default function PlanDetailsScreen() {
   const [nowTick, setNowTick] = useState(Date.now());
   const [hangProofUri, setHangProofUri] = useState<string | null>(null);
   const [hangProofSharing, setHangProofSharing] = useState(false);
+  const [rsvp, setRsvp] = useState<"going" | "not" | "maybe">("going");
 
   const plan = [...myPlans, ...nearbyPlans].find((p) => p.id === id);
 
@@ -742,8 +743,8 @@ export default function PlanDetailsScreen() {
               <Ionicons name="chevron-back" size={22} color="#F4F6FB" />
             </TouchableOpacity>
             <View style={styles.liveBadge}>
-              <Ionicons name="star" size={11} color="#fff" />
-              <Text style={styles.liveBadgeText}>Live</Text>
+              <Ionicons name={isMine ? "diamond" : "star"} size={11} color="#fff" />
+              <Text style={styles.liveBadgeText}>{isMine ? "Hosting" : "Live"}</Text>
             </View>
             <TouchableOpacity
               style={styles.navBtn}
@@ -772,7 +773,19 @@ export default function PlanDetailsScreen() {
                       }
                     },
                   },
-                  { text: "Report", style: "destructive", onPress: () => {} },
+                  {
+                    text: "Report",
+                    style: "destructive",
+                    onPress: () => {
+                      const hostId = plan.creatorId;
+                      if (!hostId) {
+                        Alert.alert("Unavailable", "Could not find who to report.");
+                        return;
+                      }
+                      const { promptReportUser } = require("../utils/datingSafety");
+                      promptReportUser(hostId);
+                    },
+                  },
                   { text: "Cancel", style: "cancel" },
                 ])
               }
@@ -796,6 +809,40 @@ export default function PlanDetailsScreen() {
               {tagline} <Text style={styles.taglineHeart}>❤</Text>
             </Text>
           </View>
+
+          {/* RSVP — mockup Going / Not Going / Maybe */}
+          {!isMine ? (
+            <View style={styles.rsvpRow}>
+              {(
+                [
+                  { id: "going" as const, label: "Going", icon: "checkmark-circle" as const },
+                  { id: "not" as const, label: "Not Going", icon: "close-circle" as const },
+                  { id: "maybe" as const, label: "Maybe", icon: "help-circle" as const },
+                ] as const
+              ).map((opt) => {
+                const on = rsvp === opt.id;
+                return (
+                  <Pressable
+                    key={opt.id}
+                    onPress={() => {
+                      setRsvp(opt.id);
+                      if (opt.id === "going" && requestStatus === "none") {
+                        joinPlan(plan.id);
+                      }
+                    }}
+                    style={[styles.rsvpBtn, on && styles.rsvpBtnOn]}
+                  >
+                    <Ionicons
+                      name={opt.icon}
+                      size={16}
+                      color={on ? "#34D399" : "rgba(255,255,255,0.55)"}
+                    />
+                    <Text style={[styles.rsvpText, on && styles.rsvpTextOn]}>{opt.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : null}
 
           {/* Starting card */}
           <View style={styles.statusCard}>
@@ -1160,6 +1207,45 @@ export default function PlanDetailsScreen() {
             </View>
           )}
 
+          {/* My Plans — mockup list */}
+          {myPlans.length > 0 ? (
+            <View style={styles.myPlansBlock}>
+              <Text style={styles.sectionTitle}>My Plans</Text>
+              {myPlans.slice(0, 4).map((p) => {
+                const spots = Math.max(0, (p.maxParticipants || 4) - (p.going || 1));
+                return (
+                  <Pressable
+                    key={p.id}
+                    style={styles.myPlanRow}
+                    onPress={() =>
+                      router.push({ pathname: "/plan-details", params: { id: p.id } })
+                    }
+                  >
+                    <Image
+                      source={{
+                        uri:
+                          p.imageUrl ||
+                          "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=200&h=200&fit=crop",
+                      }}
+                      style={styles.myPlanThumb}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.myPlanTitle} numberOfLines={1}>
+                        {p.title}
+                      </Text>
+                      <Text style={styles.myPlanMeta} numberOfLines={1}>
+                        {p.location || "Nearby"}
+                      </Text>
+                    </View>
+                    <View style={styles.myPlanSpots}>
+                      <Text style={styles.myPlanSpotsText}>{spots} Spots Left</Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : null}
+
           {/* Bottom promo strip — matches hangout CTA vibe */}
           <View style={styles.bottomPromoContainer}>
             <LinearGradient
@@ -1331,6 +1417,72 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 12,
     fontFamily: VibeFonts.bold,
+  },
+  rsvpRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 14,
+    padding: 6,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  rsvpBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    paddingVertical: 10,
+    borderRadius: 14,
+  },
+  rsvpBtnOn: {
+    backgroundColor: "rgba(52,211,153,0.18)",
+  },
+  rsvpText: {
+    fontSize: 11,
+    fontFamily: VibeFonts.semiBold,
+    color: "rgba(255,255,255,0.55)",
+  },
+  rsvpTextOn: {
+    color: "#34D399",
+    fontFamily: VibeFonts.bold,
+  },
+  myPlansBlock: { marginBottom: 16 },
+  myPlanRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 12,
+    marginTop: 10,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  myPlanThumb: { width: 48, height: 48, borderRadius: 12 },
+  myPlanTitle: {
+    fontSize: 14,
+    fontFamily: VibeFonts.bold,
+    color: "#fff",
+  },
+  myPlanMeta: {
+    marginTop: 2,
+    fontSize: 11,
+    fontFamily: VibeFonts.medium,
+    color: "rgba(255,255,255,0.5)",
+  },
+  myPlanSpots: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "rgba(52,211,153,0.18)",
+  },
+  myPlanSpotsText: {
+    fontSize: 10,
+    fontFamily: VibeFonts.bold,
+    color: "#34D399",
   },
   titleCard: {
     backgroundColor: C.card,

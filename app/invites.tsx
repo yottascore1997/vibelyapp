@@ -148,14 +148,36 @@ export default function InvitesScreen() {
         inviteeName: inviteeName.trim() || undefined,
       });
 
-      if (res && res.whatsappUrl) {
-        setShowWaModal(false);
-        setInviteeName("");
-        await Linking.openURL(res.whatsappUrl);
-        await loadInvites();
+      const {
+        buildHangoutInviteShareMessage,
+        buildWhatsAppShareUrl,
+        resolveRsvpInviteUrl,
+      } = await import("../utils/inviteShare");
+
+      const inviteUrl = resolveRsvpInviteUrl(res);
+      if (!inviteUrl) {
+        Alert.alert(
+          "RSVP link nahi bani",
+          "Server se invite code nahi aaya. Internet check karke dubara try karo."
+        );
+        return;
       }
+
+      const msg = buildHangoutInviteShareMessage({
+        senderName: user?.name || res?.senderName,
+        activityName: selectedAct.name,
+        activityEmoji: selectedAct.emoji,
+        timeLabel: timeLabel || "Today 6 PM",
+        inviteUrl,
+        inviteeName: inviteeName.trim() || undefined,
+      });
+      setShowWaModal(false);
+      setInviteeName("");
+      const waUrl = buildWhatsAppShareUrl(msg);
+      await Linking.openURL(waUrl);
+      await loadInvites();
     } catch (err) {
-      Alert.alert("Error", "Could not generate WhatsApp invite. Please check server connection.");
+      Alert.alert("Error", "Could not generate WhatsApp RSVP invite. Check connection.");
     } finally {
       setIsSendingWa(false);
     }

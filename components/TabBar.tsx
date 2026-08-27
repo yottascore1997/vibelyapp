@@ -23,8 +23,8 @@ const tabs = [
   {
     name: "discover",
     label: "Vibes",
-    icon: "albums-outline" as const,
-    activeIcon: "albums" as const,
+    icon: "compass-outline" as const,
+    activeIcon: "compass" as const,
     gradient: ["#EC4899", "#E11D48"] as const,
     accent: "#EC4899",
     hasBadge: false,
@@ -88,7 +88,7 @@ function TabItem({
       >
         <Animated.View style={[styles.centerSpotInner, anim]}>
           <LinearGradient
-            colors={[...tab.gradient]}
+            colors={dark ? (["#D4AF37", "#E879A9"] as const) : [...tab.gradient]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={[
@@ -96,16 +96,18 @@ function TabItem({
               dark && styles.centerSpotBtnGradDark,
             ]}
           >
-            <Ionicons name="flash" size={20} color="#FFFFFF" />
+            <Ionicons name={dark ? "add" : "flash"} size={dark ? 28 : 20} color="#FFFFFF" />
           </LinearGradient>
-          <Text
-            style={[
-              styles.centerSpotLabel,
-              dark && styles.centerSpotLabelDark,
-            ]}
-          >
-            {tab.label}
-          </Text>
+          {!dark ? (
+            <Text
+              style={[
+                styles.centerSpotLabel,
+                dark && styles.centerSpotLabelDark,
+              ]}
+            >
+              {tab.label}
+            </Text>
+          ) : null}
         </Animated.View>
       </Pressable>
     );
@@ -144,16 +146,20 @@ function TabItem({
           ) : null}
         </View>
 
-        <Text
-          style={[
-            styles.label,
-            { color: active ? tab.accent : idleColor },
-            active && styles.labelActive,
-          ]}
-          numberOfLines={1}
-        >
-          {tab.label}
-        </Text>
+        {!dark ? (
+          <Text
+            style={[
+              styles.label,
+              { color: active ? tab.accent : idleColor },
+              active && styles.labelActive,
+            ]}
+            numberOfLines={1}
+          >
+            {tab.label}
+          </Text>
+        ) : (
+          <View style={styles.activeDotSpacer} />
+        )}
 
         {active ? (
           <View style={[styles.activeDotBar, { backgroundColor: tab.accent }]} />
@@ -175,13 +181,16 @@ export default function TabBar({ dark = false }: { dark?: boolean }) {
   if (hidden) return null;
 
   const isActive = (name: string) => {
-    if (name === "index") return pathname === "/" || pathname === "/(tabs)" || pathname === "/(tabs)/";
-    if (name === "hangout") {
+    if (name === "index") {
       return (
-        pathname.includes("hangout") ||
-        pathname.includes("plan-details") ||
+        pathname === "/" ||
+        pathname === "/(tabs)" ||
+        pathname === "/(tabs)/" ||
         pathname.includes("create-plan")
       );
+    }
+    if (name === "hangout") {
+      return pathname.includes("hangout") || pathname.includes("plan-details");
     }
     if (name === "chats") {
       return pathname.includes("chats") || pathname.includes("chat/");
@@ -262,9 +271,12 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   floatingShellDark: {
-    backgroundColor: "rgba(15, 22, 38, 0.94)",
-    borderColor: "rgba(160, 170, 200, 0.18)",
-    shadowOpacity: 0.35,
+    backgroundColor: "rgba(18,18,18,0.45)",
+    borderColor: "rgba(255,255,255,0.12)",
+    shadowColor: "#FF2D7A",
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 8,
   },
   bgOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -273,7 +285,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.85)",
   },
   bgOverlayDark: {
-    backgroundColor: "rgba(12, 18, 32, 0.72)",
+    backgroundColor: "rgba(14,14,18,0.35)",
   },
   row: {
     flex: 1,
@@ -363,7 +375,14 @@ const styles = StyleSheet.create({
     borderColor: "#FFFFFF",
   },
   centerSpotBtnGradDark: {
-    borderColor: "#1A2238",
+    borderColor: "rgba(255,255,255,0.25)",
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    shadowColor: "#FF2D7A",
+    shadowOpacity: 0.55,
+    shadowRadius: 16,
+    top: -6,
   },
   centerSpotLabel: {
     fontSize: 9.5,

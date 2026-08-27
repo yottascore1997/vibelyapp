@@ -355,6 +355,20 @@ export default function UserProfileScreen() {
               <TouchableOpacity style={styles.glassBtn} onPress={handleShare} activeOpacity={0.85}>
                 <Ionicons name="share-outline" size={18} color="#FFF" />
               </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.glassBtn}
+                onPress={() => {
+                  const { showSafetyMenu } = require("../../utils/datingSafety");
+                  showSafetyMenu({
+                    userId: String(id),
+                    name: profile?.name,
+                    onDone: () => router.back(),
+                  });
+                }}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="ellipsis-horizontal" size={18} color="#FFF" />
+              </TouchableOpacity>
               <TouchableOpacity style={styles.glassBtn} onPress={handleChat} activeOpacity={0.85}>
                 <Ionicons name="chatbubble-ellipses-outline" size={18} color="#FFF" />
               </TouchableOpacity>

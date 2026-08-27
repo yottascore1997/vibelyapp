@@ -68,7 +68,7 @@ export default function RootLayout() {
               options={{
                 animation: "fade",
                 animationDuration: 120,
-                contentStyle: { backgroundColor: "#EEE9F8" },
+                contentStyle: { backgroundColor: "#010103" },
               }}
             />
             <Stack.Screen

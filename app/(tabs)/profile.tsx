@@ -107,10 +107,20 @@ const MENU = [
   {
     icon: "shield-checkmark-outline" as const,
     label: "Safety",
-    sub: "Tips for meeting IRL",
+    sub: "Block, report & meeting tips",
     color: T.green,
     soft: T.softGreen,
-    route: "/(tabs)/vibes",
+    route: "/edit-profile",
+    action: "safety" as const,
+  },
+  {
+    icon: "eye-off-outline" as const,
+    label: "Pause discovery",
+    sub: "Hide your profile from the deck",
+    color: T.muted,
+    soft: "rgba(160, 170, 200, 0.12)",
+    route: "/edit-profile",
+    action: "pause" as const,
   },
 ];
 
@@ -636,7 +646,36 @@ export default function ProfileScreen() {
                     <Pressable
                       key={item.label}
                       style={[styles.menuRow, i < MENU.length - 1 && styles.menuBorder]}
-                      onPress={() => {
+                      onPress={async () => {
+                        const action = (item as any).action;
+                        if (action === "safety") {
+                          Alert.alert(
+                            "Safety",
+                            "From any chat or profile, tap ⋯ to Report or Block.\n\nTips: meet in public, tell a friend, trust your gut.",
+                            [{ text: "OK" }]
+                          );
+                          return;
+                        }
+                        if (action === "pause") {
+                          if (!token) return;
+                          try {
+                            const res = (await api.getProfile(token)) as any;
+                            const paused = !!res?.profile?.isPaused;
+                            await api.updateProfile({ isPaused: !paused }, token);
+                            Alert.alert(
+                              !paused ? "Discovery paused" : "You're visible again",
+                              !paused
+                                ? "Your profile is hidden from the swipe deck until you unpause."
+                                : "People can discover you again."
+                            );
+                          } catch (e) {
+                            Alert.alert(
+                              "Error",
+                              e instanceof Error ? e.message : "Could not update pause"
+                            );
+                          }
+                          return;
+                        }
                         if (item.route) router.push(item.route as any);
                         else Alert.alert(item.label, "Coming soon.");
                       }}

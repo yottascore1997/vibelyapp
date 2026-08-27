@@ -1,10 +1,13 @@
 import { useEffect, useRef } from "react";
 import { Alert, Linking } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { api } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 
-/** Extract invite code from hangora web or vibematch deep links */
+const PENDING_INVITE_KEY = "@hangora_pending_invite_code";
+
+/** Extract invite code from hangora web or app deep links */
 function parseInviteCode(url: string): string | null {
   try {
     const cleaned = url.trim();
@@ -25,8 +28,48 @@ function parseInviteCode(url: string): string | null {
   return null;
 }
 
+async function openInviteInApp(
+  code: string,
+  opts: {
+    user: { id?: string; name?: string } | null;
+    token: string | null;
+    router: ReturnType<typeof useRouter>;
+  }
+) {
+  const { user, token, router } = opts;
+
+  if (!user || !token) {
+    await AsyncStorage.setItem(PENDING_INVITE_KEY, code);
+    Alert.alert(
+      "Join this hang",
+      "Log in with your phone — we'll open the invite right after.",
+      [{ text: "OK", onPress: () => router.push("/(auth)/login") }]
+    );
+    return;
+  }
+
+  await AsyncStorage.removeItem(PENDING_INVITE_KEY).catch(() => undefined);
+
+  const invite = await api.getPublicInvite(code).catch(() => null);
+  const hangoutId = invite?.hangoutId || invite?.hangout?.id || null;
+
+  if (hangoutId) {
+    await api.joinPlan(hangoutId, "Joined via invite link").catch(() => undefined);
+    Alert.alert("You're in!", "Opening the hangout…");
+    router.push({ pathname: "/plan-details", params: { id: String(hangoutId) } });
+  } else {
+    Alert.alert(
+      "Invite opened",
+      invite?.activityName
+        ? `${invite.activityEmoji || ""} ${invite.activityName} — check Hangout for plans.`
+        : "Invite opened. Check Hangout for plans."
+    );
+    router.push("/hangout");
+  }
+}
+
 /**
- * Opens WhatsApp / universal links into the app and joins the hangout when logged in.
+ * Opens WhatsApp / universal / app-scheme links into Hangora and joins the hangout.
  */
 export default function InviteDeepLinkHandler() {
   const router = useRouter();
@@ -41,31 +84,7 @@ export default function InviteDeepLinkHandler() {
 
       handling.current = true;
       try {
-        if (!user || !token) {
-          Alert.alert(
-            "Join this hang",
-            "Log in with your phone to join this invite.",
-            [{ text: "OK", onPress: () => router.push("/(auth)/login") }]
-          );
-          return;
-        }
-
-        const invite = await api.getPublicInvite(code).catch(() => null);
-        const hangoutId = invite?.hangoutId || invite?.hangout?.id || null;
-
-        if (hangoutId) {
-          await api.joinPlan(hangoutId, "Joined via invite link").catch(() => undefined);
-          Alert.alert("You're in!", "Opening the hangout…");
-          router.push({ pathname: "/plan-details", params: { id: String(hangoutId) } });
-        } else {
-          Alert.alert(
-            "Invite opened",
-            invite?.activityName
-              ? `${invite.activityEmoji || ""} ${invite.activityName} — check Hangout for plans.`
-              : "Invite accepted. Check Hangout for plans."
-          );
-          router.push("/hangout");
-        }
+        await openInviteInApp(code, { user, token, router });
       } finally {
         setTimeout(() => {
           handling.current = false;
@@ -76,6 +95,23 @@ export default function InviteDeepLinkHandler() {
     Linking.getInitialURL().then(handleUrl);
     const sub = Linking.addEventListener("url", ({ url }) => handleUrl(url));
     return () => sub.remove();
+  }, [user, token, router]);
+
+  // After login: resume invite saved from web → Open in App
+  useEffect(() => {
+    if (!user || !token) return;
+    (async () => {
+      const code = await AsyncStorage.getItem(PENDING_INVITE_KEY);
+      if (!code || handling.current) return;
+      handling.current = true;
+      try {
+        await openInviteInApp(code, { user, token, router });
+      } finally {
+        setTimeout(() => {
+          handling.current = false;
+        }, 1500);
+      }
+    })();
   }, [user, token, router]);
 
   return null;

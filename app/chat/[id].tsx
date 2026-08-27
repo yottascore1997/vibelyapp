@@ -35,6 +35,7 @@ import { useMatches } from "../../context/MatchesContext";
 import { usePlans } from "../../context/PlansContext";
 import { useAuth } from "../../context/AuthContext";
 import { api } from "../../services/api";
+import { showSafetyMenu, ICEBREAKERS } from "../../utils/datingSafety";
 import {
   formatMessageTime,
   formatLastSeen,
@@ -714,6 +715,19 @@ export default function ChatScreen() {
     );
   };
 
+  const handleSafetyMenu = () => {
+    if (!id || thread?.isGroup) return;
+    showSafetyMenu({
+      userId: id,
+      name: thread?.name || match?.name,
+      onUnmatch: handleUnmatch,
+      alsoUnmatchOnBlock: async () => {
+        await unmatch(id);
+      },
+      onDone: () => router.back(),
+    });
+  };
+
   const handleSend = async () => {
     if (!text.trim() || !id) return;
     if (!canSend) {
@@ -797,8 +811,8 @@ export default function ChatScreen() {
             </View>
           </Pressable>
           {!thread.isGroup ? (
-            <Pressable style={styles.moreBtn} onPress={handleUnmatch}>
-              <Ionicons name="close-circle-outline" size={22} color={T.pink} />
+            <Pressable style={styles.moreBtn} onPress={handleSafetyMenu}>
+              <Ionicons name="ellipsis-vertical" size={20} color={T.pink} />
             </Pressable>
           ) : (
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
@@ -869,6 +883,24 @@ export default function ChatScreen() {
           showsVerticalScrollIndicator={false}
           onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
         >
+          {!thread.isGroup && thread.messages.length === 0 && canSend ? (
+            <View style={styles.iceWrap}>
+              <Text style={styles.iceTitle}>Break the ice</Text>
+              <Text style={styles.iceSub}>Tap a suggestion to send</Text>
+              {ICEBREAKERS.map((line: string) => (
+                <Pressable
+                  key={line}
+                  style={styles.iceChip}
+                  onPress={async () => {
+                    if (!id || !canSend) return;
+                    await sendMessage(id, line);
+                  }}
+                >
+                  <Text style={styles.iceChipText}>{line}</Text>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
           {thread.messages.map((msg, index) => {
             const prev = thread.messages[index - 1];
             const showDay = !prev || !sameCalendarDay(prev.sentAt, msg.sentAt);
@@ -1407,6 +1439,39 @@ const styles = StyleSheet.create({
   },
   messages: { flex: 1 },
   messagesContent: { padding: 16, paddingBottom: 16, gap: 14 },
+  iceWrap: {
+    marginBottom: 8,
+    padding: 14,
+    borderRadius: 18,
+    backgroundColor: "rgba(124,58,237,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(167,139,250,0.28)",
+    gap: 8,
+  },
+  iceTitle: {
+    fontSize: 15,
+    fontFamily: VibeFonts.bold,
+    color: "#fff",
+  },
+  iceSub: {
+    fontSize: 12,
+    fontFamily: VibeFonts.medium,
+    color: "rgba(255,255,255,0.55)",
+    marginBottom: 4,
+  },
+  iceChip: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  iceChipText: {
+    fontSize: 13,
+    fontFamily: VibeFonts.medium,
+    color: "rgba(255,255,255,0.9)",
+  },
   bubbleWrap: { maxWidth: "82%" },
   bubbleWrapMe: { alignSelf: "flex-end", alignItems: "flex-end" },
   bubbleWrapThem: {

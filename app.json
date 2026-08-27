@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "scheme": "vibematch",
+    "scheme": ["vibematch", "hangora"],
     "splash": {
       "backgroundColor": "#8A56FF"
     },
@@ -47,6 +47,11 @@
             },
             {
               "scheme": "vibematch",
+              "host": "*",
+              "pathPrefix": "/p"
+            },
+            {
+              "scheme": "hangora",
               "host": "*",
               "pathPrefix": "/p"
             }

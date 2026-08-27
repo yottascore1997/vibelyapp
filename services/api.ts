@@ -17,6 +17,20 @@ function isIdempotentMutation(endpoint: string, method: string) {
   return false;
 }
 
+/**
+ * Mobile Android often drops the first POST with "Network request failed".
+ * Retry create hangout / invite a few times — duplicate risk is low vs never sending.
+ */
+function shouldRetryMutationOnNetwork(endpoint: string, method: string) {
+  if (isIdempotentMutation(endpoint, method)) return true;
+  const m = method.toUpperCase();
+  if (m !== "POST") return false;
+  if (endpoint === "/hangouts") return true;
+  if (endpoint === "/invites") return true;
+  if (endpoint.startsWith("/invites/public-create")) return true;
+  return false;
+}
+
 function isNetworkishError(err: unknown): boolean {
   if (err instanceof ApiError) return false;
   if (!(err instanceof Error)) return false;
@@ -155,7 +169,7 @@ async function fetchApi<T>(
   const maxAttempts =
     typeof options?.retries === "number"
       ? Math.max(1, options.retries)
-      : isIdempotentMutation(endpoint, method)
+      : shouldRetryMutationOnNetwork(endpoint, method)
         ? 3
         : 1;
 
@@ -207,8 +221,8 @@ async function fetchApi<T>(
             continue;
           }
           console.warn("fetchApi network fail on", base, endpoint);
-          // Try next host for GET, or for idempotent mutations (swipe upsert is safe)
-          if (!isMutation || isIdempotentMutation(endpoint, method)) {
+          // Try next host for GET / safe retries (incl. hangout + invite create)
+          if (!isMutation || shouldRetryMutationOnNetwork(endpoint, method)) {
             continue baseLoop;
           }
           break baseLoop;
@@ -281,7 +295,11 @@ export const api = {
     return fetchApi<Plan[]>(`/hangouts${q ? `?${q}` : ""}`);
   },
   createPlan: (data: object) =>
-    fetchApi<Plan>("/hangouts", { method: "POST", body: JSON.stringify(data) }),
+    fetchApi<Plan>("/hangouts", {
+      method: "POST",
+      body: JSON.stringify(data),
+      retries: 3,
+    }),
   joinPlan: (planId: string, remark?: string) =>
     fetchApi<{ message?: string; status?: string; going?: number }>(
       `/hangouts/${planId}/join`,
@@ -384,6 +402,7 @@ export const api = {
         timeLabel: data.timeLabel,
         hangoutId: data.hangoutId,
       }),
+      retries: 3,
     }),
   createPublicInvite: (data: {
     activityName: string;
@@ -491,6 +510,29 @@ export const api = {
     }),
   unmatch: (otherUserId: string) =>
     fetchApi<{ unmatched: boolean }>(`/matches/${otherUserId}`, { method: "DELETE" }),
+  blockUser: (userId: string) =>
+    fetchApi<{ blocked: boolean; userId: string }>("/blocks", {
+      method: "POST",
+      body: JSON.stringify({ userId }),
+    }),
+  unblockUser: (userId: string) =>
+    fetchApi<{ unblocked: boolean }>(`/blocks?userId=${encodeURIComponent(userId)}`, {
+      method: "DELETE",
+    }),
+  reportUser: (data: { userId: string; reason: string; details?: string }) =>
+    fetchApi<{ id: string; reported: boolean }>("/reports", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  getMyPhotos: () =>
+    fetchApi<{ avatarUrl?: string | null; photos: { id: string; url: string; order: number }[] }>(
+      "/photos"
+    ),
+  setMyPhotos: (photos: string[]) =>
+    fetchApi<{ photos: { id: string; url: string; order: number }[]; avatarUrl: string }>(
+      "/photos",
+      { method: "POST", body: JSON.stringify({ photos }) }
+    ),
   getExpenses: (opts: { hangoutId?: string; eventId?: string }) => {
     const query = opts.hangoutId ? `hangoutId=${opts.hangoutId}` : `eventId=${opts.eventId}`;
     return fetchApi<any>(`/expenses?${query}`);

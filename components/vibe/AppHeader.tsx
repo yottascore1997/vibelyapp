@@ -43,7 +43,7 @@ export default function AppHeader({
           <View>
             <View style={styles.brandRow}>
               <Text style={[styles.logoText, dark && styles.logoTextDark]}>Hang</Text>
-              <Text style={styles.logoAccent}>ora</Text>
+              <Text style={[styles.logoAccent, dark && styles.logoAccentDark]}>ora</Text>
             </View>
             <Text style={[styles.taglineText, dark && styles.taglineTextDark]}>{tagline}</Text>
           </View>
@@ -52,15 +52,23 @@ export default function AppHeader({
 
       <View style={styles.topHeaderRight}>
         {showLuxe && (
-          <Pressable style={styles.premiumPillBtn} onPress={() => router.push("/(tabs)/profile")}>
+          <Pressable
+            style={[styles.premiumPillBtn, dark && styles.premiumPillBtnDark]}
+            onPress={() => router.push("/(tabs)/profile")}
+          >
             <LinearGradient
-              colors={["#D4AF37", "#B8860B"]}
+              colors={dark ? ["#D4AF37", "#E879A9"] : ["#D4AF37", "#B8860B"]}
               style={styles.premiumPillGrad}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             >
-              <Ionicons name="diamond" size={12} color="#1A1520" style={{ marginRight: 3 }} />
-              <Text style={styles.premiumPillText}>Luxe</Text>
+              <Ionicons
+                name="diamond"
+                size={12}
+                color={dark ? "#0A0A0C" : "#1A1520"}
+                style={{ marginRight: 3 }}
+              />
+              <Text style={[styles.premiumPillText, dark && styles.premiumPillTextDark]}>Luxe</Text>
             </LinearGradient>
           </Pressable>
         )}
@@ -70,7 +78,7 @@ export default function AppHeader({
         >
           <Ionicons name="notifications-outline" size={20} color={dark ? "#FFFFFF" : "#1A1520"} />
           {badgeCount > 0 && (
-            <View style={[styles.bellBadge, dark && styles.bellBadgeDark]}>
+            <View style={[styles.bellBadge, dark && styles.bellBadgeDark, dark && styles.bellBadgePurple]}>
               <Text style={styles.bellBadgeText}>{badgeCount}</Text>
             </View>
           )}
@@ -135,6 +143,19 @@ const styles = StyleSheet.create({
     fontFamily: VibeFonts.extraBold,
     color: "#C9A227",
     letterSpacing: -1.4,
+  },
+  logoAccentDark: {
+    color: "#D4AF37",
+  },
+  premiumPillBtnDark: {
+    shadowColor: "#C9A227",
+    shadowOpacity: 0.28,
+  },
+  premiumPillTextDark: {
+    color: "#0A0A0C",
+  },
+  bellBadgePurple: {
+    backgroundColor: "#A855F7",
   },
   taglineText: {
     fontSize: 11,

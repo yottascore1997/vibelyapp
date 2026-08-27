@@ -1,11 +1,11 @@
-import { View, StyleSheet, ViewStyle } from "react-native";
+import { View, StyleSheet, ViewStyle, StyleProp } from "react-native";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { VibeColors } from "../../constants/vibeTheme";
 
 interface Props {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   intensity?: number;
   lightMode?: boolean;
 }
@@ -19,7 +19,7 @@ export default function GlassCard({ children, style, intensity = 30, lightMode =
     ]}>
       <BlurView intensity={intensity} tint={lightMode ? "light" : "dark"} style={StyleSheet.absoluteFill} />
       <LinearGradient
-        colors={lightMode ? ["rgba(255,255,255,0.4)", "rgba(255,255,255,0.1)", "transparent"] : ["rgba(255,255,255,0.08)", "rgba(255,255,255,0.02)", "transparent"]}
+        colors={lightMode ? ["rgba(255,255,255,0.4)", "rgba(255,255,255,0.1)", "transparent"] : ["rgba(255,255,255,0.1)", "rgba(255,255,255,0.02)", "transparent"]}
         style={styles.shine}
       />
       <View style={[styles.border, lightMode && { borderColor: "rgba(255,255,255,0.4)" }]} />
@@ -31,7 +31,7 @@ export default function GlassCard({ children, style, intensity = 30, lightMode =
 const styles = StyleSheet.create({
   wrap: {
     overflow: "hidden",
-    borderRadius: 20,
+    borderRadius: 32,
     backgroundColor: VibeColors.bgGlass,
     borderWidth: 1,
     borderColor: VibeColors.bgGlassBorder,
@@ -41,14 +41,14 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 60,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    height: 72,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
   },
   border: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: 20,
+    borderRadius: 32,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.04)",
+    borderColor: "rgba(255,255,255,0.08)",
   },
 });

@@ -1,52 +1,48 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   TextInput,
   ActivityIndicator,
+  Dimensions,
+  Image,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
-import { FirebaseRecaptchaVerifierModal } from "expo-firebase-recaptcha";
-import type { ConfirmationResult } from "firebase/auth";
+import { Ionicons, AntDesign, FontAwesome } from "@expo/vector-icons";
+import { StatusBar } from "expo-status-bar";
 import { useAuth } from "../../context/AuthContext";
-import { Radius, Spacing } from "../../constants/theme";
 import { VibeFonts } from "../../constants/vibeTheme";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withRepeat,
-  withSequence,
-  withDelay,
-  Easing,
-} from "react-native-reanimated";
-import {
-  getFirebaseWebConfig,
-  isFirebaseConfigured,
-  toE164,
-  sendPhoneOtp,
-  confirmPhoneOtp,
-} from "../../services/firebase";
 
-/** Demo number — OTP always 123456, no Firebase SMS */
-const DUMMY_PHONE = "9420413822";
-const DUMMY_OTP = "123456";
+/**
+ * Figma Login (58:2) — fills every phone (no tall blank gaps).
+ * x = width scale, y = height % of Figma 874 so layout stretches evenly.
+ */
+
+const { width: W, height: H } = Dimensions.get("window");
+const FW = 402;
+const FH = 874;
+const sx = W / FW;
+const sy = H / FH;
+const fx = (n: number) => n * sx;
+const fy = (n: number) => n * sy;
+
+const loginBg = require("../../assets/auth/login-bg.png");
+const loginHero = require("../../assets/auth/login-hero.png");
+
+const DEV_OTP = "123456";
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { loginWithFirebase, loginWithDevOtp } = useAuth();
-  const recaptchaRef = useRef<FirebaseRecaptchaVerifierModal>(null);
-  const confirmationRef = useRef<ConfirmationResult | null>(null);
-  const dummyModeRef = useRef(false);
+  const insets = useSafeAreaInsets();
+  const { loginWithDevOtp } = useAuth();
 
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [phone, setPhone] = useState("");
@@ -55,169 +51,54 @@ export default function LoginScreen() {
   const [resendIn, setResendIn] = useState(0);
   const [e164, setE164] = useState("");
 
-  const orb1X = useSharedValue(0);
-  const orb1Y = useSharedValue(0);
-  const orb1Scale = useSharedValue(1);
-  const orb2X = useSharedValue(0);
-  const orb2Y = useSharedValue(0);
-  const headerOpacity = useSharedValue(0);
-  const headerTranslateY = useSharedValue(-20);
-  const formOpacity = useSharedValue(0);
-  const formTranslateY = useSharedValue(30);
-
-  useEffect(() => {
-    orb1X.value = withRepeat(
-      withSequence(
-        withTiming(30, { duration: 6000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(-30, { duration: 6000, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      true
-    );
-    orb1Y.value = withRepeat(
-      withSequence(
-        withTiming(-40, { duration: 7000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(40, { duration: 7000, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      true
-    );
-    orb1Scale.value = withRepeat(
-      withSequence(
-        withTiming(1.12, { duration: 4000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(0.9, { duration: 4000, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      true
-    );
-    orb2X.value = withRepeat(
-      withSequence(
-        withTiming(-25, { duration: 8000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(25, { duration: 8000, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      true
-    );
-    orb2Y.value = withRepeat(
-      withSequence(
-        withTiming(35, { duration: 6500, easing: Easing.inOut(Easing.ease) }),
-        withTiming(-35, { duration: 6500, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      true
-    );
-
-    headerOpacity.value = withDelay(100, withTiming(1, { duration: 600 }));
-    headerTranslateY.value = withDelay(100, withTiming(0, { duration: 600 }));
-    formOpacity.value = withDelay(300, withTiming(1, { duration: 600 }));
-    formTranslateY.value = withDelay(300, withTiming(0, { duration: 600 }));
-  }, []);
-
   useEffect(() => {
     if (resendIn <= 0) return;
-    const t = setTimeout(() => setResendIn((s) => s - 1), 1000);
+    const t = setTimeout(() => setResendIn((n) => n - 1), 1000);
     return () => clearTimeout(t);
   }, [resendIn]);
+
+  const finishWithUser = (user: { onboardingDone?: boolean } | null) => {
+    if (user?.onboardingDone) router.replace("/");
+    else router.replace("/(auth)/onboarding/basic-info");
+  };
 
   const sendOtp = async () => {
     const digits = phone.replace(/\D/g, "");
     const last10 = digits.slice(-10);
-
-    // Dummy FIRST — never touch Firebase for this number
-    if (last10 === DUMMY_PHONE || digits === DUMMY_PHONE) {
-      console.log("[OTP] dummy mode — skipping Firebase");
-      dummyModeRef.current = true;
-      confirmationRef.current = null;
-      setE164(`+91${DUMMY_PHONE}`);
-      setPhone(DUMMY_PHONE);
-      setStep("otp");
-      setOtp("");
-      setResendIn(30);
+    if (last10.length !== 10) {
+      Alert.alert("Invalid number", "10-digit mobile number daalo");
       return;
     }
-
-    let normalized: string;
-    try {
-      normalized = toE164(phone);
-    } catch (e) {
-      Alert.alert("Invalid number", e instanceof Error ? e.message : "Check number");
-      return;
-    }
-
-    dummyModeRef.current = false;
-
-    const cfg = getFirebaseWebConfig();
-    console.log("[OTP] Firebase project:", cfg.projectId, "authDomain:", cfg.authDomain);
-
-    if (!isFirebaseConfigured()) {
-      Alert.alert(
-        "Firebase setup pending",
-        "mobile/.env mein EXPO_PUBLIC_FIREBASE_* keys add karo, phir app restart karo."
-      );
-      return;
-    }
-    if (!recaptchaRef.current) {
-      Alert.alert("Error", "reCAPTCHA not ready. Try again.");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const confirmation = await sendPhoneOtp(normalized, recaptchaRef.current as any);
-      confirmationRef.current = confirmation;
-      setE164(normalized);
-      setStep("otp");
-      setOtp("");
-      setResendIn(30);
-    } catch (e: any) {
-      const msg = e?.message || String(e);
-      console.error("sendOtp error", e);
-      if (/too-many-requests/i.test(msg)) {
-        Alert.alert("Too many tries", "Thodi der baad OTP maango.");
-      } else if (/invalid-phone/i.test(msg)) {
-        Alert.alert("Invalid number", "Sahi mobile number daalo (+91…).");
-      } else if (/billing-not-enabled/i.test(msg)) {
-        Alert.alert(
-          "Billing link incomplete",
-          "Real SMS ke liye Google Cloud Billing link karo.\n\n" +
-            "Abhi demo try karo:\n9420413822  →  OTP 123456\n\n" +
-            "Neeche 'Demo login' button bhi hai."
-        );
-      } else if (/operation-not-allowed|region enabled/i.test(msg)) {
-        Alert.alert(
-          "SMS region blocked",
-          "Firebase → SMS region policy mein India (IN) allow karo.\n\nDemo: 9420413822 / 123456"
-        );
-      } else if (/missing.*config|Firebase config/i.test(msg)) {
-        Alert.alert("Firebase config", msg);
-      } else {
-        Alert.alert("OTP failed", msg || "Could not send OTP");
-      }
-    } finally {
-      setLoading(false);
-    }
+    setE164(`+91${last10}`);
+    setPhone(last10);
+    setStep("otp");
+    setOtp("");
+    setResendIn(30);
   };
 
-  const finishWithUser = (user: { onboardingDone?: boolean } | null) => {
-    if (user?.onboardingDone) {
-      router.replace("/");
-    } else {
-      router.replace("/(auth)/onboarding/basic-info");
+  const verifyOtp = async () => {
+    if (!otp.trim() || otp.trim().length < 6) {
+      Alert.alert("Enter OTP", "6-digit code daalo");
+      return;
     }
-  };
-
-  const runDummyLogin = async () => {
+    if (otp.trim() !== DEV_OTP) {
+      Alert.alert("Wrong OTP", `Abhi ke liye OTP ${DEV_OTP} use karo`);
+      return;
+    }
+    const last10 = (e164 || phone).replace(/\D/g, "").slice(-10);
+    if (last10.length !== 10) {
+      Alert.alert("Invalid number", "Number dubara daalo");
+      setStep("phone");
+      return;
+    }
     setLoading(true);
-    dummyModeRef.current = true;
     try {
-      console.log("[OTP] dummy login → /auth/dev-otp");
-      const user = await loginWithDevOtp(`+91${DUMMY_PHONE}`, DUMMY_OTP);
+      const user = await loginWithDevOtp(`+91${last10}`, DEV_OTP);
       finishWithUser(user);
     } catch (e: any) {
       const msg = e?.message || String(e);
-      console.error("dummy login error", e);
       Alert.alert(
-        "Demo login failed",
+        "Login failed",
         /404|HTML|not found|failed \(404\)/i.test(msg)
           ? "Server pe /auth/dev-otp deploy nahi hai. Web redeploy karo.\n\n" + msg
           : msg || "Try again"
@@ -227,435 +108,386 @@ export default function LoginScreen() {
     }
   };
 
-  const verifyOtp = async () => {
-    if (!otp.trim() || otp.trim().length < 6) {
-      Alert.alert("Enter OTP", "6-digit code daalo");
-      return;
-    }
-
-    const digits = (e164 || phone).replace(/\D/g, "");
-    const isDummy =
-      dummyModeRef.current ||
-      digits.endsWith(DUMMY_PHONE) ||
-      phone.replace(/\D/g, "") === DUMMY_PHONE;
-
-    // Dummy path — never Firebase
-    if (isDummy) {
-      if (otp.trim() !== DUMMY_OTP) {
-        Alert.alert("Wrong OTP", "Demo OTP 123456 hai");
-        return;
-      }
-      await runDummyLogin();
-      return;
-    }
-
-    if (!confirmationRef.current) {
-      Alert.alert("Session expired", "Pehle OTP dubara bhejo");
-      setStep("phone");
-      return;
-    }
-    setLoading(true);
-    try {
-      const { idToken } = await confirmPhoneOtp(confirmationRef.current, otp);
-      const user = await loginWithFirebase(idToken);
-      finishWithUser(user);
-    } catch (e: any) {
-      const msg = e?.message || String(e);
-      console.error("verifyOtp error", e);
-      if (/invalid-verification-code|code-expired/i.test(msg)) {
-        Alert.alert("Wrong OTP", "OTP galat ya expire ho gaya. Dubara try karo.");
-      } else {
-        Alert.alert("Login failed", msg || "Try again");
-      }
-    } finally {
-      setLoading(false);
-    }
+  const onSocial = (name: string) => {
+    Alert.alert(name, "Social login jaldi aa raha hai — abhi mobile OTP use karo.");
   };
 
-  const orb1Style = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: orb1X.value },
-      { translateY: orb1Y.value },
-      { scale: orb1Scale.value },
-    ],
-  }));
-  const orb2Style = useAnimatedStyle(() => ({
-    transform: [{ translateX: orb2X.value }, { translateY: orb2Y.value }],
-  }));
-  const headerAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: headerOpacity.value,
-    transform: [{ translateY: headerTranslateY.value }],
-  }));
-  const formAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: formOpacity.value,
-    transform: [{ translateY: formTranslateY.value }],
-  }));
-
-  const firebaseConfig = isFirebaseConfigured() ? getFirebaseWebConfig() : null;
+  const topPad = Math.max(insets.top, fy(8));
+  const bottomPad = Math.max(insets.bottom, fy(12));
 
   return (
     <View style={styles.root}>
-      {firebaseConfig ? (
-        <FirebaseRecaptchaVerifierModal
-          ref={recaptchaRef}
-          firebaseConfig={firebaseConfig}
-          attemptInvisibleVerification
-        />
-      ) : null}
+      <StatusBar style="light" />
+      <View style={styles.bgFill} />
+      <Image source={loginBg} style={styles.bgImage} resizeMode="cover" />
 
-      <LinearGradient
-        colors={["#F8F9FD", "#F3E8FF", "#F8F9FD"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-      <Animated.View style={[styles.glowOrb, styles.glow1, orb1Style]} />
-      <Animated.View style={[styles.glowOrb, styles.glow2, orb2Style]} />
-
-      <SafeAreaView style={styles.safe}>
-        <Animated.View style={headerAnimatedStyle}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={20} color="#18181B" />
-          </TouchableOpacity>
-
-          <View style={styles.header}>
-            <View style={styles.badge}>
-              <Ionicons name="phone-portrait-outline" size={11} color="#7C3AED" />
-              <Text style={styles.badgeText}>
-                {step === "phone" ? "MOBILE LOGIN" : "VERIFY OTP"}
-              </Text>
-            </View>
-            <Text style={styles.title}>
-              {step === "phone" ? "Enter your number" : "Enter OTP"}
-            </Text>
-            <Text style={styles.subtitle}>
-              {step === "phone"
-                ? "We'll send a one-time code via SMS"
-                : `Code sent to ${e164}`}
-            </Text>
-          </View>
-        </Animated.View>
-
-        <KeyboardAvoidingView
-          style={styles.flex}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={[
+            styles.scroll,
+            {
+              paddingTop: topPad,
+              paddingBottom: bottomPad,
+              minHeight: H,
+            },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          bounces={false}
         >
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
-            <Animated.View style={formAnimatedStyle}>
-              <View style={styles.glassCard}>
-                {step === "phone" ? (
-                  <>
-                    <Text style={styles.inputLabel}>Mobile number</Text>
-                    <View style={styles.phoneRow}>
-                      <View style={styles.countryBox}>
-                        <Text style={styles.countryText}>🇮🇳 +91</Text>
-                      </View>
-                      <TextInput
-                        style={styles.phoneInput}
-                        value={phone}
-                        onChangeText={(t) =>
-                          setPhone(t.replace(/[^\d]/g, "").slice(0, 10))
-                        }
-                        placeholder="9876543210"
-                        placeholderTextColor="#94A3B8"
-                        keyboardType="phone-pad"
-                        maxLength={10}
-                        autoFocus
-                      />
+          <Text style={styles.brand}>Hangora</Text>
+
+          {step === "phone" ? (
+            <View style={styles.fillCol}>
+              {/* Hero fills leftover space — no blank gap */}
+              <View style={styles.heroFlex}>
+                <Image source={loginHero} style={styles.hero} resizeMode="contain" />
+              </View>
+
+              <View style={styles.bottomBlock}>
+                <Text style={styles.title}>Login In</Text>
+                <Text style={styles.subtitle}>Login to continue your Hangora journey</Text>
+
+                <View style={styles.form}>
+                  <View style={styles.inputPill}>
+                    <View style={styles.countryBox}>
+                      <Text style={styles.countryText}>🇮🇳 +91</Text>
                     </View>
-
-                    <TouchableOpacity
-                      onPress={sendOtp}
-                      disabled={loading || phone.length < 10}
-                      activeOpacity={0.88}
-                    >
-                      <LinearGradient
-                        colors={["#7C3AED", "#8B5CF6"]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={[
-                          styles.submitBtn,
-                          (loading || phone.length < 10) && { opacity: 0.55 },
-                        ]}
-                      >
-                        {loading ? (
-                          <ActivityIndicator color="#fff" />
-                        ) : (
-                          <>
-                            <Text style={styles.submitBtnText}>Send OTP</Text>
-                            <Ionicons name="arrow-forward" size={18} color="#fff" />
-                          </>
-                        )}
-                      </LinearGradient>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      onPress={runDummyLogin}
-                      disabled={loading}
-                      style={styles.demoBtn}
-                      activeOpacity={0.85}
-                    >
-                      <Text style={styles.demoBtnText}>
-                        Demo login · 9420413822
-                      </Text>
-                    </TouchableOpacity>
-                  </>
-                ) : (
-                  <>
-                    <Text style={styles.inputLabel}>6-digit OTP</Text>
+                    <View style={styles.inputDivider} />
                     <TextInput
-                      style={styles.otpInput}
-                      value={otp}
-                      onChangeText={(t) =>
-                        setOtp(t.replace(/[^\d]/g, "").slice(0, 6))
-                      }
-                      placeholder="••••••"
-                      placeholderTextColor="#94A3B8"
-                      keyboardType="number-pad"
-                      maxLength={6}
-                      textContentType="oneTimeCode"
+                      style={styles.input}
+                      value={phone}
+                      onChangeText={(t) => setPhone(t.replace(/[^\d]/g, "").slice(0, 10))}
+                      placeholder="Enter Mobile"
+                      placeholderTextColor="rgba(204,195,216,0.5)"
+                      keyboardType="phone-pad"
+                      maxLength={10}
                       autoFocus
                     />
+                  </View>
 
-                    <TouchableOpacity
-                      onPress={verifyOtp}
-                      disabled={loading || otp.length < 6}
-                      activeOpacity={0.88}
-                    >
-                      <LinearGradient
-                        colors={["#7C3AED", "#8B5CF6"]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={[
-                          styles.submitBtn,
-                          (loading || otp.length < 6) && { opacity: 0.55 },
-                        ]}
-                      >
-                        {loading ? (
-                          <ActivityIndicator color="#fff" />
-                        ) : (
-                          <>
-                            <Text style={styles.submitBtnText}>Verify & continue</Text>
-                            <Ionicons name="checkmark-circle" size={18} color="#fff" />
-                          </>
-                        )}
-                      </LinearGradient>
-                    </TouchableOpacity>
+                  <Pressable
+                    onPress={sendOtp}
+                    disabled={loading || phone.length < 10}
+                    style={({ pressed }) => [
+                      styles.loginBtnWrap,
+                      (loading || phone.length < 10) && { opacity: 0.55 },
+                      pressed && { opacity: 0.9 },
+                    ]}
+                  >
+                    <LinearGradient colors={["#93BEFF", "#0166FF"]} style={styles.loginBtn}>
+                      {loading ? (
+                        <ActivityIndicator color="#fff" />
+                      ) : (
+                        <Text style={styles.loginBtnText}>Login</Text>
+                      )}
+                    </LinearGradient>
+                  </Pressable>
+                </View>
 
-                    <View style={styles.otpActions}>
-                      <TouchableOpacity
-                        onPress={() => {
-                          setStep("phone");
-                          setOtp("");
-                          confirmationRef.current = null;
-                          dummyModeRef.current = false;
-                        }}
-                      >
-                        <Text style={styles.changeNumber}>Change number</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        disabled={resendIn > 0 || loading}
-                        onPress={sendOtp}
-                      >
-                        <Text
-                          style={[
-                            styles.resend,
-                            resendIn > 0 && { color: "#94A3B8" },
-                          ]}
-                        >
-                          {resendIn > 0 ? `Resend in ${resendIn}s` : "Resend OTP"}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </>
-                )}
+                <View style={styles.dividerRow}>
+                  <View style={styles.dividerLine} />
+                  <Text style={styles.dividerText}>or continue with</Text>
+                  <View style={styles.dividerLine} />
+                </View>
 
-                <Text style={styles.secureNote}>
-                  Secured by Firebase phone authentication
-                </Text>
+                <View style={styles.socialRow}>
+                  <Pressable style={styles.socialBtn} onPress={() => onSocial("Google")}>
+                    <AntDesign name="google" size={fx(20)} color="#EA4335" />
+                  </Pressable>
+                  <Pressable style={styles.socialBtn} onPress={() => onSocial("Apple")}>
+                    <Ionicons name="logo-apple" size={fx(22)} color="#FFFFFF" />
+                  </Pressable>
+                  <Pressable style={styles.socialBtn} onPress={() => onSocial("Facebook")}>
+                    <FontAwesome name="facebook" size={fx(22)} color="#1877F2" />
+                  </Pressable>
+                </View>
               </View>
-            </Animated.View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
+            </View>
+          ) : (
+            <View style={styles.fillCol}>
+              <Pressable
+                onPress={() => {
+                  setStep("phone");
+                  setOtp("");
+                }}
+                style={styles.backRow}
+                hitSlop={12}
+              >
+                <Ionicons name="chevron-back" size={fx(22)} color="#fff" />
+                <Text style={styles.backText}>Back</Text>
+              </Pressable>
+
+              <View style={styles.heroFlex}>
+                <Image source={loginHero} style={styles.heroOtp} resizeMode="contain" />
+              </View>
+
+              <View style={styles.bottomBlock}>
+                <Text style={styles.title}>Verify OTP</Text>
+                <Text style={styles.subtitle}>
+                  Enter the 6 digit code sent to {e164 || `+91 ${phone}`}
+                </Text>
+
+                <View style={styles.form}>
+                  <View style={styles.inputPill}>
+                    <Ionicons
+                      name="keypad-outline"
+                      size={fx(18)}
+                      color="#93BEFF"
+                      style={styles.inputIcon}
+                    />
+                    <TextInput
+                      style={styles.input}
+                      value={otp}
+                      onChangeText={(t) => setOtp(t.replace(/[^\d]/g, "").slice(0, 6))}
+                      placeholder="Enter OTP"
+                      placeholderTextColor="rgba(204,195,216,0.5)"
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      autoFocus
+                    />
+                  </View>
+
+                  <Text style={styles.resend}>
+                    {resendIn > 0
+                      ? `Resend code in 00:${String(resendIn).padStart(2, "0")}`
+                      : " "}
+                  </Text>
+                  {resendIn <= 0 ? (
+                    <Pressable onPress={sendOtp} style={styles.resendBtn}>
+                      <Text style={styles.resendLink}>Resend OTP</Text>
+                    </Pressable>
+                  ) : null}
+
+                  <Pressable
+                    onPress={verifyOtp}
+                    disabled={loading || otp.length < 6}
+                    style={({ pressed }) => [
+                      styles.loginBtnWrap,
+                      (loading || otp.length < 6) && { opacity: 0.55 },
+                      pressed && { opacity: 0.9 },
+                    ]}
+                  >
+                    <LinearGradient colors={["#93BEFF", "#0166FF"]} style={styles.loginBtn}>
+                      {loading ? (
+                        <ActivityIndicator color="#fff" />
+                      ) : (
+                        <Text style={styles.loginBtnText}>Verify</Text>
+                      )}
+                    </LinearGradient>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#F8F9FD" },
-  safe: { flex: 1, paddingHorizontal: Spacing.lg },
+  root: { flex: 1, backgroundColor: "#010103" },
   flex: { flex: 1 },
-  glowOrb: { position: "absolute", borderRadius: 999, opacity: 0.6 },
-  glow1: {
-    width: 250,
-    height: 250,
-    top: -50,
-    right: -50,
-    backgroundColor: "rgba(124, 58, 237, 0.08)",
+  bgFill: { ...StyleSheet.absoluteFillObject, backgroundColor: "#010103" },
+  bgImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: W,
+    height: H,
+    opacity: 0.95,
   },
-  glow2: {
-    width: 220,
-    height: 220,
-    bottom: 120,
-    left: -80,
-    backgroundColor: "rgba(139, 92, 246, 0.06)",
+  scroll: {
+    flexGrow: 1,
+    paddingHorizontal: fx(30),
   },
-  backBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
+
+  brand: {
+    fontSize: fx(22.3),
+    fontFamily: VibeFonts.extraBold,
+    color: "#FFFFFF",
+    letterSpacing: fx(0.45),
+    marginBottom: fy(2),
+  },
+
+  fillCol: {
+    flexGrow: 1,
+    justifyContent: "flex-start",
+  },
+
+  heroFlex: {
+    flexGrow: 0.95,
+    flexShrink: 1,
+    minHeight: fy(210),
+    maxHeight: fy(290),
     alignItems: "center",
     justifyContent: "center",
-    marginTop: Spacing.md,
-    marginBottom: Spacing.lg,
+    marginTop: fy(10),
+    marginBottom: fy(18),
   },
-  header: { marginBottom: Spacing.xl },
-  badge: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: Radius.full,
-    marginBottom: Spacing.md,
-    backgroundColor: "rgba(124, 58, 237, 0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(124, 58, 237, 0.2)",
+  hero: {
+    width: Math.min(fx(350), W - fx(24)),
+    height: "100%",
   },
-  badgeText: {
-    color: "#7C3AED",
-    fontSize: 9,
-    fontFamily: VibeFonts.bold,
-    letterSpacing: 1,
+  heroOtp: {
+    width: Math.min(fx(280), W - fx(48)),
+    height: "100%",
   },
+
+  bottomBlock: {
+    width: "100%",
+    paddingTop: fy(16),
+    paddingBottom: fy(12),
+    marginTop: fy(8),
+  },
+
   title: {
-    fontSize: 30,
-    fontFamily: VibeFonts.extraBold,
-    color: "#18181B",
-    letterSpacing: -0.5,
+    fontSize: fx(32),
+    fontFamily: VibeFonts.semiBold,
+    color: "#FFFFFF",
+    textAlign: "center",
+    letterSpacing: fx(0.64),
+    lineHeight: fy(42),
+    marginBottom: fy(6),
   },
   subtitle: {
-    fontSize: 14,
-    fontFamily: VibeFonts.medium,
-    color: "#64748B",
-    marginTop: 8,
+    marginTop: fy(14),
+    marginBottom: fy(8),
+    fontSize: fx(14),
+    fontFamily: VibeFonts.regular,
+    color: "#FFFFFF",
+    textAlign: "center",
+    lineHeight: fy(22),
+    paddingHorizontal: fx(4),
   },
-  glassCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    padding: Spacing.xl,
-    marginBottom: Spacing.xxl,
+
+  form: {
+    marginTop: fy(32),
+    width: "100%",
+    maxWidth: fx(342),
+    alignSelf: "center",
+  },
+  inputPill: {
+    height: Math.max(48, fy(49)),
+    borderRadius: fx(33),
+    backgroundColor: "#151c2c",
     borderWidth: 1,
-    borderColor: "rgba(124, 58, 237, 0.12)",
-  },
-  inputLabel: {
-    fontSize: 12,
-    fontFamily: VibeFonts.bold,
-    color: "#18181B",
-    marginBottom: Spacing.sm,
-  },
-  phoneRow: {
+    borderColor: "rgba(74,68,85,0.3)",
     flexDirection: "row",
-    gap: 10,
-    marginBottom: Spacing.lg,
+    alignItems: "center",
+    paddingLeft: fx(14),
+    paddingRight: fx(12),
   },
   countryBox: {
-    paddingHorizontal: 14,
-    borderRadius: Radius.lg,
-    backgroundColor: "#F8F9FD",
-    borderWidth: 1.5,
-    borderColor: "#E2E8F0",
+    paddingRight: fx(8),
     justifyContent: "center",
   },
   countryText: {
-    fontSize: 14,
-    fontFamily: VibeFonts.bold,
-    color: "#18181B",
+    fontSize: fx(14),
+    fontFamily: VibeFonts.medium,
+    color: "#FFFFFF",
   },
-  phoneInput: {
+  inputDivider: {
+    width: 1,
+    height: fy(20),
+    backgroundColor: "rgba(74,68,85,0.55)",
+    marginRight: fx(10),
+  },
+  input: {
     flex: 1,
-    backgroundColor: "#F8F9FD",
-    borderRadius: Radius.lg,
-    borderWidth: 1.5,
-    borderColor: "#E2E8F0",
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 14,
-    fontSize: 18,
-    fontFamily: VibeFonts.bold,
-    color: "#18181B",
-    letterSpacing: 1,
+    fontSize: fx(14),
+    fontFamily: VibeFonts.regular,
+    color: "#FFFFFF",
+    paddingVertical: 0,
   },
-  otpInput: {
-    backgroundColor: "#F8F9FD",
-    borderRadius: Radius.lg,
-    borderWidth: 1.5,
-    borderColor: "#E2E8F0",
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 16,
-    fontSize: 28,
-    fontFamily: VibeFonts.extraBold,
-    color: "#18181B",
-    letterSpacing: 10,
-    textAlign: "center",
-    marginBottom: Spacing.lg,
+
+  loginBtnWrap: {
+    marginTop: fy(24),
+    borderRadius: fx(40),
+    overflow: "hidden",
+    shadowColor: "#7C3AED",
+    shadowOpacity: 0.35,
+    shadowRadius: 7.5,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 6,
   },
-  submitBtn: {
-    flexDirection: "row",
+  loginBtn: {
+    minHeight: Math.max(50, fy(52)),
+    borderRadius: fx(40),
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    paddingVertical: 16,
-    borderRadius: Radius.full,
-    marginTop: Spacing.sm,
+    paddingVertical: fy(12),
   },
-  submitBtnText: {
-    fontSize: 16,
-    fontFamily: VibeFonts.bold,
-    color: "#fff",
+  loginBtnText: {
+    fontSize: fx(18),
+    fontFamily: VibeFonts.semiBold,
+    color: "#FFFFFF",
+    lineHeight: fy(28),
   },
-  otpActions: {
-    marginTop: Spacing.lg,
+
+  dividerRow: {
+    marginTop: fy(36),
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    width: "100%",
+    maxWidth: fx(342),
+    alignSelf: "center",
   },
-  changeNumber: {
-    color: "#7C3AED",
-    fontSize: 13,
-    fontFamily: VibeFonts.bold,
+  dividerLine: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: "rgba(74,68,85,0.45)",
+  },
+  dividerText: {
+    marginHorizontal: fx(16),
+    fontSize: fx(12),
+    fontFamily: VibeFonts.medium,
+    color: "#ccc3d8",
+    lineHeight: fy(14),
+  },
+
+  socialRow: {
+    marginTop: fy(24),
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: fx(16),
+    marginBottom: fy(10),
+  },
+  socialBtn: {
+    width: fx(48),
+    height: fx(48),
+    borderRadius: fx(24),
+    backgroundColor: "#151c2c",
+    borderWidth: 1,
+    borderColor: "#252d42",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  backRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: fx(2),
+    marginBottom: fy(4),
+  },
+  backText: {
+    fontSize: fx(14),
+    fontFamily: VibeFonts.medium,
+    color: "#FFFFFF",
   },
   resend: {
-    color: "#7C3AED",
-    fontSize: 13,
-    fontFamily: VibeFonts.bold,
-  },
-  secureNote: {
-    marginTop: Spacing.lg,
+    marginTop: fy(12),
     textAlign: "center",
-    fontSize: 11,
-    fontFamily: VibeFonts.medium,
-    color: "#94A3B8",
+    fontSize: fx(13),
+    fontFamily: VibeFonts.regular,
+    color: "rgba(204,195,216,0.75)",
   },
-  demoBtn: {
-    marginTop: 14,
-    alignItems: "center",
-    paddingVertical: 12,
-    borderRadius: Radius.full,
-    borderWidth: 1.5,
-    borderColor: "rgba(124, 58, 237, 0.35)",
-    backgroundColor: "rgba(124, 58, 237, 0.06)",
-  },
-  demoBtnText: {
-    fontSize: 13,
-    fontFamily: VibeFonts.bold,
-    color: "#7C3AED",
+  resendBtn: { alignSelf: "center", marginTop: fy(4) },
+  resendLink: {
+    fontSize: fx(13),
+    fontFamily: VibeFonts.semiBold,
+    color: "#93BEFF",
   },
 });
