@@ -53,23 +53,23 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 const T = {
   bg: "#070A14",
-  card: "rgba(22, 26, 46, 0.94)",
-  cardElevated: "rgba(28, 32, 54, 0.96)",
-  ink: "#F4F6FB",
-  muted: "#A7B0C4",
-  faint: "#7C869C",
-  border: "rgba(160, 170, 200, 0.16)",
-  softPurple: "rgba(139, 92, 246, 0.18)",
-  softPink: "rgba(244, 114, 182, 0.16)",
-  purple: "#A78BFA",
-  purpleDeep: "#8B5CF6",
-  purpleBright: "#C4B5FD",
-  pink: "#F472B6",
-  green: "#34D399",
-  greenSoft: "rgba(52, 211, 153, 0.18)",
+  card: "#0D1424",
+  cardElevated: "#101930",
+  ink: "#FFFFFF",
+  muted: "#94A3B8",
+  faint: "#64748B",
+  border: "rgba(255, 255, 255, 0.08)",
+  softPurple: "rgba(34, 211, 238, 0.12)",
+  softPink: "rgba(212, 247, 44, 0.12)",
+  purple: "#22D3EE",
+  purpleDeep: "#06B6D4",
+  purpleBright: "#38BDF8",
+  pink: "#D4F72C",
+  green: "#22C55E",
+  greenSoft: "rgba(34, 197, 94, 0.18)",
   red: "#F87171",
-  glass: "rgba(15, 22, 38, 0.92)",
-  cta: ["#7C3AED", "#A78BFA"] as const,
+  glass: "rgba(13, 20, 36, 0.92)",
+  cta: ["#06B6D4", "#0284C7"] as const,
 };
 
 const MEMBER_COLORS = ["#A855F7", "#EC4899", "#3B82F6", "#10B981", "#F59E0B", "#06B6D4"];
@@ -1032,12 +1032,12 @@ export default function ChatScreen() {
             />
             <Pressable onPress={handleSend} disabled={!text.trim() || !canSend}>
               {text.trim() && canSend ? (
-                <LinearGradient colors={[...T.cta]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.sendBtn}>
-                  <Ionicons name="send" size={17} color="#fff" />
+                <LinearGradient colors={["#D4F72C", "#22D3EE"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.sendBtn}>
+                  <Ionicons name="send" size={17} color="#070A14" />
                 </LinearGradient>
               ) : (
                 <View style={[styles.sendBtn, styles.sendBtnDisabled]}>
-                  <Ionicons name="send" size={17} color={T.faint} />
+                  <Ionicons name="send" size={17} color="#64748B" />
                 </View>
               )}
             </Pressable>
@@ -1347,63 +1347,51 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   backBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 16,
-    backgroundColor: T.glass,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "rgba(255, 255, 255, 0.07)",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: T.border,
-    shadowColor: "#000000",
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
+    borderColor: "rgba(255, 255, 255, 0.12)",
   },
   headerCenter: { flex: 1, flexDirection: "row", alignItems: "center", gap: 12 },
   headerAvatarRing: {
     width: 48,
     height: 48,
-    borderRadius: 18,
+    borderRadius: 24,
     padding: 2.5,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#8B5CF6",
-    shadowOpacity: 0.2,
+    shadowColor: "#22D3EE",
+    shadowOpacity: 0.35,
     shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
     elevation: 3,
   },
   headerAvatar: {
     width: 43,
     height: 43,
-    borderRadius: 15,
+    borderRadius: 21.5,
     borderWidth: 2,
-    borderColor: T.bg,
+    borderColor: "#0D1424",
   },
   headerName: {
-    fontSize: 17,
-    fontFamily: VibeFonts.extraBold,
-    color: T.ink,
-    letterSpacing: -0.3,
+    fontSize: 16,
+    fontFamily: VibeFonts.bold,
+    color: "#FFFFFF",
   },
   headerMeta: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 2 },
-  headerStatus: { fontSize: 11, fontFamily: VibeFonts.bold, color: T.green },
+  headerStatus: { fontSize: 11, fontFamily: VibeFonts.medium, color: "#22D3EE" },
   moreBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 16,
-    backgroundColor: T.glass,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "rgba(255, 255, 255, 0.07)",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: T.border,
-    shadowColor: "#000000",
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
+    borderColor: "rgba(255, 255, 255, 0.12)",
   },
   matchBanner: { paddingHorizontal: 16, paddingBottom: 10 },
   matchBannerGrad: {
@@ -1653,13 +1641,13 @@ const styles = StyleSheet.create({
   sendBtn: {
     width: 44,
     height: 44,
-    borderRadius: 17,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#EC4899",
-    shadowOpacity: 0.3,
+    shadowColor: "#D4F72C",
+    shadowOpacity: 0.5,
     shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
+    shadowOffset: { width: 0, height: 2 },
     elevation: 3,
   },
   sendBtnDisabled: {

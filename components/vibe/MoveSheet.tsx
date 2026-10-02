@@ -4,6 +4,23 @@ import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeInDown, FadeInUp, useSharedValue, useAnimatedStyle, withSpring } from "react-native-reanimated";
 import { VibeActivities, VibeColors, VibeFonts } from "../../constants/vibeTheme";
 
+const chaiIcon = require("../../assets/icons/chai.png");
+const coffeeIcon = require("../../assets/icons/coffee.png");
+const beerIcon = require("../../assets/icons/beer.png");
+const movieIcon = require("../../assets/icons/movie.png");
+const walkIcon = require("../../assets/icons/walk.png");
+const cokeIcon = require("../../assets/icons/dietcoke.png");
+
+const ACT_CUSTOM_IMAGES: Record<string, any> = {
+  beer: beerIcon,
+  coffee: coffeeIcon,
+  movie: movieIcon,
+  chai: chaiIcon,
+  tea: chaiIcon,
+  walk: walkIcon,
+  coke: cokeIcon,
+};
+
 function getTimeLabel(id: string) {
   const now = new Date();
   if (id === "now") return "";
@@ -63,7 +80,11 @@ function ActivityBtn({ act, selected, onPress }: { act: (typeof VibeActivities)[
           anim
         ]}
       >
-        <Text style={styles.actEmoji}>{act.emoji}</Text>
+        {ACT_CUSTOM_IMAGES[act.id] ? (
+          <Image source={ACT_CUSTOM_IMAGES[act.id]} style={{ width: 26, height: 26, marginBottom: 4 }} resizeMode="contain" />
+        ) : (
+          <Text style={styles.actEmoji}>{act.emoji}</Text>
+        )}
         <Text style={[styles.actName, selected ? { color: act.color, fontFamily: VibeFonts.bold } : null]}>{act.name.toUpperCase()}</Text>
       </Animated.View>
     </Pressable>

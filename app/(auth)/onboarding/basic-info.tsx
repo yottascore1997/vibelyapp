@@ -190,7 +190,7 @@ export default function BasicInfoScreen() {
               <Ionicons
                 name="person-outline"
                 size={fx(18)}
-                color="#93BEFF"
+                color="#E3F650"
                 style={styles.inputIcon}
               />
               <TextInput
@@ -210,7 +210,7 @@ export default function BasicInfoScreen() {
               <Ionicons
                 name="calendar-outline"
                 size={fx(17)}
-                color="#93BEFF"
+                color="#E3F650"
                 style={styles.inputIcon}
               />
               <Text
@@ -283,11 +283,17 @@ export default function BasicInfoScreen() {
             style={({ pressed }) => [
               styles.ctaWrap,
               !valid && { opacity: 0.55 },
-              pressed && valid && { opacity: 0.9 },
+              pressed && valid && { transform: [{ scale: 0.98 }] },
             ]}
           >
-            <LinearGradient colors={["#93BEFF", "#0166FF"]} style={styles.cta}>
+            <LinearGradient
+              colors={["#FFF04B", "#94FA78", "#2EFA9E"]}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={styles.cta}
+            >
               <Text style={styles.ctaText}>Continue</Text>
+              <Ionicons name="arrow-forward" size={fx(18)} color="#0A0F1D" style={{ marginLeft: 6 }} />
             </LinearGradient>
           </Pressable>
         </ScrollView>
@@ -348,7 +354,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: fx(11),
     height: fy(1.4),
-    backgroundColor: "#3B82F6",
+    backgroundColor: "#E3F650",
     top: "50%",
     marginTop: -fy(0.7),
     zIndex: 1,
@@ -365,15 +371,15 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   stepDotActive: {
-    backgroundColor: "#3B82F6",
-    borderColor: "#3B82F6",
+    backgroundColor: "#E3F650",
+    borderColor: "#E3F650",
   },
   stepNum: {
     fontSize: fx(9.7),
     fontFamily: VibeFonts.medium,
     color: "#64748B",
   },
-  stepNumActive: { color: "#FFFFFF" },
+  stepNumActive: { color: "#0A0F1D" },
 
   heroFlex: {
     flexGrow: 0.7,
@@ -460,7 +466,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: fx(12),
   },
   genderCardActive: {
-    borderColor: "#3B82F6",
+    borderColor: "#E3F650",
+    backgroundColor: "rgba(227, 246, 80, 0.08)",
   },
   genderLeft: {
     flexDirection: "row",
@@ -487,13 +494,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   radioActive: {
-    borderColor: "#3B82F6",
+    borderColor: "#E3F650",
   },
   radioDot: {
     width: fx(8),
     height: fx(8),
     borderRadius: fx(4),
-    backgroundColor: "#3B82F6",
+    backgroundColor: "#E3F650",
   },
 
   ctaWrap: {
@@ -504,23 +511,24 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     borderRadius: fx(33),
     overflow: "hidden",
-    shadowColor: "#7C3AED",
-    shadowOpacity: 0.3,
-    shadowRadius: 7.5,
-    shadowOffset: { width: 0, height: 0 },
+    shadowColor: "#2EFA9E",
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
     elevation: 6,
   },
   cta: {
     minHeight: Math.max(50, fy(52)),
     borderRadius: fx(33),
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: fy(14),
   },
   ctaText: {
-    fontSize: fx(18),
-    fontFamily: VibeFonts.semiBold,
-    color: "#FFFFFF",
-    letterSpacing: fx(0.14),
+    fontSize: fx(17),
+    fontFamily: VibeFonts.bold,
+    color: "#0A0F1D",
+    letterSpacing: fx(0.2),
   },
 });

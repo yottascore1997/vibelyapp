@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, ComponentProps } from "react";
 import {
   View,
   Text,
@@ -20,47 +20,53 @@ import { VibeFonts } from "../../constants/vibeTheme";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 
-/** Vibes → Night Out ambient (same as DiscoverVibesGate nightlife card) */
-const PINK = "#F9A8D4";
-const AMBIENT = "#3A1528";
-const AMBIENT_MID = "#1A0C14";
-const DEEP = "#070A14";
-
-const CREAM = "#FBF0C8";
-const INK = "#111111";
-const MUTED_TAG = "#4A4A4A";
-const TEXT = "#FFFFFF";
-const TEXT_SOFT = "rgba(255,255,255,0.78)";
-const LEGAL = "rgba(249,168,212,0.55)";
-const ACCENT_ON_DARK = PINK;
+type IconName = ComponentProps<typeof Ionicons>["name"];
 
 type PlanId = "6m" | "3m" | "1m";
 
-const FEATURES = [
+interface FeatureItem {
+  title: string;
+  sub: string;
+  icon: IconName;
+  tag: string;
+}
+
+const FEATURES: FeatureItem[] = [
   {
-    title: "See who likes you",
-    sub: "Match with people who already like you back",
-    icon: "heart" as const,
+    title: "See Who Likes You",
+    sub: "Instantly reveal blurred admirers and match directly without waiting",
+    icon: "heart",
+    tag: "MOST WANTED",
   },
   {
-    title: "Unlimited likes",
-    sub: "Like the people you're interested in, as often as you want",
-    icon: "hearts" as const,
+    title: "Unlimited Likes",
+    sub: "Send as many likes as you want, zero daily swipe limits",
+    icon: "infinite",
+    tag: "UNRESTRICTED",
   },
   {
-    title: "Unlimited rewinds",
-    sub: "Undo accidental left swipes whenever you need",
-    icon: "rewind" as const,
+    title: "Unlimited Rewinds",
+    sub: "Accidentally swiped left? Bring them back whenever you want",
+    icon: "arrow-undo",
+    tag: "SECOND CHANCE",
   },
   {
-    title: "Advanced filters",
-    sub: "Find people by height, lifestyle, and more",
-    icon: "filters" as const,
+    title: "Advanced Filters",
+    sub: "Dial into your exact vibe, height, lifestyle, and interests",
+    icon: "options",
+    tag: "PRECISION",
   },
   {
-    title: "Spotlight boosts",
-    sub: "Be seen first by more people nearby",
-    icon: "boost" as const,
+    title: "Unlimited Daily Hangouts",
+    sub: "Create unlimited plans, hangouts & events with zero daily creation limits",
+    icon: "sparkles",
+    tag: "UNLIMITED",
+  },
+  {
+    title: "Spotlight Boosts",
+    sub: "Get up to 10x more profile visits and be seen first nearby",
+    icon: "flash",
+    tag: "HIGH PRIORITY",
   },
 ];
 
@@ -77,88 +83,48 @@ const PLANS: {
   {
     id: "6m",
     months: 6,
-    label: "months",
-    badge: "Best price",
-    price: "₹1,299.00",
-    perMonth: "₹216.50/m.",
+    label: "Months",
+    badge: "BEST VALUE",
+    price: "₹1,299",
+    perMonth: "₹216/mo",
     discount: "-69%",
     tier: "VIP",
   },
   {
     id: "3m",
     months: 3,
-    label: "months",
-    badge: "Popular",
-    price: "₹899.00",
-    perMonth: "₹299.67/m.",
+    label: "Months",
+    badge: "POPULAR",
+    price: "₹899",
+    perMonth: "₹299/mo",
     discount: "-57%",
     tier: "GOLD",
   },
   {
     id: "1m",
     months: 1,
-    label: "month",
-    badge: "Unit price",
-    price: "₹699.00",
+    label: "Month",
+    badge: "STANDARD",
+    price: "₹699",
+    perMonth: "₹699/mo",
     tier: "GOLD",
   },
 ];
 
-function NightOutBackground() {
+function CyberAmbientBackground() {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <LinearGradient
-        colors={[AMBIENT, AMBIENT_MID, DEEP]}
+        colors={["#070A14", "#0D1424", "#070A14"]}
         locations={[0, 0.45, 1]}
         style={StyleSheet.absoluteFill}
       />
-      <LinearGradient
-        colors={[`${PINK}55`, `${PINK}18`, "transparent"]}
-        locations={[0, 0.35, 1]}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        style={styles.colorWash}
-      />
-      <View style={[styles.glowOrb, { backgroundColor: PINK, shadowColor: PINK }]} />
-      <View style={[styles.glowOrbBottom, { backgroundColor: PINK, shadowColor: PINK }]} />
-      <View style={styles.doodleWrap}>
-        <View style={[styles.doodleArc, styles.doodle1]} />
-        <View style={[styles.doodleArc, styles.doodle2]} />
-        <View style={[styles.doodleArc, styles.doodle3]} />
-        <View style={[styles.doodleArc, styles.doodle4]} />
-      </View>
-    </View>
-  );
-}
-
-function FeatureIcon({ kind }: { kind: string }) {
-  if (kind === "hearts") {
-    return (
-      <View style={[styles.iconBox, styles.iconBoxRed]}>
-        <Ionicons
-          name="heart"
-          size={22}
-          color="#fff"
-          style={{ position: "absolute", left: 14, top: 16, opacity: 0.95 }}
-        />
-        <Ionicons
-          name="heart"
-          size={26}
-          color="#fff"
-          style={{ position: "absolute", right: 12, top: 12 }}
-        />
-      </View>
-    );
-  }
-  const map: Record<string, keyof Ionicons.glyphMap> = {
-    heart: "heart",
-    rewind: "arrow-undo",
-    filters: "options",
-    boost: "flash",
-  };
-  return (
-    <View style={styles.iconBox}>
-      <Ionicons name={map[kind] || "heart"} size={28} color="#fff" />
+      {/* Top right cyan ambient orb */}
+      <View style={styles.ambientGlowCyan} />
+      {/* Top center neon lime subtle wash */}
+      <View style={styles.ambientGlowLime} />
+      {/* Bottom ambient glow */}
+      <View style={styles.ambientGlowBottom} />
     </View>
   );
 }
@@ -167,7 +133,7 @@ export default function PaywallModal() {
   const insets = useSafeAreaInsets();
   const { paywallVisible, closePaywall, upgradeTier } = usePremium();
   const [selectedPlan, setSelectedPlan] = useState<PlanId>("3m");
-  const [featureIndex, setFeatureIndex] = useState(1);
+  const [featureIndex, setFeatureIndex] = useState(0);
   const [purchasing, setPurchasing] = useState(false);
 
   const activePlan = PLANS.find((p) => p.id === selectedPlan) || PLANS[1];
@@ -187,8 +153,8 @@ export default function PaywallModal() {
       await upgradeTier(activePlan.tier);
       closePaywall();
       Alert.alert(
-        "Premium unlocked",
-        `${activePlan.months} ${activePlan.label} plan is now active.`
+        "Premium Unlocked! ✨",
+        `${activePlan.months} ${activePlan.label} plan is now active. You can now see who likes you!`
       );
     } catch {
       Alert.alert("Payment failed", "Please try again.");
@@ -204,108 +170,208 @@ export default function PaywallModal() {
       presentationStyle="fullScreen"
       onRequestClose={closePaywall}
     >
-      <StatusBar barStyle="light-content" backgroundColor={AMBIENT} />
+      <StatusBar barStyle="light-content" backgroundColor="#070A14" />
       <View style={[styles.root, { paddingTop: insets.top }]}>
-        <NightOutBackground />
+        <CyberAmbientBackground />
 
-        <View style={[styles.topBar, styles.hPad]}>
-          <Pressable onPress={closePaywall} hitSlop={12} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={28} color={TEXT} />
+        {/* Top Bar matching app header */}
+        <View style={styles.topBar}>
+          <Pressable onPress={closePaywall} hitSlop={12} style={styles.backButton}>
+            <Ionicons name="close" size={22} color="#FFFFFF" />
           </Pressable>
-          <Text style={styles.title}>Premium</Text>
-          <View style={styles.backBtn} />
+
+          <View style={styles.titleCenter}>
+            <View style={styles.titleRow}>
+              <Text style={styles.titleVibe}>VIBE</Text>
+              <Text style={styles.titlePremium}>PREMIUM</Text>
+            </View>
+            <Text style={styles.subtitle}>ELEVATE YOUR DATING EXPERIENCE</Text>
+          </View>
+
+          <View style={styles.vipPill}>
+            <Ionicons name="sparkles" size={12} color="#070A14" />
+            <Text style={styles.vipPillText}>VIP</Text>
+          </View>
         </View>
 
         <ScrollView
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={onFeatureScroll}
-          style={styles.featurePager}
-          contentOffset={{ x: SCREEN_W * 1, y: 0 }}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 20) + 16 }}
         >
-          {FEATURES.map((f) => (
-            <View key={f.title} style={styles.featureSlide}>
-              <FeatureIcon kind={f.icon} />
-              <Text style={styles.featureTitle}>{f.title}</Text>
-              <Text style={styles.featureSub}>{f.sub}</Text>
-            </View>
-          ))}
-        </ScrollView>
-
-        <View style={styles.dots}>
-          {FEATURES.map((_, i) => (
-            <View
-              key={i}
-              style={[styles.dot, i === featureIndex ? styles.dotActive : styles.dotIdle]}
-            />
-          ))}
-        </View>
-
-        <View style={[styles.plansRow, styles.hPad]}>
-          {PLANS.map((plan) => {
-            const selected = selectedPlan === plan.id;
-            return (
-              <Pressable
-                key={plan.id}
-                onPress={() => setSelectedPlan(plan.id)}
-                style={[styles.planCard, selected ? styles.planSelected : styles.planIdle]}
-              >
-                <View
-                  style={[
-                    styles.planBadge,
-                    selected && styles.planBadgeOnDark,
-                    (plan.id === "6m" || plan.id === "1m") && styles.planBadgePurple,
-                  ]}
-                >
-                  <Text style={styles.planBadgeText}>{plan.badge}</Text>
+          {/* Feature Carousel */}
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={onFeatureScroll}
+            style={styles.featurePager}
+          >
+            {FEATURES.map((f, i) => (
+              <View key={i} style={styles.featureSlide}>
+                <View style={styles.featureTagChip}>
+                  <Text style={styles.featureTagText}>{f.tag}</Text>
                 </View>
 
-                <Text style={[styles.planMonthsNum, selected && styles.textOnDark]}>
-                  {plan.months}
-                </Text>
-                <Text style={[styles.planMonthsLabel, selected && styles.textOnDark]}>
-                  {plan.label}
-                </Text>
+                <View style={styles.iconRingWrap}>
+                  <LinearGradient
+                    colors={["#D4F72C", "#22D3EE"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.iconRingGrad}
+                  >
+                    <View style={styles.iconInner}>
+                      <Ionicons
+                        name={f.icon}
+                        size={32}
+                        color={f.icon === "heart" ? "#22D3EE" : "#D4F72C"}
+                      />
+                    </View>
+                  </LinearGradient>
+                </View>
 
-                <Text style={[styles.planPrice, selected && styles.textOnDark]}>{plan.price}</Text>
+                <Text style={styles.featureTitle}>{f.title}</Text>
+                <Text style={styles.featureSub}>{f.sub}</Text>
+              </View>
+            ))}
+          </ScrollView>
 
-                {!!plan.perMonth && (
-                  <Text style={[styles.planPerMonth, selected && styles.perMonthOnDark]}>
-                    {plan.perMonth}
-                  </Text>
-                )}
+          {/* Carousel Dots */}
+          <View style={styles.dots}>
+            {FEATURES.map((_, i) => (
+              <View
+                key={i}
+                style={[
+                  styles.dot,
+                  i === featureIndex ? styles.dotActive : styles.dotIdle,
+                ]}
+              />
+            ))}
+          </View>
 
-                {!!plan.discount && (
-                  <View style={[styles.discountPill, selected && styles.discountOnDark]}>
-                    <Text style={[styles.discountText, selected && styles.discountTextOnDark]}>
-                      {plan.discount}
+          {/* Plan Cards Row */}
+          <View style={styles.plansContainer}>
+            <Text style={styles.choosePlanTitle}>SELECT YOUR MEMBERSHIP</Text>
+            <View style={styles.plansRow}>
+              {PLANS.map((plan) => {
+                const isSelected = selectedPlan === plan.id;
+                return (
+                  <Pressable
+                    key={plan.id}
+                    onPress={() => setSelectedPlan(plan.id)}
+                    style={[
+                      styles.planCard,
+                      isSelected ? styles.planCardSelected : styles.planCardIdle,
+                    ]}
+                  >
+                    {/* Badge */}
+                    <View
+                      style={[
+                        styles.planBadge,
+                        isSelected ? styles.planBadgeSelected : styles.planBadgeIdle,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.planBadgeText,
+                          isSelected && styles.planBadgeTextSelected,
+                        ]}
+                      >
+                        {plan.badge}
+                      </Text>
+                    </View>
+
+                    {/* Months Number */}
+                    <Text
+                      style={[
+                        styles.planMonthsNum,
+                        isSelected ? styles.textLime : styles.textWhite,
+                      ]}
+                    >
+                      {plan.months}
                     </Text>
-                  </View>
-                )}
-              </Pressable>
-            );
-          })}
-        </View>
+                    <Text style={styles.planMonthsLabel}>{plan.label}</Text>
 
-        <View style={{ flex: 1 }} />
+                    {/* Price */}
+                    <Text style={styles.planPrice}>{plan.price}</Text>
 
-        <Text style={[styles.legal, styles.hPad]}>
-          By clicking Continue, your payment will be made using your Google Play account and your
-          selected subscription will be activated for the period of time indicated. At the end of
-          that period, your subscription will automatically be renewed at the same price and for the
-          same duration, unless you deactivate the renewal option in the Google Play settings.
-        </Text>
+                    {/* Per Month */}
+                    {!!plan.perMonth && (
+                      <Text
+                        style={[
+                          styles.planPerMonth,
+                          isSelected && styles.perMonthActive,
+                        ]}
+                      >
+                        {plan.perMonth}
+                      </Text>
+                    )}
 
-        <Pressable
-          style={[styles.continueBtn, styles.hPadBtn, purchasing && { opacity: 0.7 }]}
-          onPress={handleContinue}
-          disabled={purchasing}
-        >
-          <Text style={styles.continueText}>{purchasing ? "Processing…" : "Continue"}</Text>
-        </Pressable>
+                    {/* Discount Pill */}
+                    {!!plan.discount ? (
+                      <View
+                        style={[
+                          styles.discountPill,
+                          isSelected ? styles.discountSelected : styles.discountIdle,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.discountText,
+                            isSelected && styles.discountTextSelected,
+                          ]}
+                        >
+                          SAVE {plan.discount}
+                        </Text>
+                      </View>
+                    ) : (
+                      <View style={{ height: 24, marginTop: "auto" }} />
+                    )}
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
 
-        <View style={{ height: Math.max(insets.bottom, 12) }} />
+          {/* Perks Summary Box */}
+          <View style={styles.perksBox}>
+            <View style={styles.perkLine}>
+              <Ionicons name="checkmark-circle" size={17} color="#D4F72C" />
+              <Text style={styles.perkLineText}>Reveal & chat with all who liked you</Text>
+            </View>
+            <View style={styles.perkLine}>
+              <Ionicons name="checkmark-circle" size={17} color="#22D3EE" />
+              <Text style={styles.perkLineText}>Unlimited daily profile swipes</Text>
+            </View>
+            <View style={styles.perkLine}>
+              <Ionicons name="checkmark-circle" size={17} color="#D4F72C" />
+              <Text style={styles.perkLineText}>Priority match spotlight in your area</Text>
+            </View>
+          </View>
+
+          {/* Legal / Policy */}
+          <Text style={styles.legal}>
+            Recurring billing. Cancel anytime in Google Play Store subscriptions. By tapping Continue, you agree to our Terms & Privacy Policy.
+          </Text>
+
+          {/* Continue CTA Button */}
+          <Pressable
+            style={[styles.continueBtnWrap, purchasing && { opacity: 0.7 }]}
+            onPress={handleContinue}
+            disabled={purchasing}
+          >
+            <LinearGradient
+              colors={["#D4F72C", "#22D3EE"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.continueBtn}
+            >
+              <Ionicons name="diamond" size={18} color="#070A14" />
+              <Text style={styles.continueText}>
+                {purchasing ? "Activating VIP Access…" : `Continue with ${activePlan.months} ${activePlan.label}`}
+              </Text>
+            </LinearGradient>
+          </Pressable>
+        </ScrollView>
       </View>
     </Modal>
   );
@@ -314,274 +380,351 @@ export default function PaywallModal() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: DEEP,
+    backgroundColor: "#070A14",
   },
-  colorWash: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  glowOrb: {
+  ambientGlowCyan: {
     position: "absolute",
-    top: "12%",
-    left: SCREEN_W * 0.15,
-    width: SCREEN_W * 0.7,
-    height: SCREEN_W * 0.7,
-    borderRadius: SCREEN_W * 0.35,
-    opacity: 0.22,
-    shadowOpacity: 0.7,
-    shadowRadius: 60,
-    shadowOffset: { width: 0, height: 0 },
+    top: 20,
+    right: -40,
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    backgroundColor: "rgba(34, 211, 238, 0.12)",
   },
-  glowOrbBottom: {
+  ambientGlowLime: {
     position: "absolute",
-    bottom: -40,
-    right: -60,
+    top: 60,
+    left: -40,
     width: 220,
     height: 220,
     borderRadius: 110,
-    opacity: 0.14,
-    shadowOpacity: 0.5,
-    shadowRadius: 40,
-    shadowOffset: { width: 0, height: 0 },
+    backgroundColor: "rgba(212, 247, 44, 0.08)",
   },
-  doodleWrap: {
-    ...StyleSheet.absoluteFillObject,
-    overflow: "hidden",
-  },
-  doodleArc: {
+  ambientGlowBottom: {
     position: "absolute",
-    borderColor: "rgba(249,168,212,0.35)",
-    borderWidth: 1.5,
-    backgroundColor: "transparent",
-  },
-  doodle1: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    top: 36,
-    right: -30,
-    borderLeftColor: "transparent",
-    borderBottomColor: "transparent",
-  },
-  doodle2: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    top: 90,
-    right: 40,
-    borderRightColor: "transparent",
-    borderTopColor: "transparent",
-    opacity: 0.7,
-  },
-  doodle3: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    top: 70,
-    left: -40,
-    borderRightColor: "transparent",
-    borderBottomColor: "transparent",
-    opacity: 0.55,
-  },
-  doodle4: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    top: 180,
-    left: 50,
-    borderLeftColor: "transparent",
-    borderTopColor: "transparent",
-    opacity: 0.4,
-  },
-  hPad: {
-    paddingHorizontal: 16,
-  },
-  hPadBtn: {
-    marginHorizontal: 16,
+    bottom: -60,
+    left: SCREEN_W * 0.25,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: "rgba(34, 211, 238, 0.07)",
   },
   topBar: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingTop: 4,
-    marginBottom: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.06)",
   },
-  backBtn: {
-    width: 36,
-    height: 36,
-    alignItems: "flex-start",
+  backButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "rgba(255, 255, 255, 0.07)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    alignItems: "center",
     justifyContent: "center",
   },
-  title: {
-    fontSize: 22,
+  titleCenter: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  titleVibe: {
+    color: "#FFFFFF",
+    fontSize: 18,
     fontFamily: VibeFonts.extraBold,
-    color: TEXT,
-    letterSpacing: -0.3,
+    letterSpacing: 0.5,
+  },
+  titlePremium: {
+    color: "#D4F72C",
+    fontSize: 18,
+    fontFamily: VibeFonts.extraBold,
+    letterSpacing: 0.5,
+  },
+  subtitle: {
+    color: "#94A3B8",
+    fontSize: 9.5,
+    fontFamily: VibeFonts.bold,
+    letterSpacing: 0.8,
+    marginTop: 2,
+  },
+  vipPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#D4F72C",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  vipPillText: {
+    color: "#070A14",
+    fontSize: 11,
+    fontFamily: VibeFonts.extraBold,
+    letterSpacing: 0.5,
   },
   featurePager: {
-    maxHeight: 200,
+    marginTop: 14,
+    maxHeight: 225,
   },
   featureSlide: {
     width: SCREEN_W,
-    paddingHorizontal: 36,
+    paddingHorizontal: 28,
     alignItems: "center",
     justifyContent: "center",
   },
-  iconBox: {
+  featureTagChip: {
+    backgroundColor: "rgba(34, 211, 238, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(34, 211, 238, 0.28)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    marginBottom: 12,
+  },
+  featureTagText: {
+    color: "#22D3EE",
+    fontSize: 9.5,
+    fontFamily: VibeFonts.extraBold,
+    letterSpacing: 0.8,
+  },
+  iconRingWrap: {
+    marginBottom: 12,
+    shadowColor: "#22D3EE",
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  iconRingGrad: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    padding: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconInner: {
     width: 64,
     height: 64,
-    borderRadius: 18,
-    backgroundColor: INK,
+    borderRadius: 32,
+    backgroundColor: "#0D1424",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 18,
-  },
-  iconBoxRed: {
-    backgroundColor: "#E11D48",
   },
   featureTitle: {
-    fontSize: 26,
+    fontSize: 22,
     fontFamily: VibeFonts.extraBold,
-    color: TEXT,
+    color: "#FFFFFF",
     textAlign: "center",
-    letterSpacing: -0.4,
-    marginBottom: 8,
+    letterSpacing: -0.3,
+    marginBottom: 6,
   },
   featureSub: {
-    fontSize: 15,
+    fontSize: 13,
     fontFamily: VibeFonts.medium,
-    color: TEXT_SOFT,
+    color: "#94A3B8",
     textAlign: "center",
-    lineHeight: 21,
-    paddingHorizontal: 12,
+    lineHeight: 18,
+    paddingHorizontal: 14,
   },
   dots: {
     flexDirection: "row",
     justifyContent: "center",
-    gap: 7,
-    marginTop: 10,
-    marginBottom: 22,
+    alignItems: "center",
+    gap: 6,
+    marginTop: 6,
+    marginBottom: 18,
   },
   dot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
+    height: 6,
+    borderRadius: 3,
   },
-  dotActive: { backgroundColor: PINK },
-  dotIdle: { backgroundColor: "rgba(255,255,255,0.28)" },
+  dotActive: {
+    width: 22,
+    backgroundColor: "#D4F72C",
+  },
+  dotIdle: {
+    width: 6,
+    backgroundColor: "rgba(255, 255, 255, 0.18)",
+  },
+  plansContainer: {
+    paddingHorizontal: 16,
+  },
+  choosePlanTitle: {
+    fontSize: 11,
+    fontFamily: VibeFonts.bold,
+    color: "#64748B",
+    letterSpacing: 1,
+    marginBottom: 12,
+    textAlign: "center",
+  },
   plansRow: {
     flexDirection: "row",
-    gap: 10,
+    gap: 8,
     alignItems: "stretch",
   },
   planCard: {
     flex: 1,
-    borderRadius: 22,
-    paddingTop: 14,
-    paddingBottom: 14,
+    borderRadius: 20,
+    paddingVertical: 14,
     paddingHorizontal: 8,
     alignItems: "center",
-    minHeight: 210,
+    minHeight: 205,
   },
-  planIdle: {
-    backgroundColor: CREAM,
+  planCardIdle: {
+    backgroundColor: "#0D1424",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
   },
-  planSelected: {
-    backgroundColor: INK,
+  planCardSelected: {
+    backgroundColor: "#131C33",
+    borderWidth: 2,
+    borderColor: "#D4F72C",
     transform: [{ scale: 1.02 }],
-    shadowColor: PINK,
-    shadowOpacity: 0.35,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
+    shadowColor: "#D4F72C",
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
     elevation: 8,
   },
   planBadge: {
-    backgroundColor: MUTED_TAG,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginBottom: 10,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginBottom: 8,
   },
-  planBadgePurple: {
-    backgroundColor: "#7C3AED",
+  planBadgeIdle: {
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
   },
-  planBadgeOnDark: {
-    backgroundColor: "rgba(255,255,255,0.18)",
+  planBadgeSelected: {
+    backgroundColor: "#D4F72C",
   },
   planBadgeText: {
-    color: "#fff",
-    fontSize: 11,
-    fontFamily: VibeFonts.semiBold,
+    fontSize: 9,
+    fontFamily: VibeFonts.extraBold,
+    color: "#94A3B8",
+    letterSpacing: 0.5,
+  },
+  planBadgeTextSelected: {
+    color: "#070A14",
   },
   planMonthsNum: {
-    fontSize: 40,
+    fontSize: 34,
     fontFamily: VibeFonts.extraBold,
-    color: INK,
-    lineHeight: 44,
+    lineHeight: 38,
+  },
+  textLime: {
+    color: "#D4F72C",
+  },
+  textWhite: {
+    color: "#FFFFFF",
   },
   planMonthsLabel: {
-    fontSize: 16,
+    fontSize: 12,
     fontFamily: VibeFonts.bold,
-    color: INK,
-    marginBottom: 10,
+    color: "#94A3B8",
+    marginBottom: 8,
     marginTop: -2,
   },
   planPrice: {
     fontSize: 15,
     fontFamily: VibeFonts.extraBold,
-    color: INK,
+    color: "#FFFFFF",
     marginBottom: 2,
   },
   planPerMonth: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: VibeFonts.medium,
-    color: INK,
-    opacity: 0.85,
-    marginBottom: 10,
+    color: "#64748B",
+    marginBottom: 8,
   },
-  perMonthOnDark: {
-    color: ACCENT_ON_DARK,
-    opacity: 1,
-  },
-  textOnDark: {
-    color: "#fff",
-  },
-  discountPill: {
-    marginTop: "auto" as const,
-    backgroundColor: INK,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-  },
-  discountOnDark: {
-    backgroundColor: "#fff",
-  },
-  discountText: {
-    color: "#fff",
-    fontSize: 12,
+  perMonthActive: {
+    color: "#22D3EE",
     fontFamily: VibeFonts.bold,
   },
-  discountTextOnDark: {
-    color: INK,
+  discountPill: {
+    marginTop: "auto",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  discountIdle: {
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
+  },
+  discountSelected: {
+    backgroundColor: "rgba(212, 247, 44, 0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(212, 247, 44, 0.4)",
+  },
+  discountText: {
+    fontSize: 9.5,
+    fontFamily: VibeFonts.extraBold,
+    color: "#94A3B8",
+    letterSpacing: 0.4,
+  },
+  discountTextSelected: {
+    color: "#D4F72C",
+  },
+  perksBox: {
+    marginHorizontal: 16,
+    marginTop: 18,
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: "#0D1424",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.06)",
+    gap: 10,
+  },
+  perkLine: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  perkLineText: {
+    fontSize: 12.5,
+    fontFamily: VibeFonts.medium,
+    color: "#E2E8F0",
   },
   legal: {
     fontSize: 10,
     lineHeight: 14,
-    color: "#FFFFFF",
+    color: "#64748B",
     textAlign: "center",
     fontFamily: VibeFonts.regular,
-    marginBottom: 14,
-    marginTop: 18,
+    marginHorizontal: 20,
+    marginTop: 14,
+    marginBottom: 16,
+  },
+  continueBtnWrap: {
+    marginHorizontal: 16,
+    borderRadius: 999,
+    overflow: "hidden",
+    shadowColor: "#D4F72C",
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
   },
   continueBtn: {
-    backgroundColor: "#22C55E",
-    borderRadius: 999,
-    paddingVertical: 17,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 8,
+    paddingVertical: 16,
+    borderRadius: 999,
   },
   continueText: {
-    color: "#fff",
-    fontSize: 17,
+    color: "#070A14",
+    fontSize: 15,
     fontFamily: VibeFonts.extraBold,
+    letterSpacing: 0.2,
   },
 });

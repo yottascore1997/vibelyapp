@@ -84,9 +84,9 @@ function DualRangeSliderBar({
       >
         <View style={styles.sliderTrack}>
           <LinearGradient
-            colors={["#7C3AED", "#A855F7", "#EC4899"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
+            colors={["#FFF04B", "#94FA78", "#2EFA9E"]}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
             style={[styles.sliderFillRange, { left: `${minPercent}%`, width: `${rangeWidth}%` }]}
           />
         </View>
@@ -155,9 +155,9 @@ function InteractiveSliderBar({
       >
         <View style={styles.sliderTrack}>
           <LinearGradient
-            colors={["#7C3AED", "#A855F7", "#EC4899"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
+            colors={["#FFF04B", "#94FA78", "#2EFA9E"]}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
             style={[styles.sliderFillSingle, { width: `${percentage}%` }]}
           />
         </View>
@@ -189,7 +189,7 @@ function FieldLabel({
   return (
     <View style={styles.fieldLabelRow}>
       <View style={styles.fieldIconBox}>
-        <Ionicons name={icon} size={15} color="#7C3AED" />
+        <Ionicons name={icon} size={15} color="#E3F650" />
       </View>
       <Text style={styles.fieldLabel}>{title}</Text>
       {hint ? <Text style={styles.fieldHint}> · {hint}</Text> : null}
@@ -281,16 +281,16 @@ export default function PreferencesScreen() {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle="light-content" />
       <LinearGradient
-        colors={["#F3E8FF", "#FAF5FF", "#F8F9FD"]}
-        locations={[0, 0.35, 1]}
+        colors={["#070A13", "#0B1020", "#070A13"]}
+        locations={[0, 0.4, 1]}
         style={StyleSheet.absoluteFill}
       />
 
       <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
         <Pressable style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={20} color="#7C3AED" />
+          <Ionicons name="chevron-back" size={20} color="#E3F650" />
         </Pressable>
 
         <View style={styles.stepper}>
@@ -305,7 +305,7 @@ export default function PreferencesScreen() {
               ]}
             >
               {n < STEP ? (
-                <Ionicons name="checkmark" size={12} color="#FFF" />
+                <Ionicons name="checkmark" size={12} color="#0A0F1D" />
               ) : (
                 <Text style={[styles.stepNum, n === STEP && styles.stepNumActive]}>{n}</Text>
               )}
@@ -314,7 +314,7 @@ export default function PreferencesScreen() {
         </View>
 
         <View style={styles.stepChip}>
-          <Ionicons name="sparkles" size={11} color="#7C3AED" />
+          <Ionicons name="sparkles" size={11} color="#E3F650" />
           <Text style={styles.stepChipText}>
             Step {STEP} of {TOTAL}
           </Text>
@@ -401,21 +401,21 @@ export default function PreferencesScreen() {
             ) : null}
             {!locLoading && hasGps ? (
               <Pressable onPress={detectLocation} hitSlop={8}>
-                <Ionicons name="refresh" size={18} color="#7C3AED" />
+                <Ionicons name="refresh" size={18} color="#E3F650" />
               </Pressable>
             ) : null}
           </Pressable>
 
           {/* Live summary */}
           <LinearGradient
-            colors={["#F5F3FF", "#FDF2F8"]}
+            colors={["#13192B", "#0D1222"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.summaryBox}
           >
             <View style={styles.summaryItem}>
-              <View style={[styles.summaryIcon, { backgroundColor: "#EDE9FE" }]}>
-                <Ionicons name="people" size={16} color="#7C3AED" />
+              <View style={[styles.summaryIcon, { backgroundColor: "rgba(227,246,80,0.12)" }]}>
+                <Ionicons name="people" size={16} color="#E3F650" />
               </View>
               <View>
                 <Text style={styles.summaryLabel}>Age</Text>
@@ -426,8 +426,8 @@ export default function PreferencesScreen() {
             </View>
             <View style={styles.summaryDivider} />
             <View style={styles.summaryItem}>
-              <View style={[styles.summaryIcon, { backgroundColor: "#FCE7F3" }]}>
-                <Ionicons name="navigate" size={16} color="#DB2777" />
+              <View style={[styles.summaryIcon, { backgroundColor: "rgba(227,246,80,0.12)" }]}>
+                <Ionicons name="navigate" size={16} color="#E3F650" />
               </View>
               <View>
                 <Text style={styles.summaryLabel}>Distance</Text>
@@ -470,7 +470,9 @@ export default function PreferencesScreen() {
                 >
                   {active ? (
                     <LinearGradient
-                      colors={["#7C3AED", "#A855F7"]}
+                      colors={["#FFF04B", "#94FA78", "#2EFA9E"]}
+                      start={{ x: 0, y: 0.5 }}
+                      end={{ x: 1, y: 0.5 }}
                       style={styles.genderPillActive}
                     >
                       {opt.emoji ? <Text style={styles.genderEmoji}>{opt.emoji}</Text> : null}
@@ -495,9 +497,9 @@ export default function PreferencesScreen() {
                 <Pressable key={opt.id} onPress={() => toggleLookingFor(opt.id)}>
                   {active ? (
                     <LinearGradient
-                      colors={["#7C3AED", "#A855F7"]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
+                      colors={["#FFF04B", "#94FA78", "#2EFA9E"]}
+                      start={{ x: 0, y: 0.5 }}
+                      end={{ x: 1, y: 0.5 }}
                       style={styles.lookingActive}
                     >
                       <View style={styles.lookingIconActive}>
@@ -507,7 +509,7 @@ export default function PreferencesScreen() {
                         <Text style={styles.lookingLabelActive}>{opt.label}</Text>
                         <Text style={styles.lookingSubActive}>{opt.subtitle}</Text>
                       </View>
-                      <Ionicons name="checkmark-circle" size={22} color="#FFF" />
+                      <Ionicons name="checkmark-circle" size={22} color="#0A0F1D" />
                     </LinearGradient>
                   ) : (
                     <View style={styles.lookingCard}>
@@ -530,7 +532,7 @@ export default function PreferencesScreen() {
 
           <Animated.View entering={FadeInDown.delay(100).duration(360)} style={styles.safeBanner}>
             <View style={styles.safeShield}>
-              <Ionicons name="shield-checkmark" size={16} color="#FFF" />
+              <Ionicons name="shield-checkmark" size={16} color="#0A0F1D" />
             </View>
             <Text style={styles.safeText}>
               You can tweak preferences anytime from{" "}
@@ -544,17 +546,15 @@ export default function PreferencesScreen() {
             style={[styles.ctaWrap, (!valid || saving) && { opacity: 0.55 }]}
           >
             <LinearGradient
-              colors={["#7C3AED", "#C026D3", "#EC4899"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
+              colors={["#FFF04B", "#94FA78", "#2EFA9E"]}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
               style={styles.cta}
             >
-              <Ionicons name="sparkles" size={14} color="rgba(255,255,255,0.85)" />
               <Text style={styles.ctaText}>
-                {saving ? "Creating profile..." : "Start Matching"}
+                {saving ? "Creating profile..." : "Start Hanging Out"}
               </Text>
-              <Ionicons name="arrow-forward" size={18} color="#FFF" />
-              <Ionicons name="sparkles" size={14} color="rgba(255,255,255,0.85)" />
+              <Ionicons name="arrow-forward" size={18} color="#0A0F1D" />
             </LinearGradient>
           </Pressable>
 
@@ -579,7 +579,7 @@ export default function PreferencesScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#F8F9FD" },
+  root: { flex: 1, backgroundColor: "#070A13" },
   topBar: {
     paddingHorizontal: 16,
     flexDirection: "row",
@@ -591,11 +591,11 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "rgba(255,255,255,0.08)",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "rgba(124,58,237,0.12)",
+    borderColor: "rgba(255,255,255,0.12)",
   },
   stepper: {
     flexDirection: "row",
@@ -608,7 +608,7 @@ const styles = StyleSheet.create({
     left: 12,
     right: 12,
     height: 2,
-    backgroundColor: "#E9D5FF",
+    backgroundColor: "rgba(255,255,255,0.12)",
     top: "50%",
     marginTop: -1,
   },
@@ -616,29 +616,29 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#13192B",
     borderWidth: 1.5,
-    borderColor: "#E2E8F0",
+    borderColor: "rgba(255,255,255,0.12)",
     alignItems: "center",
     justifyContent: "center",
     zIndex: 1,
   },
-  stepCircleActive: { backgroundColor: "#7C3AED", borderColor: "#7C3AED" },
-  stepCircleDone: { backgroundColor: "#A78BFA", borderColor: "#A78BFA" },
+  stepCircleActive: { backgroundColor: "#E3F650", borderColor: "#E3F650" },
+  stepCircleDone: { backgroundColor: "#E3F650", borderColor: "#E3F650" },
   stepNum: { fontSize: 11, fontFamily: VibeFonts.bold, color: "#64748B" },
-  stepNumActive: { color: "#FFF" },
+  stepNumActive: { color: "#0A0F1D" },
   stepChip: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "rgba(227,246,80,0.12)",
     borderWidth: 1,
-    borderColor: "#E9D5FF",
+    borderColor: "rgba(227,246,80,0.3)",
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
   },
-  stepChipText: { fontSize: 11, fontFamily: VibeFonts.bold, color: "#7C3AED" },
+  stepChipText: { fontSize: 11, fontFamily: VibeFonts.bold, color: "#E3F650" },
 
   hero: {
     paddingHorizontal: 20,
@@ -652,18 +652,18 @@ const styles = StyleSheet.create({
     fontSize: 30,
     lineHeight: 36,
     fontFamily: VibeFonts.extraBold,
-    color: "#18181B",
+    color: "#FFFFFF",
     letterSpacing: -0.7,
   },
-  heroTitleAccent: { color: "#7C3AED" },
+  heroTitleAccent: { color: "#E3F650" },
   heroSub: {
     marginTop: 8,
     fontSize: 13,
     lineHeight: 19,
     fontFamily: VibeFonts.medium,
-    color: "#64748B",
+    color: "rgba(255,255,255,0.72)",
   },
-  heroSubAccent: { color: "#7C3AED", fontFamily: VibeFonts.bold },
+  heroSubAccent: { color: "#E3F650", fontFamily: VibeFonts.bold },
   heroArt: {
     width: 120,
     height: 130,
@@ -684,7 +684,7 @@ const styles = StyleSheet.create({
     top: 10,
     left: 0,
     zIndex: 2,
-    backgroundColor: "#FFF",
+    backgroundColor: "#13192B",
     borderRadius: 12,
     padding: 4,
   },
@@ -696,21 +696,21 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: "#EC4899",
+    backgroundColor: "#E3F650",
     alignItems: "center",
     justifyContent: "center",
   },
 
   card: {
     marginTop: 6,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#0D1222",
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     paddingHorizontal: 20,
     paddingTop: 22,
     paddingBottom: 18,
     borderWidth: 1,
-    borderColor: "rgba(124,58,237,0.1)",
+    borderColor: "rgba(255,255,255,0.08)",
     minHeight: 520,
   },
 
@@ -718,42 +718,42 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: "#F8F9FD",
+    backgroundColor: "#13192B",
     borderRadius: 16,
     padding: 14,
     marginBottom: 14,
     borderWidth: 1.5,
-    borderColor: "#E2E8F0",
+    borderColor: "rgba(255,255,255,0.1)",
   },
   gpsBoxOk: {
-    backgroundColor: "#F0FDF4",
-    borderColor: "#BBF7D0",
+    backgroundColor: "rgba(34,197,94,0.12)",
+    borderColor: "rgba(34,197,94,0.3)",
   },
   gpsBoxErr: {
-    backgroundColor: "#FEF2F2",
-    borderColor: "#FECACA",
+    backgroundColor: "rgba(239,68,68,0.12)",
+    borderColor: "rgba(239,68,68,0.3)",
   },
   gpsIcon: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: "#F3E8FF",
+    backgroundColor: "rgba(227,246,80,0.12)",
     alignItems: "center",
     justifyContent: "center",
   },
   gpsTitle: {
     fontSize: 14,
     fontFamily: VibeFonts.bold,
-    color: "#18181B",
+    color: "#F8FAFC",
   },
   gpsSub: {
     marginTop: 2,
     fontSize: 11,
     fontFamily: VibeFonts.medium,
-    color: "#64748B",
+    color: "#94A3B8",
   },
   gpsRetry: {
-    backgroundColor: "#7C3AED",
+    backgroundColor: "#E3F650",
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 999,
@@ -761,7 +761,7 @@ const styles = StyleSheet.create({
   gpsRetryText: {
     fontSize: 12,
     fontFamily: VibeFonts.bold,
-    color: "#FFF",
+    color: "#0A0F1D",
   },
 
   summaryBox: {
@@ -771,7 +771,7 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 18,
     borderWidth: 1,
-    borderColor: "#EDE7FF",
+    borderColor: "rgba(255,255,255,0.08)",
   },
   summaryItem: { flex: 1, flexDirection: "row", alignItems: "center", gap: 10 },
   summaryIcon: {
@@ -789,13 +789,13 @@ const styles = StyleSheet.create({
   summaryVal: {
     fontSize: 16,
     fontFamily: VibeFonts.extraBold,
-    color: "#18181B",
+    color: "#F8FAFC",
     marginTop: 1,
   },
   summaryDivider: {
     width: 1,
     height: 36,
-    backgroundColor: "#E9D5FF",
+    backgroundColor: "rgba(255,255,255,0.1)",
     marginHorizontal: 8,
   },
 
@@ -810,14 +810,14 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 9,
-    backgroundColor: "#F3E8FF",
+    backgroundColor: "rgba(227,246,80,0.12)",
     alignItems: "center",
     justifyContent: "center",
   },
   fieldLabel: {
     fontSize: 14,
     fontFamily: VibeFonts.extraBold,
-    color: "#18181B",
+    color: "#F8FAFC",
   },
   fieldHint: {
     fontSize: 12,
@@ -826,12 +826,12 @@ const styles = StyleSheet.create({
   },
 
   sliderBox: {
-    backgroundColor: "#F8F9FD",
+    backgroundColor: "#0D1222",
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderWidth: 1.5,
-    borderColor: "#E2E8F0",
+    borderColor: "rgba(255,255,255,0.08)",
     marginBottom: 14,
   },
   sliderHeader: {
@@ -843,20 +843,20 @@ const styles = StyleSheet.create({
   sliderTitle: {
     fontSize: 12,
     fontFamily: VibeFonts.bold,
-    color: "#18181B",
+    color: "#F8FAFC",
   },
   sliderBadge: {
-    backgroundColor: "#F3E8FF",
+    backgroundColor: "rgba(227,246,80,0.15)",
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(124,58,237,0.2)",
+    borderColor: "rgba(227,246,80,0.3)",
   },
   sliderBadgeText: {
     fontSize: 12,
     fontFamily: VibeFonts.bold,
-    color: "#7C3AED",
+    color: "#E3F650",
   },
   sliderTouch: {
     height: 32,
@@ -866,7 +866,7 @@ const styles = StyleSheet.create({
   sliderTrack: {
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#E2E8F0",
+    backgroundColor: "rgba(255,255,255,0.12)",
     overflow: "hidden",
     width: "100%",
   },
@@ -882,9 +882,9 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#0A0F1D",
     borderWidth: 3,
-    borderColor: "#7C3AED",
+    borderColor: "#E3F650",
     marginLeft: -12,
     alignItems: "center",
     justifyContent: "center",
@@ -893,7 +893,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: "#7C3AED",
+    backgroundColor: "#E3F650",
   },
   sliderEnds: {
     flexDirection: "row",
@@ -915,9 +915,9 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingVertical: 12,
     borderRadius: 14,
-    backgroundColor: "#F8F9FD",
+    backgroundColor: "#0D1222",
     borderWidth: 1.5,
-    borderColor: "#E2E8F0",
+    borderColor: "rgba(255,255,255,0.08)",
   },
   genderPillActive: {
     flexDirection: "row",
@@ -931,12 +931,12 @@ const styles = StyleSheet.create({
   genderText: {
     fontSize: 12,
     fontFamily: VibeFonts.semiBold,
-    color: "#18181B",
+    color: "#94A3B8",
   },
   genderTextActive: {
     fontSize: 12,
     fontFamily: VibeFonts.bold,
-    color: "#FFF",
+    color: "#0A0F1D",
   },
 
   lookingGrid: { gap: 8, marginBottom: 4 },
@@ -946,9 +946,9 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 14,
     borderRadius: 16,
-    backgroundColor: "#F8F9FD",
+    backgroundColor: "#0D1222",
     borderWidth: 1.5,
-    borderColor: "#E2E8F0",
+    borderColor: "rgba(255,255,255,0.08)",
   },
   lookingActive: {
     flexDirection: "row",
@@ -968,7 +968,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    backgroundColor: "rgba(10,15,29,0.12)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -976,23 +976,23 @@ const styles = StyleSheet.create({
   lookingLabel: {
     fontSize: 14,
     fontFamily: VibeFonts.bold,
-    color: "#18181B",
+    color: "#F8FAFC",
   },
   lookingLabelActive: {
     fontSize: 14,
     fontFamily: VibeFonts.bold,
-    color: "#FFF",
+    color: "#0A0F1D",
   },
   lookingSub: {
     fontSize: 11,
     fontFamily: VibeFonts.medium,
-    color: "#64748B",
+    color: "#94A3B8",
     marginTop: 2,
   },
   lookingSubActive: {
     fontSize: 11,
     fontFamily: VibeFonts.medium,
-    color: "rgba(255,255,255,0.8)",
+    color: "rgba(10,15,29,0.75)",
     marginTop: 2,
   },
   checkEmpty: {
@@ -1000,7 +1000,7 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: "#CBD5E1",
+    borderColor: "rgba(255,255,255,0.2)",
   },
 
   safeBanner: {
@@ -1008,18 +1008,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: "#F3E8FF",
+    backgroundColor: "rgba(227,246,80,0.08)",
     borderRadius: 16,
     paddingVertical: 12,
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: "#E9D5FF",
+    borderColor: "rgba(227,246,80,0.2)",
   },
   safeShield: {
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: "#7C3AED",
+    backgroundColor: "#E3F650",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1028,9 +1028,9 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     lineHeight: 16,
     fontFamily: VibeFonts.medium,
-    color: "#475569",
+    color: "#94A3B8",
   },
-  safeAccent: { color: "#7C3AED", fontFamily: VibeFonts.extraBold },
+  safeAccent: { color: "#E3F650", fontFamily: VibeFonts.extraBold },
 
   ctaWrap: {
     marginTop: 18,
@@ -1045,7 +1045,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   ctaText: {
-    color: "#FFF",
+    color: "#0A0F1D",
     fontSize: 16,
     fontFamily: VibeFonts.extraBold,
   },

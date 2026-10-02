@@ -41,21 +41,21 @@ const HERO_H = Math.min(SCREEN_H * 0.58, SCREEN_W * 1.15);
 
 const T = {
   bg: "#070A14",
-  card: "rgba(22, 26, 46, 0.94)",
-  cardElevated: "rgba(28, 32, 54, 0.98)",
-  ink: "#F4F6FB",
-  muted: "#A7B0C4",
-  soft: "#7C869C",
-  purple: "#A78BFA",
-  purpleBright: "#C4B5FD",
-  pink: "#F472B6",
-  green: "#34D399",
-  softPurple: "rgba(139, 92, 246, 0.18)",
-  softPink: "rgba(244, 114, 182, 0.16)",
-  softGreen: "rgba(52, 211, 153, 0.16)",
-  border: "rgba(160, 170, 200, 0.16)",
-  purpleGrad: ["#7C3AED", "#A78BFA"] as [string, string],
-  promoGrad: ["#6D28D9", "#8B5CF6", "#DB2777"] as [string, string],
+  card: "#0D1424",
+  cardElevated: "#131C33",
+  ink: "#FFFFFF",
+  muted: "#94A3B8",
+  soft: "#64748B",
+  purple: "#22D3EE",
+  purpleBright: "#D4F72C",
+  pink: "#F43F5E",
+  green: "#22C55E",
+  softPurple: "rgba(34, 211, 238, 0.12)",
+  softPink: "rgba(244, 63, 94, 0.14)",
+  softGreen: "rgba(34, 197, 94, 0.14)",
+  border: "rgba(255, 255, 255, 0.08)",
+  purpleGrad: ["#D4F72C", "#22D3EE"] as [string, string],
+  promoGrad: ["#22D3EE", "#06B6D4"] as [string, string],
 };
 
 const FALLBACK_INTERESTS = [
@@ -339,9 +339,9 @@ export default function UserProfileScreen() {
             style={styles.heroGrad}
           />
 
-          {/* soft purple wash for depth */}
+          {/* soft cyan wash for depth */}
           <LinearGradient
-            colors={["transparent", "rgba(167,139,250,0.18)", "transparent"]}
+            colors={["transparent", "rgba(34,211,238,0.12)", "transparent"]}
             start={{ x: 0.2, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.heroWash}
@@ -360,7 +360,7 @@ export default function UserProfileScreen() {
                 onPress={() => {
                   const { showSafetyMenu } = require("../../utils/datingSafety");
                   showSafetyMenu({
-                    userId: String(id),
+                    userId: String(userId),
                     name: profile?.name,
                     onDone: () => router.back(),
                   });
@@ -394,7 +394,7 @@ export default function UserProfileScreen() {
               </Text>
               {profile?.isVerified ? (
                 <View style={styles.verifiedBadge}>
-                  <Ionicons name="checkmark" size={12} color="#FFF" />
+                  <Ionicons name="checkmark" size={12} color="#070A14" />
                 </View>
               ) : null}
             </View>
@@ -511,13 +511,13 @@ export default function UserProfileScreen() {
           {/* Soft invite prompt */}
           <Animated.View entering={FadeInDown.delay(320).duration(400)} style={styles.prompt}>
             <LinearGradient
-              colors={["rgba(139,92,246,0.22)", "rgba(167,139,250,0.14)", "rgba(244,114,182,0.18)"]}
+              colors={["#0D1424", "#131C33"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.promptGrad}
             >
               <View style={styles.promptIcon}>
-                <Ionicons name="sparkles" size={18} color={T.purpleBright} />
+                <Ionicons name="sparkles" size={18} color="#D4F72C" />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.promptTitle}>Make the first move</Text>
@@ -537,28 +537,33 @@ export default function UserProfileScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.inviteBtn} onPress={handleInvite} activeOpacity={0.9}>
-          <View style={styles.inviteSolid}>
+          <LinearGradient colors={["#22D3EE", "#06B6D4"]} style={styles.inviteSolid}>
             {inviting ? (
-              <ActivityIndicator color="#FFF" />
+              <ActivityIndicator color="#070A14" />
             ) : (
               <>
-                <Ionicons name="flash" size={17} color="#FFF" />
+                <Ionicons name="flash" size={17} color="#070A14" />
                 <Text style={styles.inviteText}>Invite</Text>
               </>
             )}
-          </View>
+          </LinearGradient>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.likeBtn} onPress={handleLike} activeOpacity={0.9}>
-          <LinearGradient colors={liked ? ["#4B5164", "#33384A"] : T.purpleGrad} style={styles.likeGrad}>
-            <Ionicons name={liked ? "heart" : "heart-outline"} size={17} color="#FFF" />
-            <Text style={styles.likeText}>{liked ? "Liked" : "Like"}</Text>
+          <LinearGradient
+            colors={liked ? ["#334155", "#1E293B"] : ["#D4F72C", "#A3E635"]}
+            style={styles.likeGrad}
+          >
+            <Ionicons name={liked ? "heart" : "heart-outline"} size={17} color={liked ? "#94A3B8" : "#070A14"} />
+            <Text style={[styles.likeText, { color: liked ? "#94A3B8" : "#070A14" }]}>
+              {liked ? "Liked" : "Like"}
+            </Text>
           </LinearGradient>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.chatBtn} onPress={handleChat} activeOpacity={0.9}>
-          <LinearGradient colors={T.purpleGrad} style={styles.chatGrad}>
-            <Ionicons name="chatbubble-ellipses" size={18} color="#FFF" />
+          <LinearGradient colors={["#D4F72C", "#22D3EE"]} style={styles.chatGrad}>
+            <Ionicons name="chatbubble-ellipses" size={18} color="#070A14" />
           </LinearGradient>
         </TouchableOpacity>
       </View>
@@ -609,10 +614,10 @@ const styles = StyleSheet.create({
   glassBtn: {
     width: 42,
     height: 42,
-    borderRadius: 15,
-    backgroundColor: "rgba(22,26,46,0.55)",
+    borderRadius: 21,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
     borderWidth: 1,
-    borderColor: "rgba(196,181,253,0.28)",
+    borderColor: "rgba(255, 255, 255, 0.12)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -680,7 +685,7 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: T.purple,
+    backgroundColor: "#22D3EE",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
@@ -702,9 +707,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    backgroundColor: "rgba(22,26,46,0.58)",
+    backgroundColor: "rgba(13, 20, 36, 0.85)",
     borderWidth: 1,
-    borderColor: "rgba(196,181,253,0.24)",
+    borderColor: "rgba(255, 255, 255, 0.1)",
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
@@ -895,6 +900,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: "hidden",
     marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
   },
   promptGrad: {
     flexDirection: "row",
@@ -906,9 +913,9 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 14,
-    backgroundColor: "rgba(22,26,46,0.7)",
+    backgroundColor: "rgba(212, 247, 44, 0.12)",
     borderWidth: 1,
-    borderColor: "rgba(196,181,253,0.3)",
+    borderColor: "rgba(212, 247, 44, 0.25)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -935,41 +942,40 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingHorizontal: 16,
     paddingTop: 12,
-    backgroundColor: "rgba(15,22,38,0.96)",
+    backgroundColor: "rgba(7, 10, 20, 0.96)",
     borderTopWidth: 1,
-    borderTopColor: T.border,
+    borderTopColor: "rgba(255, 255, 255, 0.08)",
   },
   passBtn: {
     width: 50,
     height: 50,
-    borderRadius: 17,
-    backgroundColor: T.cardElevated,
+    borderRadius: 25,
+    backgroundColor: "#0D1424",
     borderWidth: 1,
-    borderColor: T.border,
+    borderColor: "rgba(255, 255, 255, 0.1)",
     alignItems: "center",
     justifyContent: "center",
   },
   inviteBtn: {
     flex: 1.05,
-    borderRadius: 17,
+    borderRadius: 25,
     overflow: "hidden",
   },
   inviteSolid: {
-    backgroundColor: T.green,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    paddingVertical: 15,
+    paddingVertical: 14,
   },
   inviteText: {
-    color: "#FFF",
+    color: "#070A14",
     fontSize: 14.5,
     fontFamily: VibeFonts.extraBold,
   },
   likeBtn: {
     flex: 1,
-    borderRadius: 17,
+    borderRadius: 25,
     overflow: "hidden",
   },
   likeGrad: {
@@ -977,17 +983,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    paddingVertical: 15,
+    paddingVertical: 14,
   },
   likeText: {
-    color: "#FFF",
+    color: "#070A14",
     fontSize: 14.5,
     fontFamily: VibeFonts.extraBold,
   },
   chatBtn: {
     width: 50,
     height: 50,
-    borderRadius: 17,
+    borderRadius: 25,
     overflow: "hidden",
   },
   chatGrad: {

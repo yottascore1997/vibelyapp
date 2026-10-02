@@ -35,6 +35,7 @@ import Animated, {
 import TabBar from "../components/TabBar";
 import { useSidebar } from "../context/SidebarContext";
 import { useAuth } from "../context/AuthContext";
+import { useNotifications } from "../context/NotificationContext";
 import { VibeFonts } from "../constants/vibeTheme";
 import { api } from "../services/api";
 import type { Plan } from "../constants/plans";
@@ -288,6 +289,7 @@ export default function TravelPartnersScreen() {
   const insets = useSafeAreaInsets();
   const { openSidebar } = useSidebar();
   const { user } = useAuth();
+  const { openNotifications, unreadCount } = useNotifications();
 
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<CategoryId>("all");
@@ -422,11 +424,13 @@ export default function TravelPartnersScreen() {
         <SoftPress style={styles.roundBtn} onPress={openSidebar}>
           <Ionicons name="menu-outline" size={22} color={T.ink} />
         </SoftPress>
-        <SoftPress style={styles.roundBtn} onPress={() => router.push("/(tabs)/chats")}>
+        <SoftPress style={styles.roundBtn} onPress={openNotifications}>
           <Ionicons name="notifications-outline" size={20} color={T.ink} />
-          <View style={styles.bellBadge}>
-            <Text style={styles.bellBadgeText}>2</Text>
-          </View>
+          {unreadCount > 0 && (
+            <View style={styles.bellBadge}>
+              <Text style={styles.bellBadgeText}>{unreadCount}</Text>
+            </View>
+          )}
         </SoftPress>
       </View>
 

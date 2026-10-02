@@ -6,7 +6,7 @@ import { api } from "../services/api";
 interface OnboardingContextType {
   data: OnboardingData;
   update: (partial: Partial<OnboardingData>) => void;
-  saveProfile: (override?: Partial<OnboardingData>) => Promise<void>;
+  saveProfile: (override?: Partial<OnboardingData>) => Promise<any>;
   saving: boolean;
 }
 

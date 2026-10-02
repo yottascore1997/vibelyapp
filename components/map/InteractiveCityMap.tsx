@@ -45,63 +45,67 @@ function buildHtml(
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
-    html, body, #map { margin:0; padding:0; height:100%; width:100%; background:#F8F9FD; }
+    html, body, #map { margin:0; padding:0; height:100%; width:100%; background:#070A13; }
     .leaflet-control-attribution {
       font-size:9px !important;
-      background:rgba(255,255,255,0.85) !important;
+      background:rgba(7,10,19,0.85) !important;
       border-radius:8px 0 0 0 !important;
       color:#64748B !important;
     }
     .leaflet-control-zoom {
-      border:none !important;
-      box-shadow:0 8px 20px rgba(15,23,42,0.12) !important;
+      border:1px solid rgba(255,255,255,0.12) !important;
+      box-shadow:0 8px 24px rgba(0,0,0,0.6) !important;
       border-radius:14px !important;
       overflow:hidden;
     }
     .leaflet-control-zoom a {
       width:36px !important; height:36px !important; line-height:36px !important;
-      color:#18181B !important; background:rgba(255,255,255,0.95) !important;
+      color:#E3F650 !important; background:rgba(13,19,34,0.95) !important;
       border:none !important; font-size:16px !important;
     }
     .pin {
-      width:46px; height:46px; border-radius:23px;
+      width:48px; height:48px; border-radius:24px;
       display:flex; align-items:center; justify-content:center;
-      border:3px solid #fff;
-      box-shadow:0 8px 18px rgba(15,23,42,0.22), 0 0 0 1px rgba(124,58,237,0.15);
+      border:2.5px solid #E3F650;
+      box-shadow:0 6px 20px rgba(0,0,0,0.7), 0 0 16px rgba(227,246,80,0.35);
       position:relative;
-      background:linear-gradient(145deg,#7C3AED,#8B5CF6);
-      font-size:20px;
+      background:linear-gradient(145deg,#0D1322,#161E33);
+      font-size:22px;
       transform: translateZ(0);
+      cursor:pointer;
     }
     .pin.person {
       overflow:hidden; padding:0;
-      background:#fff;
-      box-shadow:0 8px 18px rgba(15,23,42,0.18);
+      background:#0D1322;
+      border-color:#2EFA9E;
+      box-shadow:0 6px 20px rgba(0,0,0,0.7), 0 0 16px rgba(46,250,158,0.35);
     }
-    .pin.person img { width:100%; height:100%; object-fit:cover; border-radius:23px; }
+    .pin.person img { width:100%; height:100%; object-fit:cover; border-radius:24px; }
     .pin.active {
-      width:56px; height:56px; border-radius:28px; border-width:3.5px;
-      box-shadow:0 10px 24px rgba(124,58,237,0.45), 0 0 0 4px rgba(124,58,237,0.2);
+      width:58px; height:58px; border-radius:29px; border-width:3px;
+      border-color:#FFF04B;
+      box-shadow:0 0 28px rgba(227,246,80,0.8), 0 0 0 4px rgba(46,250,158,0.3);
+      transform:scale(1.1);
     }
     .pin.online::after {
-      content:''; position:absolute; right:1px; top:1px; width:11px; height:11px;
-      background:#10B981; border:2px solid #fff; border-radius:6px;
-      box-shadow:0 0 0 2px rgba(16,185,129,0.3);
+      content:''; position:absolute; right:1px; top:1px; width:12px; height:12px;
+      background:#2EFA9E; border:2px solid #070A13; border-radius:6px;
+      box-shadow:0 0 8px #2EFA9E;
     }
     .pin .badge {
-      position:absolute; bottom:-2px; left:-2px; width:17px; height:17px;
-      border-radius:9px; background:#7C3AED; color:#fff;
+      position:absolute; bottom:-2px; left:-2px; width:18px; height:18px;
+      border-radius:9px; background:#E3F650; color:#0A0F1D;
       display:flex; align-items:center; justify-content:center;
-      font-size:9px; box-shadow:0 2px 6px rgba(0,0,0,0.25);
+      font-size:10px; font-weight:bold; box-shadow:0 2px 8px rgba(0,0,0,0.5);
     }
     .pin .ring {
-      position:absolute; inset:-7px; border-radius:50%;
-      border:2px solid rgba(236,72,153,0.45);
-      animation: pulse 1.5s ease-out infinite;
+      position:absolute; inset:-8px; border-radius:50%;
+      border:2px solid rgba(227,246,80,0.6);
+      animation: pulse 1.4s ease-out infinite;
     }
     @keyframes pulse {
-      0% { transform:scale(0.88); opacity:0.85; }
-      100% { transform:scale(1.28); opacity:0; }
+      0% { transform:scale(0.85); opacity:0.9; }
+      100% { transform:scale(1.35); opacity:0; }
     }
     .leaflet-marker-icon { background:transparent !important; border:none !important; }
   </style>
@@ -117,7 +121,7 @@ function buildHtml(
       preferCanvas: false
     }).setView([${lat}, ${lng}], ${zoom});
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png', {
       maxZoom: 19,
       attribution: '&copy; OSM &copy; CARTO'
     }).addTo(map);
@@ -131,7 +135,7 @@ function buildHtml(
     }
 
     function makeIcon(m, active) {
-      const color = m.color || '#8B5CF6';
+      const color = m.color || '#E3F650';
       const activeCls = active ? ' active' : '';
       const onlineCls = m.online ? ' online' : '';
       let inner = '';
@@ -142,15 +146,16 @@ function buildHtml(
         inner = (m.emoji || '📍');
       }
       const ring = active ? '<div class="ring"></div>' : '';
+      const borderColor = active ? '#FFF04B' : (m.kind === 'person' ? (m.online ? '#2EFA9E' : '#22D3EE') : '#E3F650');
+      const bg = m.kind === 'person' ? '#0D1322' : 'linear-gradient(135deg, rgba(227,246,80,0.2), #0D1322)';
       const html = '<div class="pin ' + m.kind + activeCls + onlineCls + '" style="background:' +
-        (m.kind === 'person' ? '#fff' : color) + ';border-color:' +
-        (m.kind === 'person' ? (m.online ? '#22C55E' : '#7DD3FC') : '#fff') + '">' +
+        bg + ';border-color:' + borderColor + '">' +
         ring + inner + '</div>';
       return L.divIcon({
         className: '',
         html,
-        iconSize: active ? [56, 56] : [46, 46],
-        iconAnchor: active ? [28, 28] : [23, 23]
+        iconSize: active ? [58, 58] : [48, 48],
+        iconAnchor: active ? [29, 29] : [24, 24]
       });
     }
 

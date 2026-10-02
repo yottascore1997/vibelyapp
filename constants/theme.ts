@@ -65,17 +65,21 @@ export const CHAT_WS_URL = (() => {
   return (fromEnv || PROD_CHAT).replace(/\/+$/, "");
 })();
 
+export function isLanHost(url: string) {
+  return /localhost|127\.0\.0\.1|192\.168\.|10\.\d+\.|172\.(1[6-9]|2\d|3[0-1])\./i.test(
+    url
+  );
+}
+
 /** Tried in order when primary host fails (phone SSL / DNS flake). Hangora only. */
-export const API_FALLBACKS = [
-  "https://www.hangora.app/api",
-].filter((u) => u !== API_URL);
+export const API_FALLBACKS = isLanHost(API_URL)
+  ? []
+  : ["https://www.hangora.app/api"].filter((u) => u !== API_URL);
 
 /** Resolve chat socket URL from current API host (LAN → :3001, else Railway chat). */
 export function resolveChatWsUrl(apiBase?: string | null) {
   const base = (apiBase || API_URL).replace(/\/+$/, "");
-  const isLan =
-    /localhost|127\.0\.0\.1|192\.168\.|10\.\d+\.|172\.(1[6-9]|2\d|3[0-1])\./i.test(base);
-  if (isLan) {
+  if (isLanHost(base)) {
     return base.replace("/api", "").replace(":3000", ":3001");
   }
   return CHAT_WS_URL;

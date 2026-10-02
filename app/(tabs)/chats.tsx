@@ -13,35 +13,12 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeInDown, FadeInRight } from "react-native-reanimated";
-import AppHeader from "../../components/vibe/AppHeader";
-import HangoutCinematicBackground from "../../components/vibe/HangoutCinematicBackground";
 import MatchStrip from "../../components/chats/MatchStrip";
 import ChatLogItem from "../../components/chats/ChatLogItem";
 import { useMatches } from "../../context/MatchesContext";
 import { MatchProfile } from "../../constants/matches";
 import { VibeFonts } from "../../constants/vibeTheme";
-
-/** Match Hangout — dark navy + premium multi-accent */
-const T = {
-  bg: "#070A14",
-  card: "rgba(22, 26, 46, 0.94)",
-  cardElevated: "rgba(28, 32, 54, 0.96)",
-  ink: "#F4F6FB",
-  muted: "#A7B0C4",
-  faint: "#7C869C",
-  border: "rgba(160, 170, 200, 0.16)",
-  purple: "#A78BFA",
-  purpleDeep: "#8B5CF6",
-  purpleBright: "#C4B5FD",
-  softPurple: "rgba(139, 92, 246, 0.18)",
-  pink: "#F472B6",
-  green: "#34D399",
-  yellow: "#FBBF24",
-  red: "#F87171",
-  blue: "#60A5FA",
-  cta: ["#7C3AED", "#A78BFA"] as const,
-  promo: ["#6D28D9", "#8B5CF6", "#EC4899"] as const,
-};
+import HomeHeader from "../../components/HomeHeader";
 
 export default function ChatsScreen() {
   const router = useRouter();
@@ -66,7 +43,6 @@ export default function ChatsScreen() {
     );
   }, [conversations, activeTab, query]);
 
-  const totalUnread = conversations.reduce((sum, t) => sum + t.unread, 0);
   const directUnread = conversations
     .filter((t) => !t.isGroup)
     .reduce((sum, t) => sum + t.unread, 0);
@@ -78,261 +54,338 @@ export default function ChatsScreen() {
 
   return (
     <View style={styles.root}>
-      <HangoutCinematicBackground />
       <StatusBar barStyle="light-content" backgroundColor="#070A14" />
-      <View style={styles.foreground}>
-        <AppHeader
-          variant="dark"
-          tagline="Conversations & Hangout DMs · Real Vibe"
-          badgeCount={totalUnread}
-        />
 
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={[
-            styles.scroll,
-            { paddingBottom: 120 + insets.bottom },
-          ]}
-          keyboardShouldPersistTaps="handled"
+      {/* Header */}
+      <HomeHeader />
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.scroll,
+          { paddingBottom: insets.bottom + 95 },
+        ]}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Search Section */}
+        <Animated.View
+          entering={FadeInDown.delay(40).duration(380)}
+          style={styles.searchSection}
         >
-          <Animated.View
-            entering={FadeInDown.delay(40).duration(380)}
-            style={styles.searchSection}
+          <View style={styles.searchBarWrapper}>
+            <Ionicons
+              name="search"
+              size={18}
+              color="#22D3EE"
+              style={{ marginRight: 10 }}
+            />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search name or message…"
+              placeholderTextColor="#64748B"
+              value={query}
+              onChangeText={setQuery}
+            />
+            {query.length > 0 ? (
+              <Pressable onPress={() => setQuery("")}>
+                <Ionicons name="close-circle" size={19} color="#64748B" />
+              </Pressable>
+            ) : (
+              <View style={styles.searchHint}>
+                <Text style={styles.searchHintText}>
+                  {filteredThreads.length}
+                </Text>
+              </View>
+            )}
+          </View>
+        </Animated.View>
+
+        {/* Mode Switcher Tabs */}
+        <Animated.View
+          entering={FadeInDown.delay(70).duration(380)}
+          style={styles.modeSwitcherTrack}
+        >
+          {/* Direct DMs Tab */}
+          <Pressable
+            onPress={() => setActiveTab("chats")}
+            style={[styles.modeSwitcherBtn]}
           >
-            <View style={styles.searchBarWrapper}>
-              <Ionicons
-                name="search"
-                size={18}
-                color={T.muted}
-                style={{ marginRight: 8 }}
-              />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search name or message…"
-                placeholderTextColor={T.faint}
-                value={query}
-                onChangeText={setQuery}
-              />
-              {query.length > 0 ? (
-                <Pressable onPress={() => setQuery("")}>
-                  <Ionicons name="close-circle" size={19} color={T.faint} />
-                </Pressable>
+            {activeTab === "chats" ? (
+              <LinearGradient
+                colors={["#D4F72C", "#22D3EE"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.activeTabGrad}
+              >
+                <Ionicons name="chatbubble-ellipses" size={15} color="#070A14" />
+                <Text style={styles.modeSwitcherTextActive}>Direct DMs</Text>
+                {directUnread > 0 ? (
+                  <View style={styles.segBadgeDark}>
+                    <Text style={styles.segBadgeDarkText}>{directUnread}</Text>
+                  </View>
+                ) : null}
+              </LinearGradient>
+            ) : (
+              <View style={styles.inactiveTabContent}>
+                <Ionicons name="chatbubble-ellipses" size={15} color="#94A3B8" />
+                <Text style={styles.modeSwitcherText}>Direct DMs</Text>
+                {directUnread > 0 ? (
+                  <View style={styles.segBadge}>
+                    <Text style={styles.segBadgeText}>{directUnread}</Text>
+                  </View>
+                ) : null}
+              </View>
+            )}
+          </Pressable>
+
+          {/* Hangout Groups Tab */}
+          <Pressable
+            onPress={() => setActiveTab("hangouts")}
+            style={[styles.modeSwitcherBtn]}
+          >
+            {activeTab === "hangouts" ? (
+              <LinearGradient
+                colors={["#D4F72C", "#22D3EE"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.activeTabGrad}
+              >
+                <Ionicons name="people" size={16} color="#070A14" />
+                <Text style={styles.modeSwitcherTextActive}>Hangout Groups</Text>
+                {hangoutUnread > 0 ? (
+                  <View style={styles.segBadgeDark}>
+                    <Text style={styles.segBadgeDarkText}>{hangoutUnread}</Text>
+                  </View>
+                ) : null}
+              </LinearGradient>
+            ) : (
+              <View style={styles.inactiveTabContent}>
+                <Ionicons name="people" size={16} color="#94A3B8" />
+                <Text style={styles.modeSwitcherText}>Hangout Groups</Text>
+                {hangoutUnread > 0 ? (
+                  <View style={styles.segBadge}>
+                    <Text style={styles.segBadgeText}>{hangoutUnread}</Text>
+                  </View>
+                ) : null}
+              </View>
+            )}
+          </Pressable>
+        </Animated.View>
+
+        {emptyAll ? (
+          <Animated.View
+            entering={FadeInDown.delay(100).duration(400)}
+            style={styles.emptyCard}
+          >
+            <LinearGradient
+              colors={["#D4F72C", "#22D3EE"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.emptyIcon}
+            >
+              <Ionicons name="chatbubble-ellipses" size={28} color="#070A14" />
+            </LinearGradient>
+            <Text style={styles.emptyTitle}>No chats yet</Text>
+            <Text style={styles.emptySub}>
+              Swipe on Discover for a match, or join a hangout — then your conversations show up here.
+            </Text>
+            <Pressable onPress={() => router.push("/(tabs)/discover")}>
+              <LinearGradient
+                colors={["#D4F72C", "#22D3EE"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.ctaBtn}
+              >
+                <Ionicons name="compass" size={19} color="#070A14" />
+                <Text style={styles.ctaText}>Go to Discover</Text>
+              </LinearGradient>
+            </Pressable>
+          </Animated.View>
+        ) : (
+          <>
+            {/* Matches Strip */}
+            {matches.length > 0 && activeTab === "chats" ? (
+              <Animated.View entering={FadeInRight.delay(100).duration(400)}>
+                <MatchStrip
+                  matches={matches}
+                  onPressMatch={openMatch}
+                  onDiscover={() => router.push("/(tabs)/discover")}
+                />
+              </Animated.View>
+            ) : null}
+
+            {/* Section Header */}
+            <View style={styles.sectionHeaderRow}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Text style={styles.sectionTitle}>
+                  {activeTab === "chats" ? "Direct Messages 💬" : "Hangout Groups 👥"}
+                </Text>
+                <View style={styles.countPill}>
+                  <Text style={styles.countText}>{filteredThreads.length}</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Threads List */}
+            <View style={styles.listContainer}>
+              {filteredThreads.length > 0 ? (
+                filteredThreads.map((thread, i) => (
+                  <Animated.View
+                    key={thread.matchId}
+                    entering={FadeInDown.delay(120 + i * 35).duration(300)}
+                  >
+                    <ChatLogItem
+                      thread={thread}
+                      onPress={() => openChat(thread.matchId)}
+                      isLast={i === filteredThreads.length - 1}
+                    />
+                  </Animated.View>
+                ))
               ) : (
-                <View style={styles.searchHint}>
-                  <Text style={styles.searchHintText}>
-                    {filteredThreads.length}
+                <View style={styles.emptyListCard}>
+                  <View style={styles.emptyListIcon}>
+                    <Ionicons
+                      name={
+                        activeTab === "chats"
+                          ? "chatbubbles-outline"
+                          : "people-outline"
+                      }
+                      size={28}
+                      color="#22D3EE"
+                    />
+                  </View>
+                  <Text style={styles.emptyListText}>
+                    {query
+                      ? "No chats match your search"
+                      : activeTab === "chats"
+                      ? "No DMs yet — open a match above to say hello"
+                      : "Join a hangout plan to unlock group chat"}
                   </Text>
                 </View>
               )}
             </View>
-          </Animated.View>
 
-          <Animated.View
-            entering={FadeInDown.delay(70).duration(380)}
-            style={styles.modeSwitcherTrack}
-          >
-            <Pressable
-              onPress={() => setActiveTab("chats")}
-              style={[
-                styles.modeSwitcherBtn,
-                activeTab === "chats" && styles.modeSwitcherBtnActive,
-              ]}
-            >
-              <Ionicons
-                name="chatbubble-ellipses"
-                size={15}
-                color={activeTab === "chats" ? "#FFFFFF" : T.muted}
-              />
-              <Text
-                style={[
-                  styles.modeSwitcherText,
-                  activeTab === "chats" && styles.modeSwitcherTextActive,
-                ]}
-              >
-                Direct DMs
-              </Text>
-              {directUnread > 0 ? (
-                <View style={styles.segBadge}>
-                  <Text style={styles.segBadgeText}>{directUnread}</Text>
-                </View>
-              ) : null}
-            </Pressable>
-
-            <Pressable
-              onPress={() => setActiveTab("hangouts")}
-              style={[
-                styles.modeSwitcherBtn,
-                activeTab === "hangouts" && styles.modeSwitcherBtnActivePink,
-              ]}
-            >
-              <Ionicons
-                name="people"
-                size={15}
-                color={activeTab === "hangouts" ? "#FFFFFF" : T.muted}
-              />
-              <Text
-                style={[
-                  styles.modeSwitcherText,
-                  activeTab === "hangouts" && styles.modeSwitcherTextActiveWhite,
-                ]}
-              >
-                Hangout Groups
-              </Text>
-              {hangoutUnread > 0 ? (
-                <View style={[styles.segBadge, { backgroundColor: T.pink }]}>
-                  <Text style={styles.segBadgeText}>{hangoutUnread}</Text>
-                </View>
-              ) : null}
-            </Pressable>
-          </Animated.View>
-
-          {emptyAll ? (
+            {/* Tip Banner matching My Crew bottom card */}
             <Animated.View
-              entering={FadeInDown.delay(100).duration(400)}
-              style={styles.emptyCard}
+              entering={FadeInDown.delay(350).duration(400)}
+              style={styles.tipBannerCard}
             >
-              <LinearGradient colors={[...T.cta]} style={styles.emptyIcon}>
-                <Ionicons name="chatbubble-ellipses" size={28} color="#fff" />
-              </LinearGradient>
-              <Text style={styles.emptyTitle}>No chats yet</Text>
-              <Text style={styles.emptySub}>
-                Swipe on Discover for a match, or join a hangout — then your threads show up here.
-              </Text>
-              <Pressable onPress={() => router.push("/(tabs)/discover")}>
-                <LinearGradient
-                  colors={[...T.cta]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.ctaBtn}
-                >
-                  <Ionicons name="compass" size={19} color="#fff" />
-                  <Text style={styles.ctaText}>Go to Discover</Text>
-                </LinearGradient>
-              </Pressable>
-            </Animated.View>
-          ) : (
-            <>
-              {matches.length > 0 && activeTab === "chats" ? (
-                <Animated.View entering={FadeInRight.delay(100).duration(400)}>
-                  <MatchStrip
-                    matches={matches}
-                    onPressMatch={openMatch}
-                    onDiscover={() => router.push("/(tabs)/discover")}
-                  />
-                </Animated.View>
-              ) : null}
-
-              <View style={styles.sectionHeaderRow}>
-                <View
-                  style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
-                >
-                  <Text style={styles.sectionTitle}>
-                    {activeTab === "chats"
-                      ? "Direct Messages 💬"
-                      : "Hangout Groups 👥"}
+              <LinearGradient
+                colors={["rgba(15, 23, 42, 0.95)", "rgba(10, 15, 29, 0.98)"]}
+                style={StyleSheet.absoluteFillObject}
+              />
+              <View style={styles.tipContentRow}>
+                <View style={styles.tipIconGlow}>
+                  <Ionicons name="sparkles" size={18} color="#D4F72C" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.tipHeaderTitle}>Vibe Pro Tip</Text>
+                  <Text style={styles.tipBodyText}>
+                    Say hello within 48h of matching to permanently unlock chat and plan your hangout!
                   </Text>
-                  <View style={styles.countPill}>
-                    <Text style={styles.countText}>{filteredThreads.length}</Text>
-                  </View>
                 </View>
               </View>
-
-              <View style={styles.listCard}>
-                {filteredThreads.length > 0 ? (
-                  filteredThreads.map((thread, i) => (
-                    <Animated.View
-                      key={thread.matchId}
-                      entering={FadeInDown.delay(120 + i * 35).duration(300)}
-                    >
-                      <ChatLogItem
-                        thread={thread}
-                        onPress={() => openChat(thread.matchId)}
-                        isLast={i === filteredThreads.length - 1}
-                      />
-                    </Animated.View>
-                  ))
-                ) : (
-                  <View style={styles.emptyList}>
-                    <View style={styles.emptyListIcon}>
-                      <Ionicons
-                        name={
-                          activeTab === "chats"
-                            ? "chatbubbles-outline"
-                            : "calendar-outline"
-                        }
-                        size={30}
-                        color={T.purple}
-                      />
-                    </View>
-                    <Text style={styles.emptyListText}>
-                      {query
-                        ? "No chats match your search"
-                        : activeTab === "chats"
-                        ? "No DMs yet — open a match above to say hello"
-                        : "Join a hangout plan to unlock group chat"}
-                    </Text>
-                  </View>
-                )}
-              </View>
-
-              <View style={styles.tipRow}>
-                <LinearGradient
-                  colors={["#1A1530", "#151B2E"]}
-                  style={styles.tipGrad}
-                >
-                  <View style={styles.tipIcon}>
-                    <Ionicons name="sparkles" size={14} color="#FBBF24" />
-                  </View>
-                  <Text style={styles.tipText}>
-                    After a match: send hello · reply in 48h to unlock chat
-                    permanently
-                  </Text>
-                </LinearGradient>
-              </View>
-            </>
-          )}
-        </ScrollView>
-      </View>
+            </Animated.View>
+          </>
+        )}
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#070A14" },
-  foreground: { flex: 1, zIndex: 1, backgroundColor: "transparent" },
-  scroll: {
-    paddingTop: 4,
+  root: {
+    flex: 1,
+    backgroundColor: "#070A14",
   },
-  searchSection: {
+  headerContainer: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
-    gap: 10,
-    marginBottom: 16,
+    paddingBottom: 10,
+    backgroundColor: "#070A14",
+  },
+  backButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "rgba(255, 255, 255, 0.07)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitleCenter: {
+    alignItems: "center",
+  },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  headerTitleMy: {
+    fontSize: 21,
+    fontFamily: VibeFonts.bold,
+    color: "#FFFFFF",
+  },
+  headerTitleCrew: {
+    fontSize: 21,
+    fontFamily: VibeFonts.extraBold,
+    color: "#D4F72C",
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    fontFamily: VibeFonts.medium,
+    color: "#94A3B8",
+    marginTop: 2,
+  },
+  addButtonGlow: {
+    shadowColor: "#D4F72C",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  addBtnGrad: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  scroll: {
+    paddingTop: 8,
+  },
+
+  // Search
+  searchSection: {
+    paddingHorizontal: 16,
+    marginBottom: 14,
   },
   searchBarWrapper: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: T.card,
-    borderRadius: 16,
+    backgroundColor: "#0D1424",
+    borderRadius: 18,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderWidth: 1,
-    borderColor: T.border,
+    borderColor: "rgba(255, 255, 255, 0.08)",
   },
   searchInput: {
     flex: 1,
     fontSize: 14,
     fontFamily: VibeFonts.medium,
-    color: T.ink,
+    color: "#FFFFFF",
     padding: 0,
   },
   searchHint: {
     minWidth: 24,
     height: 22,
     borderRadius: 11,
-    backgroundColor: T.softPurple,
+    backgroundColor: "rgba(34, 211, 238, 0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(34, 211, 238, 0.3)",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 6,
@@ -340,52 +393,55 @@ const styles = StyleSheet.create({
   searchHintText: {
     fontSize: 11,
     fontFamily: VibeFonts.bold,
-    color: T.purpleBright,
+    color: "#22D3EE",
   },
 
+  // Mode Switcher
   modeSwitcherTrack: {
     flexDirection: "row",
-    backgroundColor: "rgba(15, 22, 38, 0.9)",
-    borderRadius: 16,
+    backgroundColor: "rgba(13, 20, 36, 0.85)",
+    borderRadius: 18,
     padding: 4,
     marginHorizontal: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: T.border,
+    borderColor: "rgba(255, 255, 255, 0.08)",
   },
   modeSwitcherBtn: {
     flex: 1,
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  activeTabGrad: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
     paddingVertical: 10,
-    borderRadius: 12,
+    borderRadius: 14,
   },
-  modeSwitcherBtnActive: {
-    backgroundColor: "#7C3AED",
-  },
-  modeSwitcherBtnActivePink: {
-    backgroundColor: "#DB2777",
+  inactiveTabContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 10,
   },
   modeSwitcherText: {
     fontSize: 13,
     fontFamily: VibeFonts.bold,
-    color: T.muted,
+    color: "#94A3B8",
   },
   modeSwitcherTextActive: {
-    color: "#FFFFFF",
+    color: "#070A14",
     fontFamily: VibeFonts.extraBold,
-  },
-  modeSwitcherTextActiveWhite: {
-    color: "#FFFFFF",
-    fontFamily: VibeFonts.extraBold,
+    fontSize: 13,
   },
   segBadge: {
     minWidth: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: "rgba(255,255,255,0.25)",
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 4,
@@ -393,36 +449,51 @@ const styles = StyleSheet.create({
   segBadgeText: {
     fontSize: 10,
     fontFamily: VibeFonts.bold,
-    color: "#FFF",
+    color: "#FFFFFF",
+  },
+  segBadgeDark: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "rgba(7, 10, 20, 0.3)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+  },
+  segBadgeDarkText: {
+    fontSize: 10,
+    fontFamily: VibeFonts.bold,
+    color: "#070A14",
   },
 
+  // Empty Card
   emptyCard: {
-    backgroundColor: T.card,
-    borderRadius: 28,
+    backgroundColor: "#0D1424",
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: T.border,
+    borderColor: "rgba(255, 255, 255, 0.08)",
     padding: 28,
     alignItems: "center",
     marginHorizontal: 16,
-    marginTop: 4,
+    marginTop: 10,
   },
   emptyIcon: {
-    width: 68,
-    height: 68,
-    borderRadius: 24,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,
   },
   emptyTitle: {
-    fontSize: 21,
-    fontFamily: VibeFonts.extraBold,
-    color: T.ink,
+    fontSize: 20,
+    fontFamily: VibeFonts.bold,
+    color: "#FFFFFF",
   },
   emptySub: {
     fontSize: 13,
-    fontFamily: VibeFonts.medium,
-    color: T.muted,
+    fontFamily: VibeFonts.regular,
+    color: "#94A3B8",
     textAlign: "center",
     marginTop: 8,
     lineHeight: 20,
@@ -432,12 +503,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     marginTop: 20,
-    paddingHorizontal: 24,
-    paddingVertical: 14,
+    paddingHorizontal: 22,
+    paddingVertical: 12,
     borderRadius: 16,
   },
-  ctaText: { color: "#fff", fontFamily: VibeFonts.bold, fontSize: 14 },
+  ctaText: {
+    color: "#070A14",
+    fontFamily: VibeFonts.bold,
+    fontSize: 14,
+  },
 
+  // Section Header
   sectionHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -447,81 +523,90 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontFamily: VibeFonts.extraBold,
-    color: T.ink,
+    fontSize: 15,
+    fontFamily: VibeFonts.bold,
+    color: "#FFFFFF",
   },
   countPill: {
-    backgroundColor: T.softPurple,
+    backgroundColor: "rgba(34, 211, 238, 0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(34, 211, 238, 0.3)",
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 999,
+    borderRadius: 10,
   },
   countText: {
     fontSize: 11,
     fontFamily: VibeFonts.bold,
-    color: T.purpleBright,
+    color: "#22D3EE",
   },
 
-  listCard: {
-    backgroundColor: T.card,
-    borderRadius: 24,
+  // Thread list
+  listContainer: {
+    paddingHorizontal: 16,
+  },
+  emptyListCard: {
+    backgroundColor: "#0D1424",
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: T.border,
-    overflow: "hidden",
-    marginHorizontal: 16,
-    marginBottom: 16,
-  },
-  emptyList: {
-    paddingVertical: 44,
-    paddingHorizontal: 24,
-    alignItems: "center",
-    gap: 12,
-  },
-  emptyListIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 22,
-    backgroundColor: T.softPurple,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    padding: 24,
     alignItems: "center",
     justifyContent: "center",
+  },
+  emptyListIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "rgba(34, 211, 238, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 10,
   },
   emptyListText: {
     fontSize: 13,
     fontFamily: VibeFonts.medium,
-    color: T.muted,
+    color: "#94A3B8",
     textAlign: "center",
-    lineHeight: 20,
+    lineHeight: 18,
   },
 
-  tipRow: {
-    borderRadius: 18,
-    overflow: "hidden",
+  // Tip Banner Card
+  tipBannerCard: {
     marginHorizontal: 16,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: "rgba(167, 139, 250, 0.28)",
+    marginTop: 14,
+    borderRadius: 22,
+    overflow: "hidden",
+    borderWidth: 1.2,
+    borderColor: "rgba(34, 211, 238, 0.25)",
+    backgroundColor: "#0B132B",
   },
-  tipGrad: {
+  tipContentRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    padding: 16,
+    gap: 12,
   },
-  tipIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 11,
-    backgroundColor: "rgba(251, 191, 36, 0.18)",
+  tipIconGlow: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(212, 247, 44, 0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(212, 247, 44, 0.35)",
     alignItems: "center",
     justifyContent: "center",
   },
-  tipText: {
-    flex: 1,
-    fontSize: 11,
-    fontFamily: VibeFonts.semiBold,
-    color: "#E2E8F0",
-    lineHeight: 16,
+  tipHeaderTitle: {
+    fontSize: 14,
+    fontFamily: VibeFonts.bold,
+    color: "#D4F72C",
+  },
+  tipBodyText: {
+    fontSize: 12,
+    fontFamily: VibeFonts.regular,
+    color: "#94A3B8",
+    marginTop: 2,
+    lineHeight: 17,
   },
 });

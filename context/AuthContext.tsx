@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { API_URL, API_FALLBACKS } from "../constants/theme";
+import { API_URL, API_FALLBACKS, isLanHost } from "../constants/theme";
 import { setAuthToken, setActiveApiBase, hydrateActiveApiBase, api } from "../services/api";
 
 export interface User {
@@ -83,10 +83,9 @@ async function postJson(baseUrl: string, endpoint: string, body: object, timeout
 async function apiCall(endpoint: string, body: object) {
   const timeoutMs = 45000;
   const raw = [API_URL, ...API_FALLBACKS].filter(
-    (u, i, arr) => !!u && arr.indexOf(u) === i && /hangora\.app/i.test(u)
+    (u, i, arr) => !!u && arr.indexOf(u) === i && (/hangora\.app/i.test(u) || isLanHost(u))
   );
-  // Always prefer Hangora; never Vibely
-  const bases = raw.length > 0 ? raw : ["https://www.hangora.app/api"];
+  const bases = raw.length > 0 ? raw : [API_URL];
 
   let lastNetworkErr: Error | null = null;
 

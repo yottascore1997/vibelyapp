@@ -18,7 +18,8 @@ export type CityId =
   | "pune"
   | "delhi"
   | "bangalore"
-  | "hyderabad";
+  | "hyderabad"
+  | "kolkata";
 
 export interface MapBounds {
   minLat: number;
@@ -204,6 +205,23 @@ export const CITIES: CityConfig[] = [
       { label: "Madhapur", top: "32%", left: "35%" },
     ],
   },
+  {
+    id: "kolkata",
+    name: "Kolkata",
+    state: "WB",
+    emoji: "🎭",
+    bounds: { minLat: 22.48, maxLat: 22.65, minLng: 88.3, maxLng: 88.48 },
+    youHere: { top: "50%", left: "50%" },
+    gradient: ["#FEF3C7", "#E0F2FE", "#EEE9F8", "#DCFCE7"],
+    streets: DEFAULT_STREETS,
+    districts: [
+      { label: "Park Street", top: "25%", left: "50%" },
+      { label: "Salt Lake", top: "30%", left: "75%" },
+      { label: "New Town", top: "55%", left: "25%" },
+      { label: "Howrah", top: "45%", left: "15%" },
+      { label: "Ballygunge", top: "65%", left: "55%" },
+    ],
+  },
 ];
 
 export const CITY_BY_ID = Object.fromEntries(CITIES.map((c) => [c.id, c])) as Record<
@@ -268,6 +286,13 @@ const VENUE_COORDS: Record<CityId, { match: string; lat: number; lng: number; ar
     { match: "jubilee", lat: 17.4326, lng: 78.4071, area: "Jubilee Hills" },
     { match: "madhapur", lat: 17.4483, lng: 78.3915, area: "Madhapur" },
   ],
+  kolkata: [
+    { match: "park street", lat: 22.5516, lng: 88.3524, area: "Park Street" },
+    { match: "salt lake", lat: 22.5867, lng: 88.4178, area: "Salt Lake" },
+    { match: "new town", lat: 22.5898, lng: 88.4744, area: "New Town" },
+    { match: "ballygunge", lat: 22.528, lng: 88.3653, area: "Ballygunge" },
+    { match: "howrah", lat: 22.5958, lng: 88.2636, area: "Howrah" },
+  ],
 };
 
 const CITY_ALIASES: { id: CityId; keys: string[] }[] = [
@@ -277,6 +302,7 @@ const CITY_ALIASES: { id: CityId; keys: string[] }[] = [
   { id: "delhi", keys: ["delhi", "new delhi", "ncr", "gurgaon", "gurugram", "noida"] },
   { id: "bangalore", keys: ["bangalore", "bengaluru", "blr"] },
   { id: "hyderabad", keys: ["hyderabad", "hyd", "secunderabad"] },
+  { id: "kolkata", keys: ["kolkata", "calcutta", "ccu"] },
 ];
 
 export function resolveCityId(input?: string | null): CityId | null {
@@ -311,6 +337,7 @@ export function getCityZoom(cityId: CityId) {
     delhi: 11.5,
     bangalore: 12,
     hyderabad: 12,
+    kolkata: 12,
   };
   return zooms[cityId] ?? 12;
 }

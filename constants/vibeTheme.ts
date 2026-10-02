@@ -27,8 +27,11 @@ export const VibeFonts = {
 };
 
 export const VibeActivities = [
+  { id: "tea", name: "Chai Hangout", emoji: "☕", icon: "cafe" as const, color: "#22D3EE" },
   { id: "beer", name: "Beer & Drinks", emoji: "🍺", icon: "beer" as const, color: "#EAB308" },
   { id: "coffee", name: "Coffee", emoji: "☕", icon: "cafe" as const, color: "#8B5E3C" },
+  { id: "walk", name: "Walk & Talk", emoji: "👟", icon: "walk" as const, color: "#38BDF8" },
+  { id: "coke", name: "Diet Coke", emoji: "🥤", icon: "cafe" as const, color: "#FB7185" },
   { id: "food", name: "Food / Lunch", emoji: "🍕", icon: "pizza" as const, color: "#F97316" },
   { id: "movie", name: "Movie / Cinema", emoji: "🎬", icon: "film" as const, color: "#818CF8" },
   { id: "gaming", name: "Gaming / Play", emoji: "🎮", icon: "game-controller" as const, color: "#34D399" },

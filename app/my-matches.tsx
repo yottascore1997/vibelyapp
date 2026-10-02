@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import Animated, { FadeIn, FadeInDown, FadeInRight } from "react-native-reanimated";
 import { BlurView } from "expo-blur";
 import { useMatches } from "../context/MatchesContext";
@@ -21,30 +21,30 @@ import { usePremium } from "../context/PremiumContext";
 import { MatchProfile } from "../constants/matches";
 import { VibeFonts } from "../constants/vibeTheme";
 import { API_URL } from "../constants/theme";
-import HangoutCinematicBackground from "../components/vibe/HangoutCinematicBackground";
-import AppHeader from "../components/vibe/AppHeader";
+import HomeHeader from "../components/HomeHeader";
 import TabBar from "../components/TabBar";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 
 const T = {
   bg: "#070A14",
-  card: "rgba(22, 26, 46, 0.94)",
-  ink: "#F4F6FB",
-  muted: "#A7B0C4",
-  faint: "#7C869C",
-  border: "rgba(160, 170, 200, 0.14)",
-  purple: "#A78BFA",
-  purpleDeep: "#8B5CF6",
-  pink: "#EC4899",
+  card: "#0D1424",
+  cardSoft: "#131C33",
+  ink: "#FFFFFF",
+  muted: "#94A3B8",
+  faint: "#64748B",
+  border: "rgba(255, 255, 255, 0.08)",
+  purple: "#22D3EE",
+  purpleDeep: "#06B6D4",
+  pink: "#D4F72C",
   green: "#22C55E",
   greenSoft: "#4ADE80",
-  gold: "#FBBF24",
+  gold: "#FACC15",
   red: "#EF4444",
-  matchGrad: ["#8B5CF6", "#EC4899"] as const,
-  likeGrad: ["#7C3AED", "#DB2777"] as const,
-  bannerGrad: ["#2A1850", "#1A1238", "#120E28"] as const,
-  cta: ["#8B5CF6", "#D946EF"] as const,
+  matchGrad: ["#D4F72C", "#22D3EE"] as const,
+  likeGrad: ["#22D3EE", "#06B6D4"] as const,
+  bannerGrad: ["#0D1424", "#131C33"] as const,
+  cta: ["#D4F72C", "#22D3EE"] as const,
 };
 
 function resolveAvatar(url?: string | null) {
@@ -80,13 +80,21 @@ function HeartBurst() {
 export default function MyMatchesScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ tab?: string }>();
   const { matches, likesList, likesCount, conversations } = useMatches();
   const { openPaywall, hasFeature, isPremium } = usePremium();
   const canSeeLikes = isPremium || hasFeature("SEE_LIKES");
 
-  const [activeTab, setActiveTab] = useState<"matches" | "likes">("matches");
+  const [activeTab, setActiveTab] = useState<"matches" | "likes">(
+    params.tab === "likes" ? "likes" : "matches"
+  );
   const [selectedMatch, setSelectedMatch] = useState<MatchProfile | null>(null);
   const [sortRecent] = useState(true);
+
+  useEffect(() => {
+    if (params.tab === "likes") setActiveTab("likes");
+    else if (params.tab === "matches") setActiveTab("matches");
+  }, [params.tab]);
 
   const onlineCount = useMemo(
     () => matches.filter((m) => m.isOnline).length,
@@ -117,22 +125,17 @@ export default function MyMatchesScreen() {
 
   return (
     <View style={styles.root}>
-      <HangoutCinematicBackground />
       <StatusBar barStyle="light-content" backgroundColor={T.bg} />
 
-      <AppHeader
-        variant="dark"
-        tagline={`${onlineCount} online now · Matches & likes`}
-        onBellPress={() => router.push("/(tabs)/chats")}
-        badgeCount={likesTotal}
-      />
+      {/* Home Header */}
+      <HomeHeader showBack />
 
       {/* Tabs */}
       <View style={styles.tabs}>
         <Pressable style={styles.tab} onPress={() => setActiveTab("matches")}>
           {activeTab === "matches" ? (
-            <LinearGradient colors={[...T.matchGrad]} style={styles.tabActive}>
-              <Ionicons name="heart" size={14} color="#fff" />
+            <LinearGradient colors={["#D4F72C", "#22D3EE"]} style={styles.tabActive}>
+              <Ionicons name="heart" size={14} color="#070A14" />
               <Text style={styles.tabActiveText}>Matches</Text>
               <View style={styles.tabBadge}>
                 <Text style={styles.tabBadgeText}>{matches.length}</Text>
@@ -150,8 +153,8 @@ export default function MyMatchesScreen() {
         </Pressable>
         <Pressable style={styles.tab} onPress={() => setActiveTab("likes")}>
           {activeTab === "likes" ? (
-            <LinearGradient colors={[...T.likeGrad]} style={styles.tabActive}>
-              <Ionicons name="sparkles" size={14} color="#fff" />
+            <LinearGradient colors={["#D4F72C", "#22D3EE"]} style={styles.tabActive}>
+              <Ionicons name="sparkles" size={14} color="#070A14" />
               <Text style={styles.tabActiveText}>Likes</Text>
               <View style={styles.tabBadge}>
                 <Text style={styles.tabBadgeText}>{likesTotal}</Text>
@@ -350,10 +353,10 @@ export default function MyMatchesScreen() {
                           hitSlop={6}
                         >
                           <LinearGradient
-                            colors={["#7C3AED", "#8B5CF6"]}
+                            colors={["#D4F72C", "#22D3EE"]}
                             style={styles.chatBtnGrad}
                           >
-                            <Ionicons name="chatbubble" size={16} color="#fff" />
+                            <Ionicons name="chatbubble" size={16} color="#070A14" />
                           </LinearGradient>
                           {unread > 0 && <View style={styles.chatNotif} />}
                         </Pressable>
@@ -375,47 +378,90 @@ export default function MyMatchesScreen() {
           /* Likes tab */
           <Animated.View entering={FadeIn.duration(320)}>
             {!canSeeLikes ? (
-              <View style={styles.likesTease}>
-                <View style={styles.likesStack}>
-                  {(likesList.length
-                    ? likesList.slice(0, 3)
-                    : [
-                        { id: "1", avatarUrl: "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=300" },
-                        { id: "2", avatarUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300" },
-                        { id: "3", avatarUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300" },
-                      ]
-                  ).map((p: any, i: number) => (
-                    <View
-                      key={p.id}
-                      style={[
-                        styles.likesStackCard,
-                        {
-                          left: 36 + i * 48,
-                          zIndex: 3 - i,
-                          transform: [{ rotate: `${(i - 1) * 7}deg` }],
-                        },
-                      ]}
-                    >
-                      <Image
-                        source={{ uri: resolveAvatar(p.avatarUrl) || p.avatarUrl }}
-                        style={StyleSheet.absoluteFillObject}
-                      />
-                      <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFill} />
+              <View style={styles.likesTeaseCard}>
+                <LinearGradient
+                  colors={["#0D1424", "#131C33"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.likesTeaseGrad}
+                >
+                  <View style={styles.proBadgeRow}>
+                    <View style={styles.proBadge}>
+                      <Ionicons name="sparkles" size={11} color="#070A14" />
+                      <Text style={styles.proBadgeText}>PREMIUM VIBE</Text>
                     </View>
-                  ))}
-                </View>
-                <Text style={styles.likesTitle}>
-                  {likesTotal > 0 ? `${likesTotal} people like you` : "See who likes you"}
-                </Text>
-                <Text style={styles.likesSub}>
-                  Unlock blurred profiles and match faster.
-                </Text>
-                <Pressable onPress={openPaywall}>
-                  <LinearGradient colors={["#F5D78E", "#D4AF37"]} style={styles.unlockBtn}>
-                    <Ionicons name="diamond" size={15} color="#1A1520" />
-                    <Text style={styles.unlockText}>Unlock with Premium</Text>
-                  </LinearGradient>
-                </Pressable>
+                    <View style={styles.likesCountChip}>
+                      <Text style={styles.likesCountChipText}>{likesTotal} Waiting</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.likesStack}>
+                    {(likesList.length
+                      ? likesList.slice(0, 3)
+                      : [
+                          { id: "1", avatarUrl: "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=300" },
+                          { id: "2", avatarUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300" },
+                          { id: "3", avatarUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300" },
+                        ]
+                    ).map((p: any, i: number) => (
+                      <View
+                        key={p.id}
+                        style={[
+                          styles.likesStackCard,
+                          {
+                            left: 18 + i * 58,
+                            zIndex: 3 - i,
+                            transform: [{ rotate: `${(i - 1) * 8}deg` }],
+                            borderColor: i === 1 ? "#D4F72C" : "#22D3EE",
+                          },
+                        ]}
+                      >
+                        <Image
+                          source={{ uri: resolveAvatar(p.avatarUrl) || p.avatarUrl }}
+                          style={StyleSheet.absoluteFillObject}
+                        />
+                        <BlurView intensity={55} tint="dark" style={StyleSheet.absoluteFill} />
+                        <View style={styles.cardCenterHeart}>
+                          <Ionicons name="heart" size={24} color={i === 1 ? "#D4F72C" : "#22D3EE"} />
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+
+                  <Text style={styles.likesTitle}>
+                    {likesTotal > 0 ? `${likesTotal} people like you` : "See who likes you"}
+                  </Text>
+                  <Text style={styles.likesSub}>
+                    Reveal blurred profiles, send direct vibes & match instantly without waiting.
+                  </Text>
+
+                  <View style={styles.perksRow}>
+                    <View style={styles.perkChip}>
+                      <Ionicons name="eye" size={13} color="#22D3EE" />
+                      <Text style={styles.perkText}>Unblur All</Text>
+                    </View>
+                    <View style={styles.perkChip}>
+                      <Ionicons name="chatbubbles" size={13} color="#D4F72C" />
+                      <Text style={styles.perkText}>Direct Chat</Text>
+                    </View>
+                    <View style={styles.perkChip}>
+                      <Ionicons name="flash" size={13} color="#FACC15" />
+                      <Text style={styles.perkText}>Instant Match</Text>
+                    </View>
+                  </View>
+
+                  <Pressable onPress={openPaywall} style={styles.unlockBtnPressable}>
+                    <LinearGradient
+                      colors={["#D4F72C", "#22D3EE"]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.unlockBtn}
+                    >
+                      <Ionicons name="diamond" size={16} color="#070A14" />
+                      <Text style={styles.unlockText}>Unlock with Premium</Text>
+                    </LinearGradient>
+                  </Pressable>
+                </LinearGradient>
               </View>
             ) : likesList.length === 0 ? (
               <View style={styles.emptyDash}>
@@ -433,7 +479,7 @@ export default function MyMatchesScreen() {
                   >
                     <Pressable
                       style={styles.matchRow}
-                      onPress={() => router.push("/(tabs)/discover")}
+                      onPress={() => router.push(`/user/${item.id}`)}
                     >
                       <Image
                         source={{ uri: resolveAvatar(item.avatarUrl) || item.avatarUrl }}
@@ -448,7 +494,7 @@ export default function MyMatchesScreen() {
                           <Text style={styles.justMatchedText}>💗 Liked you</Text>
                         </View>
                       </View>
-                      <Ionicons name="chevron-forward" size={18} color={T.faint} />
+                      <Ionicons name="chevron-forward" size={18} color="#22D3EE" />
                     </Pressable>
                   </Animated.View>
                 ))}
@@ -457,8 +503,6 @@ export default function MyMatchesScreen() {
           </Animated.View>
         )}
       </ScrollView>
-
-      <TabBar dark />
 
       {/* Detail sheet */}
       <Modal
@@ -511,21 +555,88 @@ export default function MyMatchesScreen() {
           </View>
         </View>
       </Modal>
+
+      <TabBar dark />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: T.bg },
+  headerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingBottom: 14,
+    backgroundColor: "#070A14",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.06)",
+    zIndex: 10,
+  },
+  backButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "rgba(255, 255, 255, 0.07)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitleCenter: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  headerTitleMy: {
+    color: "#FFFFFF",
+    fontSize: 20,
+    fontFamily: VibeFonts.extraBold,
+    letterSpacing: -0.4,
+  },
+  headerTitleCrew: {
+    color: "#D4F72C",
+    fontSize: 20,
+    fontFamily: VibeFonts.extraBold,
+    letterSpacing: -0.4,
+  },
+  headerSubtitle: {
+    color: "#94A3B8",
+    fontSize: 11,
+    fontFamily: VibeFonts.medium,
+    marginTop: 2,
+    letterSpacing: 0.2,
+  },
+  addButtonGlow: {
+    borderRadius: 21,
+    shadowColor: "#D4F72C",
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 6,
+  },
+  addBtnGrad: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
   tabs: {
     flexDirection: "row",
     marginHorizontal: 16,
+    marginTop: 12,
     marginBottom: 16,
-    backgroundColor: "rgba(12, 16, 32, 0.95)",
+    backgroundColor: "#0D1424",
     borderRadius: 18,
     padding: 4,
     borderWidth: 1,
-    borderColor: T.border,
+    borderColor: "rgba(255, 255, 255, 0.08)",
     gap: 4,
   },
   tab: { flex: 1, borderRadius: 14, overflow: "hidden" },
@@ -540,7 +651,7 @@ const styles = StyleSheet.create({
   tabActiveText: {
     fontSize: 13,
     fontFamily: VibeFonts.extraBold,
-    color: "#fff",
+    color: "#070A14",
   },
   tabIdle: {
     flexDirection: "row",
@@ -555,7 +666,7 @@ const styles = StyleSheet.create({
     color: T.muted,
   },
   tabBadge: {
-    backgroundColor: "rgba(255,255,255,0.22)",
+    backgroundColor: "rgba(7, 10, 20, 0.25)",
     minWidth: 20,
     height: 18,
     borderRadius: 9,
@@ -566,10 +677,10 @@ const styles = StyleSheet.create({
   tabBadgeText: {
     fontSize: 10,
     fontFamily: VibeFonts.extraBold,
-    color: "#fff",
+    color: "#070A14",
   },
   tabBadgeIdle: {
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
     minWidth: 20,
     height: 18,
     borderRadius: 9,
@@ -608,13 +719,13 @@ const styles = StyleSheet.create({
   seeAll: {
     fontSize: 12,
     fontFamily: VibeFonts.semiBold,
-    color: T.purple,
+    color: "#22D3EE",
   },
   recentPill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 999,
@@ -642,7 +753,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: "#14182A",
+    backgroundColor: "#0D1424",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -650,7 +761,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: -2,
     right: -4,
-    backgroundColor: T.pink,
+    backgroundColor: "#D4F72C",
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
@@ -660,7 +771,7 @@ const styles = StyleSheet.create({
   newTagText: {
     fontSize: 8,
     fontFamily: VibeFonts.extraBold,
-    color: "#fff",
+    color: "#070A14",
     letterSpacing: 0.4,
   },
   sparkRing: {
@@ -670,7 +781,7 @@ const styles = StyleSheet.create({
     padding: 2.5,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#EC4899",
+    shadowColor: "#22D3EE",
     shadowOpacity: 0.35,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 0 },
@@ -679,7 +790,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: "#1a1f32",
+    backgroundColor: "#0D1424",
   },
   sparkOnline: {
     position: "absolute",
@@ -712,7 +823,7 @@ const styles = StyleSheet.create({
   sparkLikesCount: {
     fontSize: 11,
     fontFamily: VibeFonts.extraBold,
-    color: T.pink,
+    color: "#D4F72C",
   },
 
   banner: {
@@ -722,8 +833,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
+    backgroundColor: "#0D1424",
     borderWidth: 1,
-    borderColor: "rgba(167,139,250,0.25)",
+    borderColor: "rgba(255, 255, 255, 0.08)",
     overflow: "hidden",
   },
   bannerGlow: {
@@ -733,7 +845,7 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: "rgba(236,72,153,0.18)",
+    backgroundColor: "rgba(34, 211, 238, 0.12)",
   },
   heartBurst: {
     width: 72,
@@ -744,7 +856,7 @@ const styles = StyleSheet.create({
   heartBig: { fontSize: 42 },
   sparkle: {
     position: "absolute",
-    color: T.gold,
+    color: "#D4F72C",
     fontSize: 11,
   },
   bannerCopy: { flex: 1, gap: 4 },
@@ -772,16 +884,16 @@ const styles = StyleSheet.create({
   bannerBtnText: {
     fontSize: 12,
     fontFamily: VibeFonts.extraBold,
-    color: "#fff",
+    color: "#070A14",
   },
 
   matchRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: T.card,
+    backgroundColor: "#0D1424",
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "rgba(167,139,250,0.2)",
+    borderColor: "rgba(255, 255, 255, 0.08)",
     padding: 12,
     marginBottom: 10,
     gap: 12,
@@ -795,6 +907,7 @@ const styles = StyleSheet.create({
   avatarFallback: {
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#131C33",
   },
   avatarInitials: {
     fontSize: 18,
@@ -810,7 +923,7 @@ const styles = StyleSheet.create({
     borderRadius: 7,
     backgroundColor: T.green,
     borderWidth: 2,
-    borderColor: T.card,
+    borderColor: "#0D1424",
   },
   matchInfo: { flex: 1, gap: 3 },
   matchNameRow: {
@@ -837,7 +950,9 @@ const styles = StyleSheet.create({
   },
   justMatched: {
     alignSelf: "flex-start",
-    backgroundColor: "rgba(139,92,246,0.18)",
+    backgroundColor: "rgba(34, 211, 238, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(34, 211, 238, 0.25)",
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 999,
@@ -846,7 +961,7 @@ const styles = StyleSheet.create({
   justMatchedText: {
     fontSize: 10,
     fontFamily: VibeFonts.bold,
-    color: T.purple,
+    color: "#22D3EE",
   },
   chatBtn: { position: "relative" },
   chatBtnGrad: {
@@ -865,20 +980,20 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: T.red,
     borderWidth: 1.5,
-    borderColor: T.card,
+    borderColor: "#0D1424",
   },
 
   emptyDash: {
     borderWidth: 1.5,
     borderStyle: "dashed",
-    borderColor: "rgba(167,139,250,0.28)",
+    borderColor: "rgba(255, 255, 255, 0.1)",
     borderRadius: 18,
     paddingVertical: 22,
     paddingHorizontal: 20,
     alignItems: "center",
     gap: 10,
     marginTop: 4,
-    backgroundColor: "rgba(139,92,246,0.05)",
+    backgroundColor: "rgba(13, 20, 36, 0.6)",
   },
   emptyDashText: {
     fontSize: 13,
@@ -888,68 +1003,159 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
 
-  likesTease: {
+  likesTeaseCard: {
+    borderRadius: 24,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    marginTop: 6,
+    marginBottom: 20,
+  },
+  likesTeaseGrad: {
+    padding: 20,
     alignItems: "center",
-    paddingTop: 12,
-    paddingBottom: 24,
+  },
+  proBadgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+    marginBottom: 16,
+  },
+  proBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "#D4F72C",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  proBadgeText: {
+    fontSize: 10,
+    fontFamily: VibeFonts.extraBold,
+    color: "#070A14",
+    letterSpacing: 0.8,
+  },
+  likesCountChip: {
+    backgroundColor: "rgba(34, 211, 238, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(34, 211, 238, 0.25)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  likesCountChipText: {
+    fontSize: 11,
+    fontFamily: VibeFonts.bold,
+    color: "#22D3EE",
   },
   likesStack: {
-    width: SCREEN_W - 64,
-    height: 180,
-    marginBottom: 18,
+    width: 250,
+    height: 165,
+    marginBottom: 16,
+    marginTop: 4,
     position: "relative",
   },
   likesStackCard: {
     position: "absolute",
-    top: 16,
-    width: 110,
-    height: 145,
-    borderRadius: 18,
+    top: 8,
+    width: 115,
+    height: 148,
+    borderRadius: 20,
     overflow: "hidden",
     borderWidth: 2,
-    borderColor: "rgba(236,72,153,0.4)",
+    shadowColor: "#000",
+    shadowOpacity: 0.45,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  cardCenterHeart: {
+    position: "absolute",
+    alignSelf: "center",
+    top: "38%",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(7, 10, 20, 0.7)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.18)",
   },
   likesTitle: {
-    fontSize: 22,
+    fontSize: 23,
     fontFamily: VibeFonts.extraBold,
-    color: T.ink,
+    color: "#FFFFFF",
     textAlign: "center",
+    letterSpacing: -0.4,
   },
   likesSub: {
     fontSize: 13,
     fontFamily: VibeFonts.medium,
-    color: T.muted,
+    color: "#94A3B8",
     textAlign: "center",
     marginTop: 6,
-    marginBottom: 18,
+    marginBottom: 16,
+    lineHeight: 18,
+    paddingHorizontal: 8,
+  },
+  perksRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 8,
+    marginBottom: 20,
+  },
+  perkChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+  },
+  perkText: {
+    fontSize: 11.5,
+    fontFamily: VibeFonts.bold,
+    color: "#FFFFFF",
+  },
+  unlockBtnPressable: {
+    width: "100%",
+    borderRadius: 26,
+    overflow: "hidden",
   },
   unlockBtn: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 8,
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: 999,
+    width: "100%",
+    paddingVertical: 15,
+    borderRadius: 26,
   },
   unlockText: {
     fontSize: 15,
     fontFamily: VibeFonts.extraBold,
-    color: "#1A1520",
+    color: "#070A14",
   },
 
   sheetOverlay: {
     flex: 1,
-    backgroundColor: "rgba(4,6,14,0.72)",
+    backgroundColor: "rgba(7, 10, 20, 0.8)",
     justifyContent: "flex-end",
   },
   sheet: {
-    backgroundColor: "#0D1220",
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
+    backgroundColor: "#070A14",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     overflow: "hidden",
     minHeight: 380,
     borderWidth: 1,
-    borderColor: T.border,
+    borderColor: "rgba(255, 255, 255, 0.08)",
   },
   sheetImg: {
     width: "100%",
@@ -970,8 +1176,8 @@ const styles = StyleSheet.create({
     right: 14,
     width: 36,
     height: 36,
-    borderRadius: 12,
-    backgroundColor: "rgba(0,0,0,0.45)",
+    borderRadius: 18,
+    backgroundColor: "rgba(255, 255, 255, 0.12)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1002,7 +1208,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   sheetCtaText: {
-    color: "#fff",
+    color: "#070A14",
     fontSize: 15,
     fontFamily: VibeFonts.extraBold,
   },

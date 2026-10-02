@@ -249,7 +249,7 @@ export default function SpotRadarScreen() {
     setLoading(true);
     try {
       const [nearbyRes, profilesRes] = await Promise.all([
-        api.getNearbyPeople({ maxKm: 5, limit: 20 }),
+        api.getNearbyPeople({ maxKm: 50, limit: 30 }),
         api.getProfiles("dating"),
       ]);
 

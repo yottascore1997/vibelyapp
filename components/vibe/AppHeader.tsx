@@ -4,6 +4,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSidebar } from "../../context/SidebarContext";
+import { useNotifications } from "../../context/NotificationContext";
 import { VibeFonts } from "../../constants/vibeTheme";
 import { Radius, Spacing } from "../../constants/theme";
 
@@ -23,12 +24,14 @@ export default function AppHeader({
   tagline = "Curated moments. Real people.",
   showLuxe = true,
   onBellPress,
-  badgeCount = 3,
+  badgeCount,
 }: Props) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { openSidebar } = useSidebar();
+  const { openNotifications, unreadCount } = useNotifications();
   const dark = variant === "dark";
+  const displayBadge = badgeCount !== undefined ? badgeCount : unreadCount;
 
   return (
     <View style={[styles.topHeader, { paddingTop: insets.top + Spacing.sm }]}>
@@ -74,12 +77,12 @@ export default function AppHeader({
         )}
         <Pressable
           style={[styles.headerBellBtn, dark && styles.headerBellBtnDark]}
-          onPress={onBellPress ?? (() => router.push("/(tabs)/chats"))}
+          onPress={onBellPress ?? openNotifications}
         >
           <Ionicons name="notifications-outline" size={20} color={dark ? "#FFFFFF" : "#1A1520"} />
-          {badgeCount > 0 && (
+          {displayBadge > 0 && (
             <View style={[styles.bellBadge, dark && styles.bellBadgeDark, dark && styles.bellBadgePurple]}>
-              <Text style={styles.bellBadgeText}>{badgeCount}</Text>
+              <Text style={styles.bellBadgeText}>{displayBadge}</Text>
             </View>
           )}
         </Pressable>

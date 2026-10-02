@@ -15,6 +15,8 @@ import PaywallModal from "../components/paywall/PaywallModal";
 import LocationSync from "../components/LocationSync";
 import IncomingInviteWatcher from "../components/vibe/IncomingInviteWatcher";
 import InviteDeepLinkHandler from "../components/vibe/InviteDeepLinkHandler";
+import { NotificationProvider } from "../context/NotificationContext";
+import NotificationTopDrawer from "../components/notifications/NotificationTopDrawer";
 import { useImmersiveNavigationBar } from "../hooks/useImmersiveNavigationBar";
 
 export default function RootLayout() {
@@ -34,7 +36,8 @@ export default function RootLayout() {
     <AuthProvider>
       <PremiumProvider>
         <SidebarProvider>
-          <OnboardingProvider>
+          <NotificationProvider>
+            <OnboardingProvider>
             <PlansProvider>
               <MatchesProvider>
                 <TabBarVisibilityProvider>
@@ -89,6 +92,20 @@ export default function RootLayout() {
             <Stack.Screen name="user/[id]" options={{ animation: "slide_from_right" }} />
             <Stack.Screen name="my-matches" options={{ animation: "slide_from_right" }} />
             <Stack.Screen
+              name="crew-details"
+              options={{
+                animation: "slide_from_right",
+                contentStyle: { backgroundColor: "#070A14" },
+              }}
+            />
+            <Stack.Screen
+              name="invite-friends"
+              options={{
+                animation: "slide_from_right",
+                contentStyle: { backgroundColor: "#070A14" },
+              }}
+            />
+            <Stack.Screen
               name="events-map"
               options={{
                 animation: "slide_from_right",
@@ -126,10 +143,12 @@ export default function RootLayout() {
             />
           </Stack>
           <Sidebar />
+          <NotificationTopDrawer />
                 </TabBarVisibilityProvider>
           </MatchesProvider>
           </PlansProvider>
         </OnboardingProvider>
+        </NotificationProvider>
       </SidebarProvider>
       </PremiumProvider>
     </AuthProvider>

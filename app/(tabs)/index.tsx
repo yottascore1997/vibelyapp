@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -6,14 +6,11 @@ import {
   ScrollView,
   Pressable,
   Image,
-  ActivityIndicator,
   StatusBar,
   Dimensions,
-  StyleProp,
-  ViewStyle,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
@@ -21,92 +18,112 @@ import Animated, {
   FadeInRight,
   useSharedValue,
   useAnimatedStyle,
-  withTiming,
-  withRepeat,
-  withSequence,
-  Easing,
+  withSpring,
 } from "react-native-reanimated";
-import HomeSlideBanner from "../../components/home/HomeSlideBanner";
-import SpinTheWheel from "../../components/home/SpinTheWheel";
-import OnlineStory from "../../components/home/OnlineStory";
-import SpotBeaconModal from "../../components/vibe/SpotBeaconModal";
-import CreatePlanFab from "../../components/CreatePlanFab";
-import HangoutCinematicBackground from "../../components/vibe/HangoutCinematicBackground";
-import AppHeader from "../../components/vibe/AppHeader";
-import { useMatches } from "../../context/MatchesContext";
 import { usePlans } from "../../context/PlansContext";
 import { useAuth } from "../../context/AuthContext";
-import { api } from "../../services/api";
-import { API_URL } from "../../constants/theme";
+import { useNotifications } from "../../context/NotificationContext";
 import { VibeFonts } from "../../constants/vibeTheme";
-
-const friendsHangout3d = require("../../assets/friends_hangout_3d.png");
-const FLUENT_3D = "https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets";
-const BEACON_3D = `${FLUENT_3D}/Satellite%20antenna/3D/satellite_antenna_3d.png`;
-const PIN_3D = `${FLUENT_3D}/Round%20pushpin/3D/round_pushpin_3d.png`;
+import { formatFriendlyPlanWhen } from "../../constants/plans";
+import ChaiToggleWidget from "../../components/home/ChaiToggleWidget";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 
-/** Match Hangout — cinematic dark UI */
-const T = {
-  bg: "#070A14",
-  card: "rgba(22, 26, 46, 0.94)",
-  ink: "#F4F6FB",
-  muted: "#A7B0C4",
-  faint: "#7C869C",
-  border: "rgba(160, 170, 200, 0.16)",
-  purple: "#A78BFA",
-  pink: "#F472B6",
-  softPurple: "rgba(139, 92, 246, 0.18)",
-};
+// Local Figma Hangora Assets
+const hangoraLogo = require("../../assets/home/hangora-logo.png");
+const userAvatar = require("../../assets/home/user-avatar.png");
+const heroCardImg = require("../../assets/home/hero-card.png");
+const homeGif = require("../../assets/icons/home.gif");
+const createHangoutBannerImg = require("../../assets/home/create-hangout-banner.png");
+const nearbyCoffeeImg = require("../../assets/home/nearby-coffee.png");
+const nearbyBeerImg = require("../../assets/home/nearby-beer.png");
+const chaiIcon = require("../../assets/icons/chai.png");
+const coffeeIcon = require("../../assets/icons/coffee.png");
+const beerIcon = require("../../assets/icons/beer.png");
+const movieIcon = require("../../assets/icons/movie.png");
+const walkIcon = require("../../assets/icons/walk.png");
+const cokeIcon = require("../../assets/icons/dietcoke.png");
 
-const TONIGHT_VIBES = [
+interface VibeItem {
+  id: string;
+  label: string;
+  icon?: keyof typeof Ionicons.glyphMap;
+  image?: any;
+  color: string;
+}
+
+const VIBES: VibeItem[] = [
+  { id: "tea", label: "Tea", image: chaiIcon, color: "#22D3EE" },
+  { id: "coffee", label: "Coffee", image: coffeeIcon, color: "#F59E0B" },
+  { id: "beer", label: "Beer", image: beerIcon, color: "#FBBF24" },
+  { id: "movie", label: "Movie", image: movieIcon, color: "#EF4444" },
+  { id: "walk", label: "Walk", image: walkIcon, color: "#38BDF8" },
+  { id: "coke", label: "Diet Coke", image: cokeIcon, color: "#FB7185" },
+  { id: "drinks", label: "Drinks", icon: "wine", color: "#F43F5E" },
+  { id: "smoke", label: "Smoke", icon: "leaf", color: "#22C55E" },
+  { id: "food", label: "Food", icon: "restaurant", color: "#FB923C" },
+  { id: "biryani", label: "Biryani", icon: "fast-food", color: "#F43F5E" },
+  { id: "party", label: "Party", icon: "sparkles", color: "#EC4899" },
+  { id: "music", label: "Music", icon: "musical-notes", color: "#A855F7" },
+];
+
+interface HangoutCardData {
+  id: string;
+  title: string;
+  timeLocation: string;
+  tagEmoji: string;
+  tagLabel: string;
+  tagColor: string;
+  tagBg: string;
+  joinColor: string;
+  joinBorder: string;
+  joinBg: string;
+  image: any;
+  distance: string;
+  attendeesCount: string;
+}
+
+const STATIC_HANGOUTS: HangoutCardData[] = [
   {
-    id: "coffee",
-    title: "Coffee",
-    emoji: "☕",
-    icon: `${FLUENT_3D}/Hot%20beverage/3D/hot_beverage_3d.png`,
+    id: "figma-1",
+    title: "Coffee & Good Talks",
+    timeLocation: "Today, 7:00 PM • Brew & Blush",
+    tagEmoji: "☕",
+    tagLabel: "Coffee",
+    tagColor: "#F59E0B",
+    tagBg: "#24190E",
+    joinColor: "#2EFA9E",
+    joinBorder: "rgba(46,250,158,0.3)",
+    joinBg: "rgba(46,250,158,0.12)",
+    image: nearbyCoffeeImg,
+    distance: "2.5 km",
+    attendeesCount: "+3",
   },
   {
-    id: "food",
-    title: "Foodie",
-    emoji: "🍕",
-    icon: `${FLUENT_3D}/Pizza/3D/pizza_3d.png`,
-  },
-  {
-    id: "movie",
-    title: "Movie",
-    emoji: "🍿",
-    icon: `${FLUENT_3D}/Clapper%20board/3D/clapper_board_3d.png`,
-  },
-  {
-    id: "sports",
-    title: "Sports",
-    emoji: "⚽",
-    icon: `${FLUENT_3D}/Soccer%20ball/3D/soccer_ball_3d.png`,
-  },
-  {
-    id: "drinks",
-    title: "Drinks",
-    emoji: "🍸",
-    icon: `${FLUENT_3D}/Beer%20mug/3D/beer_mug_3d.png`,
-  },
-  {
-    id: "travel",
-    title: "Trip",
-    emoji: "✈️",
-    icon: `${FLUENT_3D}/Airplane/3D/airplane_3d.png`,
+    id: "figma-2",
+    title: "Beer & Better People",
+    timeLocation: "Today, 8:30 PM • The Local Bar",
+    tagEmoji: "🍺",
+    tagLabel: "Beer",
+    tagColor: "#FBBF24",
+    tagBg: "#261E0A",
+    joinColor: "#C084FC",
+    joinBorder: "rgba(192,132,252,0.3)",
+    joinBg: "rgba(192,132,252,0.12)",
+    image: nearbyBeerImg,
+    distance: "1.8 km",
+    attendeesCount: "+5",
   },
 ];
 
-function SoftPress({
+function CardPressable({
   children,
   onPress,
   style,
 }: {
   children: React.ReactNode;
   onPress?: () => void;
-  style?: StyleProp<ViewStyle>;
+  style?: any;
 }) {
   const scale = useSharedValue(1);
   const anim = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
@@ -114,806 +131,700 @@ function SoftPress({
     <Pressable
       onPress={onPress}
       onPressIn={() => {
-        scale.value = withTiming(0.96, { duration: 90 });
+        scale.value = withSpring(0.97, { damping: 14, stiffness: 350 });
       }}
       onPressOut={() => {
-        scale.value = withTiming(1, { duration: 140 });
+        scale.value = withSpring(1, { damping: 14, stiffness: 350 });
       }}
+      style={style}
     >
-      <Animated.View style={[style, anim]}>{children}</Animated.View>
+      <Animated.View style={anim}>{children}</Animated.View>
     </Pressable>
   );
-}
-
-function BeaconPulseRing() {
-  const scale = useSharedValue(1);
-  const opacity = useSharedValue(0.55);
-  useEffect(() => {
-    scale.value = withRepeat(
-      withSequence(
-        withTiming(1.55, { duration: 1100, easing: Easing.out(Easing.ease) }),
-        withTiming(1, { duration: 0 })
-      ),
-      -1,
-      false
-    );
-    opacity.value = withRepeat(
-      withSequence(
-        withTiming(0, { duration: 1100, easing: Easing.out(Easing.ease) }),
-        withTiming(0.55, { duration: 0 })
-      ),
-      -1,
-      false
-    );
-  }, []);
-  const style = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    opacity: opacity.value,
-  }));
-  return <Animated.View style={[styles.beaconPulseRing, style]} />;
 }
 
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { deck } = useMatches();
-  const { nearbyPlans, myPlans, refresh: refreshPlans } = usePlans();
   const { user } = useAuth();
+  const { nearbyPlans, myPlans, joinPlan, hasJoined, refresh: refreshPlans } = usePlans();
+  const { openNotifications, unreadCount } = useNotifications();
 
-  const [activeUsers, setActiveUsers] = useState<any[]>([]);
-  const [suggestions, setSuggestions] = useState<any[]>([]);
-  const [loadingOnline, setLoadingOnline] = useState(true);
-  const [spotModalVisible, setSpotModalVisible] = useState(false);
-
-  const resolveUrl = useCallback((url?: string | null, name?: string) => {
-    if (url) {
-      if (url.startsWith("/")) return `${API_URL.replace("/api", "")}${url}`;
-      return url;
-    }
-    const label = encodeURIComponent((name || "U").split(" ")[0]);
-    return `https://ui-avatars.com/api/?name=${label}&background=7C3AED&color=fff&size=200`;
-  }, []);
+  const [selectedVibe, setSelectedVibe] = useState<string>("tea");
+  const [favorites, setFavorites] = useState<Record<string, boolean>>({});
+  const [joinedMap, setJoinedMap] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const users = (await api.getOnlineUsers()) as any;
-        if (!alive) return;
-        const arr = Array.isArray(users) ? users : users?.users || [];
-        setActiveUsers(arr);
-      } catch {
-        /* ignore */
-      } finally {
-        if (alive) setLoadingOnline(false);
-      }
+    refreshPlans().catch(() => undefined);
+  }, [refreshPlans]);
 
-      try {
-        if (user?.id) {
-          const projs = (await api.getDiscoverProfiles(user.id, "dating")) as any;
-          if (!alive) return;
-          setSuggestions(Array.isArray(projs) ? projs.slice(0, 8) : []);
-        }
-      } catch {
-        /* ignore */
-      }
-
-      refreshPlans().catch(() => undefined);
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [user?.id, refreshPlans]);
-
-  const handleVibeSelect = async (v: (typeof TONIGHT_VIBES)[number]) => {
-    try {
-      await api.updateSocialStatus({
-        energy: "LESSGO",
-        freeNow: true,
-        activity: `${v.emoji} ${v.title}`,
-      });
-    } catch {
-      /* soft fail */
-    }
-    router.push({
-      pathname: "/spot-radar",
-      params: {
-        venue: `${v.emoji} ${v.title}`,
-        vibe: v.title,
-        emoji: v.emoji,
-        duration: "30",
-        activityId: v.id,
-      },
-    });
+  const toggleFavorite = (id: string) => {
+    setFavorites((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const livePlans = [...nearbyPlans, ...myPlans]
-    .filter((p, i, arr) => arr.findIndex((x) => x.id === p.id) === i)
-    .filter((p) => p.status !== "CANCELLED" && p.status !== "COMPLETED")
-    .slice(0, 6);
+  const dynamicHangouts = useMemo(() => {
+    const all = [...(nearbyPlans || []), ...(myPlans || [])].filter(
+      (p, i, arr) => arr.findIndex((x) => x.id === p.id) === i
+    );
+    if (!selectedVibe) return all;
+    const filtered = all.filter((p) => {
+      const act = (p.activity || "").toLowerCase();
+      const title = (p.title || "").toLowerCase();
+      return act.includes(selectedVibe.toLowerCase()) || title.includes(selectedVibe.toLowerCase());
+    });
+    return filtered.length > 0 ? filtered : all;
+  }, [nearbyPlans, myPlans, selectedVibe]);
 
-  const suggested = (suggestions.length > 0 ? suggestions : deck).slice(0, 8);
+  const handleJoin = async (hangout: HangoutCardData) => {
+    const isJoined = joinedMap[hangout.id] || hasJoined(hangout.id);
+    setJoinedMap((prev) => ({ ...prev, [hangout.id]: !isJoined }));
+    if (!isJoined) {
+      if (!hangout.id.startsWith("figma-")) {
+        try {
+          await joinPlan(hangout.id);
+        } catch {}
+      }
+      Alert.alert(
+        "Hangout Joined! 🎉",
+        `You're in for "${hangout.title}". See you at ${hangout.timeLocation.split("•")[0].trim()}!`,
+        [
+          {
+            text: "View Details",
+            onPress: () =>
+              hangout.id.startsWith("figma-")
+                ? router.push("/hangout")
+                : router.push({ pathname: "/plan-details", params: { id: hangout.id } }),
+          },
+          { text: "Great!", style: "cancel" },
+        ]
+      );
+    }
+  };
+
+  const handleNotificationPress = () => {
+    openNotifications();
+  };
 
   return (
-    <View style={[styles.root, { paddingBottom: Math.max(insets.bottom, 8) }]}>
-      <HangoutCinematicBackground />
-      <StatusBar barStyle="light-content" backgroundColor="#070A14" />
+    <View style={styles.root}>
+      <StatusBar barStyle="light-content" backgroundColor="#070A13" />
 
-      <View style={styles.foreground}>
-      <AppHeader
-        variant="dark"
-        tagline="Post & join plans · Real Moves"
-      />
-
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        <HomeSlideBanner />
-
-        {/* Pick a vibe tiles — 3 per row */}
-        <Animated.View entering={FadeInDown.duration(360)} style={styles.block}>
-          <View style={styles.sectionHead}>
-            <Text style={styles.pickVibeTitle}>Pick a vibe</Text>
-            <Pressable onPress={() => router.push("/hangout")} style={styles.seeAllPill}>
-              <Text style={styles.seeAllPillText}>See all</Text>
-            </Pressable>
+      {/* ── TOP HEADER ── */}
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 6 }]}>
+        <View style={styles.headerLeft}>
+          <Image source={hangoraLogo} style={styles.logoImage} resizeMode="contain" />
+          <View style={styles.headerTextCol}>
+            <Text style={styles.headerTitle}>Hangout</Text>
+            <Text style={styles.headerSubtitle}>Meet. Vibe. Make it Real.</Text>
           </View>
-          <View style={styles.vibeGrid}>
-            {TONIGHT_VIBES.map((v, i) => (
-              <Animated.View
-                key={v.id}
-                entering={FadeInDown.delay(i * 40).duration(280)}
-                style={styles.vibeCell}
-              >
-                <SoftPress onPress={() => handleVibeSelect(v)} style={styles.vibeTile}>
-                  <View style={styles.vibeGrad}>
-                    <Image source={{ uri: v.icon }} style={styles.vibeIcon} resizeMode="contain" />
-                    <Text style={styles.vibeTitle}>{v.title}</Text>
-                  </View>
-                </SoftPress>
-              </Animated.View>
-            ))}
-          </View>
-        </Animated.View>
+        </View>
 
-        {/* Spin the wheel — when confused what to do */}
-        <Animated.View entering={FadeInDown.delay(40).duration(360)}>
-          <SpinTheWheel
-            onResult={(opt) => {
-              handleVibeSelect({
-                id: opt.id,
-                title: opt.title,
-                emoji: opt.emoji,
-                icon: "",
-              });
-            }}
-          />
-        </Animated.View>
-
-        {/* Beacon + Create plan */}
-        <Animated.View entering={FadeInDown.delay(80).duration(360)} style={styles.heroStack}>
-          <SoftPress onPress={() => setSpotModalVisible(true)} style={styles.beaconCardWrap}>
-            <LinearGradient
-              colors={["#9D174D", "#DB2777", "#FB7185"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.beaconCard}
-            >
-              <View style={styles.beaconDecorBlob} />
-              <View style={styles.beaconCopy}>
-                <View style={styles.beaconLivePill}>
-                  <View style={styles.beaconLiveDot} />
-                  <Text style={styles.beaconLiveText}>LIVE NOW</Text>
-                </View>
-                <Text style={styles.beaconTitle}>Drop a Spot Beacon</Text>
-                <Text style={styles.beaconSub} numberOfLines={2}>
-                  Friends nearby can find you instantly
-                </Text>
-                <View style={styles.beaconCta}>
-                  <Text style={styles.beaconCtaText}>Broadcast</Text>
-                  <Ionicons name="arrow-forward" size={14} color="#9D174D" />
-                </View>
-              </View>
-              <View style={styles.beaconArt} pointerEvents="none">
-                <BeaconPulseRing />
-                <Image source={{ uri: BEACON_3D }} style={styles.beacon3dMain} resizeMode="contain" />
-                <Image source={{ uri: PIN_3D }} style={styles.beacon3dPin} resizeMode="contain" />
-              </View>
-            </LinearGradient>
-          </SoftPress>
-
-          <LinearGradient
-            colors={["#312E81", "#6D28D9", "#DB2777"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.planHeroCard}
+        <View style={styles.headerRight}>
+          <Pressable
+            onPress={handleNotificationPress}
+            style={styles.iconCircleBtn}
+            hitSlop={8}
           >
-            <View style={styles.planHeroLeft}>
-              <View style={styles.planHeroPill}>
-                <Text style={styles.planHeroPillText}>✦ WHAT'S UP</Text>
-              </View>
-              <Text style={styles.planHeroTitle}>What's the plan{"\n"}today?</Text>
-              <Text style={styles.planHeroSub} numberOfLines={2}>
-                Create a plan or join people who are free!
-              </Text>
-              <Pressable onPress={() => router.push("/create-plan")}>
-                <View style={styles.planHeroBtn}>
-                  <Ionicons name="add" size={16} color="#6D28D9" />
-                  <Text style={styles.planHeroBtnText}>Create a Plan</Text>
-                </View>
-              </Pressable>
-            </View>
-            <Image source={friendsHangout3d} style={styles.planHeroImage} resizeMode="contain" />
-          </LinearGradient>
-        </Animated.View>
+            <Ionicons name="notifications-outline" size={23} color="#FFFFFF" />
+            {unreadCount > 0 && <View style={styles.notifBadgeDot} />}
+          </Pressable>
 
-        {/* Online now */}
-        <View style={styles.onlineBlock}>
-          <LinearGradient
-            colors={["rgba(167,139,250,0.14)", "rgba(244,114,182,0.08)"]}
-            style={styles.onlineInner}
+          <Pressable
+            onPress={() => router.push("/(tabs)/profile")}
+            style={styles.avatarWrap}
+            hitSlop={8}
           >
-            <View style={styles.sectionHead}>
-              <View>
-                <Text style={styles.sectionPink}>LIVE · ONLINE</Text>
-                <Text style={styles.sectionBig}>Who's around?</Text>
-              </View>
-              <Pressable onPress={() => router.push("/(tabs)/discover")} style={styles.seeAllPill}>
-                <Text style={styles.seeAllPillText}>Discover</Text>
-              </Pressable>
-            </View>
-            {loadingOnline ? (
-              <ActivityIndicator color={T.pink} style={{ marginVertical: 16 }} />
+            {user?.avatarUrl ? (
+              <Image source={{ uri: user.avatarUrl }} style={styles.avatarImage} />
             ) : (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.stories}>
-                <OnlineStory name="You" isYou index={0} dark onPress={() => setSpotModalVisible(true)} />
-                {activeUsers.slice(0, 12).map((u, i) => (
-                  <OnlineStory
-                    key={u.id || i}
-                    name={(u.name || "User").split(" ")[0]}
-                    avatarUrl={resolveUrl(u.avatarUrl, u.name)}
-                    index={i + 1}
-                    dark
-                    onPress={() => router.push("/(tabs)/discover")}
-                  />
-                ))}
-                {activeUsers.length === 0 ? (
-                  <Text style={styles.emptyInline}>Nobody online yet — start Discover!</Text>
-                ) : null}
-              </ScrollView>
+              <Image source={userAvatar} style={styles.avatarImage} />
             )}
-          </LinearGradient>
+            <View style={styles.onlineDot} />
+          </Pressable>
         </View>
-
-        {/* Hangouts */}
-        <View style={styles.block}>
-          <View style={styles.sectionHead}>
-            <View>
-              <Text style={styles.sectionPurple}>PLANS NEAR YOU</Text>
-              <Text style={styles.sectionBig}>Hangouts</Text>
-            </View>
-            <Pressable onPress={() => router.push("/hangout")} style={styles.seeAllPill}>
-              <Text style={styles.seeAllPillText}>See all</Text>
-            </Pressable>
-          </View>
-          {livePlans.length === 0 ? (
-            <SoftPress onPress={() => router.push("/create-plan")} style={styles.emptyPlan}>
-              <Image
-                source={{ uri: `${FLUENT_3D}/Hot%20beverage/3D/hot_beverage_3d.png` }}
-                style={{ width: 48, height: 48 }}
-                resizeMode="contain"
-              />
-              <Text style={styles.emptyPlanTitle}>No plans nearby yet</Text>
-              <Text style={styles.emptyPlanSub}>Be first — create something fun tonight ✨</Text>
-              <View style={styles.emptyCta}>
-                <Text style={styles.emptyCtaText}>Create hangout</Text>
-              </View>
-            </SoftPress>
-          ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.planScroll}>
-              {livePlans.map((plan, i) => (
-                <Animated.View key={plan.id} entering={FadeInRight.delay(i * 60).duration(300)}>
-                  <SoftPress
-                    onPress={() => router.push({ pathname: "/plan-details", params: { id: plan.id } })}
-                    style={styles.planCard}
-                  >
-                    <Image
-                      source={{
-                        uri:
-                          plan.imageUrl ||
-                          "https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?w=400",
-                      }}
-                      style={styles.planImage}
-                    />
-                    <LinearGradient colors={["transparent", "rgba(15,23,42,0.92)"]} style={styles.planOverlay}>
-                      <View style={styles.planBadge}>
-                        <Text style={styles.planBadgeText}>{plan.timeLabel || plan.badge || "Soon"}</Text>
-                      </View>
-                      <Text style={styles.planTitle} numberOfLines={2}>
-                        {plan.title}
-                      </Text>
-                      <Text style={styles.planMeta} numberOfLines={1}>
-                        {plan.location || plan.destination || "Nearby"}
-                        {typeof plan.distance === "number" ? ` · ${Math.round(plan.distance)} km` : ""}
-                      </Text>
-                    </LinearGradient>
-                  </SoftPress>
-                </Animated.View>
-              ))}
-            </ScrollView>
-          )}
-        </View>
-
-        {/* Suggested people */}
-        <View style={[styles.block, { marginBottom: 36 }]}>
-          <View style={styles.sectionHead}>
-            <View>
-              <Text style={styles.sectionPink}>FOR YOU</Text>
-              <Text style={styles.sectionBig}>People nearby</Text>
-            </View>
-            <Pressable onPress={() => router.push("/(tabs)/discover")} style={styles.seeAllPillPink}>
-              <Text style={styles.seeAllPillPinkText}>Swipe ›</Text>
-            </Pressable>
-          </View>
-          {suggested.length === 0 ? (
-            <Text style={styles.emptyInline}>Turn on location to see people near you.</Text>
-          ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.suggestScroll}>
-              {suggested.map((p, i) => (
-                <Animated.View key={p.id || i} entering={FadeInRight.delay(i * 50).duration(280)}>
-                  <SoftPress onPress={() => router.push("/(tabs)/discover")} style={styles.suggestCard}>
-                    <Image
-                      source={{ uri: resolveUrl(p.avatarUrl || p.photos?.[0], p.name) }}
-                      style={styles.suggestAvatar}
-                    />
-                    <LinearGradient colors={["transparent", "rgba(88,28,135,0.95)"]} style={styles.suggestOverlay}>
-                      <Text style={styles.suggestName} numberOfLines={1}>
-                        {p.name}
-                        {p.age ? `, ${p.age}` : ""}
-                      </Text>
-                      <Text style={styles.suggestMeta} numberOfLines={1}>
-                        {typeof p.distance === "number" ? `${p.distance} km` : "Nearby"}
-                        {p.vibeMatch ? ` · ${p.vibeMatch}%` : ""}
-                      </Text>
-                    </LinearGradient>
-                  </SoftPress>
-                </Animated.View>
-              ))}
-            </ScrollView>
-          )}
-        </View>
-      </ScrollView>
       </View>
 
-      <SpotBeaconModal visible={spotModalVisible} onClose={() => setSpotModalVisible(false)} />
-      <CreatePlanFab />
+      {/* ── MAIN SCROLL CONTENT ── */}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Math.max(insets.bottom, 20) + 85 },
+        ]}
+      >
+        {/* ── 1. HERO CARD ("Find Your Next Hangout") ── */}
+        <Animated.View entering={FadeInDown.duration(340)} style={styles.heroWrap}>
+          <CardPressable onPress={() => router.push("/hangout")}>
+            <View style={styles.heroCard}>
+              <Image source={heroCardImg} style={styles.heroImage} resizeMode="cover" />
+            </View>
+          </CardPressable>
+        </Animated.View>
+
+        {/* ── 2. WHAT'S YOUR VIBE? SECTION ── */}
+        <Animated.View entering={FadeInDown.delay(70).duration(340)} style={styles.sectionWrap}>
+          <View style={styles.sectionHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.sectionTitle}>What's your vibe?</Text>
+              <Text style={styles.sectionSubtitle}>
+                Pick a hangout, meet like-minded people.
+              </Text>
+            </View>
+            <Pressable onPress={() => router.push("/hangout")} hitSlop={10}>
+              <View style={styles.seeAllRow}>
+                <Text style={styles.seeAllText}>See All</Text>
+                <Ionicons name="chevron-forward" size={14} color="#94A3B8" />
+              </View>
+            </Pressable>
+          </View>
+
+          {/* VIBE CARDS CAROUSEL */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.vibesScroll}
+          >
+            {VIBES.map((vibe) => {
+              const active = selectedVibe === vibe.id;
+              return (
+                <Pressable
+                  key={vibe.id}
+                  onPress={() => setSelectedVibe(vibe.id)}
+                  style={[
+                    styles.vibeCard,
+                    active && styles.vibeCardActive,
+                  ]}
+                >
+                  <View style={styles.vibeIconWrap}>
+                    {vibe.image ? (
+                      <Image
+                        source={vibe.image}
+                        style={styles.vibeCustomIcon}
+                        resizeMode="contain"
+                      />
+                    ) : (
+                      <Ionicons
+                        name={vibe.icon!}
+                        size={26}
+                        color={active ? "#22D3EE" : vibe.color}
+                      />
+                    )}
+                  </View>
+                  <Text
+                    style={[
+                      styles.vibeLabel,
+                      active && styles.vibeLabelActive,
+                    ]}
+                  >
+                    {vibe.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </Animated.View>
+
+        {/* ── 3. CREATE YOUR OWN HANGOUT BANNER ── */}
+        <Animated.View entering={FadeInDown.delay(120).duration(340)} style={styles.bannerWrap}>
+          <CardPressable onPress={() => router.push("/create-plan")}>
+            <View style={styles.createBannerCard}>
+              <Image
+                source={createHangoutBannerImg}
+                style={styles.createBannerImage}
+                resizeMode="cover"
+              />
+            </View>
+          </CardPressable>
+        </Animated.View>
+
+        {/* ── 4. NEARBY HANGOUTS SECTION ── */}
+        <Animated.View entering={FadeInDown.delay(170).duration(340)} style={styles.sectionWrap}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.nearbyTitleRow}>
+              <View style={styles.liveDot} />
+              <Text style={styles.sectionTitle}>Nearby Hangouts</Text>
+            </View>
+            <Pressable onPress={() => router.push("/hangout")} hitSlop={10}>
+              <View style={styles.seeAllRow}>
+                <Text style={styles.seeAllText}>See All</Text>
+                <Ionicons name="chevron-forward" size={14} color="#94A3B8" />
+              </View>
+            </Pressable>
+          </View>
+
+          {/* HANGOUT CARDS LIST */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.hangoutsScroll}
+          >
+            {(dynamicHangouts && dynamicHangouts.length > 0
+              ? dynamicHangouts.map((p) => ({
+                  id: p.id,
+                  title: p.title,
+                  timeLocation: `${formatFriendlyPlanWhen(p)} • ${p.location || "Nearby"}`,
+                  tagEmoji: p.activity?.toLowerCase().includes("beer")
+                    ? "🍺"
+                    : p.activity?.toLowerCase().includes("movie")
+                    ? "🎬"
+                    : "☕",
+                  tagLabel: p.activity || "Hangout",
+                  tagColor: "#F59E0B",
+                  tagBg: "#24190E",
+                  joinColor: "#2EFA9E",
+                  joinBorder: "rgba(46,250,158,0.3)",
+                  joinBg: "rgba(46,250,158,0.12)",
+                  image: p.imageUrl
+                    ? { uri: p.imageUrl }
+                    : p.activity?.toLowerCase().includes("beer")
+                    ? nearbyBeerImg
+                    : nearbyCoffeeImg,
+                  distance:
+                    typeof p.distance === "number"
+                      ? `${p.distance.toFixed(1)} km`
+                      : "Near you",
+                  attendeesCount: `+${p.going || p.participants?.length || 1}`,
+                }))
+              : STATIC_HANGOUTS
+            ).map((hangout, index) => {
+              const isFav = !!favorites[hangout.id];
+              const isJoined = !!joinedMap[hangout.id] || hasJoined(hangout.id);
+
+              return (
+                <Animated.View
+                  key={hangout.id}
+                  entering={FadeInRight.delay(index * 90).duration(300)}
+                >
+                  <Pressable
+                    style={styles.hangoutCard}
+                    onPress={() =>
+                      hangout.id.startsWith("figma-")
+                        ? router.push("/hangout")
+                        : router.push({ pathname: "/plan-details", params: { id: hangout.id } })
+                    }
+                  >
+                    {/* Top Photo & Badges */}
+                    <View style={styles.cardImageContainer}>
+                      <Image
+                        source={hangout.image}
+                        style={styles.hangoutCardImage}
+                        resizeMode="cover"
+                      />
+
+                      {/* Favorite Button */}
+                      <Pressable
+                        onPress={() => toggleFavorite(hangout.id)}
+                        hitSlop={8}
+                        style={styles.cardHeartBtn}
+                      >
+                        <Ionicons
+                          name={isFav ? "heart" : "heart-outline"}
+                          size={19}
+                          color={isFav ? "#FF3B5C" : "#FFFFFF"}
+                        />
+                      </Pressable>
+                    </View>
+
+                    {/* Card Content */}
+                    <View style={styles.cardBody}>
+                      <Text style={styles.cardTitle} numberOfLines={1}>
+                        {hangout.title}
+                      </Text>
+                      <Text style={styles.cardMeta} numberOfLines={1}>
+                        {hangout.timeLocation}
+                      </Text>
+
+                      {/* Pill Action Buttons */}
+                      <View style={styles.cardActionsRow}>
+                        <View style={[styles.cardTagPill, { backgroundColor: hangout.tagBg }]}>
+                          <Text style={styles.cardTagEmoji}>{hangout.tagEmoji}</Text>
+                          <Text
+                            style={[
+                              styles.cardTagText,
+                              { color: hangout.tagColor },
+                            ]}
+                          >
+                            {hangout.tagLabel}
+                          </Text>
+                        </View>
+
+                        <Pressable
+                          onPress={() => handleJoin(hangout)}
+                          style={[
+                            styles.cardJoinBtn,
+                            {
+                              backgroundColor: isJoined
+                                ? "rgba(34,197,94,0.2)"
+                                : hangout.joinBg,
+                              borderColor: isJoined
+                                ? "rgba(34,197,94,0.5)"
+                                : hangout.joinBorder,
+                            },
+                          ]}
+                        >
+                          <Ionicons
+                            name={isJoined ? "checkmark-circle" : "time-outline"}
+                            size={13}
+                            color={isJoined ? "#22C55E" : hangout.joinColor}
+                          />
+                          <Text
+                            style={[
+                              styles.cardJoinText,
+                              {
+                                color: isJoined ? "#22C55E" : hangout.joinColor,
+                              },
+                            ]}
+                          >
+                            {isJoined ? "Joined" : "Join Now"}
+                          </Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  </Pressable>
+                </Animated.View>
+              );
+            })}
+
+          </ScrollView>
+        </Animated.View>
+
+        {/* ── 5. STRESS OFF / CHAI ON TOGGLE WIDGET ── */}
+        <ChaiToggleWidget />
+
+        {/* ── 6. BOTTOM HOME GIF ── */}
+        <View style={styles.bottomGifWrap}>
+          <Image
+            source={homeGif}
+            style={styles.bottomGifImage}
+            resizeMode="contain"
+          />
+        </View>
+      </ScrollView>
     </View>
   );
 }
 
-const CARD_W = Math.min(188, SCREEN_W * 0.46);
-
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: T.bg },
-  foreground: { flex: 1, zIndex: 1, backgroundColor: "transparent" },
-  scroll: {
-    paddingHorizontal: 18,
-    paddingTop: 12,
-    paddingBottom: 20,
+  root: {
+    flex: 1,
+    backgroundColor: "#070A13",
+  },
+  scrollContent: {
+    paddingTop: 8,
   },
 
-  block: { marginBottom: 22 },
-  sectionHead: {
+  // ── Header ──
+  header: {
+    paddingHorizontal: 20,
+    paddingBottom: 14,
     flexDirection: "row",
-    alignItems: "flex-end",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#070A13",
+  },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  logoImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  headerTextCol: {
+    justifyContent: "center",
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontFamily: VibeFonts.extraBold,
+    color: "#FFFFFF",
+    letterSpacing: -0.4,
+  },
+  headerSubtitle: {
+    fontSize: 12.5,
+    fontFamily: VibeFonts.medium,
+    color: "#94A3B8",
+    marginTop: 1,
+  },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  iconCircleBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  notifBadgeDot: {
+    position: "absolute",
+    top: 8,
+    right: 9,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#FF2A55",
+    borderWidth: 1.5,
+    borderColor: "#070A13",
+  },
+  avatarWrap: {
+    position: "relative",
+  },
+  avatarImage: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.12)",
+  },
+  onlineDot: {
+    position: "absolute",
+    bottom: -1,
+    right: -1,
+    width: 13,
+    height: 13,
+    borderRadius: 6.5,
+    backgroundColor: "#22C55E",
+    borderWidth: 2,
+    borderColor: "#070A13",
+  },
+
+  // ── Hero Card ──
+  heroWrap: {
+    paddingHorizontal: 20,
+    marginTop: 6,
+    marginBottom: 20,
+  },
+  heroCard: {
+    width: "100%",
+    borderRadius: 22,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "#0F1424",
+  },
+  heroImage: {
+    width: "100%",
+    height: (SCREEN_W - 40) * (365 / 724),
+  },
+
+  // ── Section Common ──
+  sectionWrap: {
+    marginBottom: 22,
+  },
+  sectionHeader: {
+    paddingHorizontal: 20,
+    flexDirection: "row",
+    alignItems: "flex-start",
     justifyContent: "space-between",
     marginBottom: 12,
   },
-  sectionGreen: {
-    fontSize: 12,
+  sectionTitle: {
+    fontSize: 18.5,
     fontFamily: VibeFonts.extraBold,
-    color: "#34D399",
-    letterSpacing: 0.8,
+    color: "#FFFFFF",
+    letterSpacing: -0.3,
   },
-  sectionPink: {
-    fontSize: 12,
-    fontFamily: VibeFonts.extraBold,
-    color: T.pink,
-    letterSpacing: 0.8,
-  },
-  sectionPurple: {
-    fontSize: 12,
-    fontFamily: VibeFonts.extraBold,
-    color: T.purple,
-    letterSpacing: 0.8,
-  },
-  sectionBig: {
-    fontSize: 22,
-    fontFamily: VibeFonts.extraBold,
-    color: T.ink,
-    letterSpacing: -0.4,
+  sectionSubtitle: {
+    fontSize: 12.5,
+    fontFamily: VibeFonts.medium,
+    color: "#94A3B8",
     marginTop: 2,
   },
-  pickVibeTitle: {
-    fontSize: 16,
-    fontFamily: VibeFonts.extraBold,
-    color: T.ink,
-    letterSpacing: -0.2,
-  },
-  sectionHighlight: {
-    backgroundColor: "#FEF08A",
-    color: "#0F172A",
-    overflow: "hidden",
-  },
-  seeAllPill: {
-    backgroundColor: T.softPurple,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 999,
-  },
-  seeAllPillText: {
-    fontSize: 12,
-    fontFamily: VibeFonts.bold,
-    color: T.purple,
-  },
-  seeAllPillPink: {
-    backgroundColor: "rgba(244, 114, 182, 0.18)",
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 999,
-  },
-  seeAllPillPinkText: {
-    fontSize: 12,
-    fontFamily: VibeFonts.bold,
-    color: T.pink,
-  },
-
-  vibeGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  vibeCell: {
-    width: (SCREEN_W - 36 - 16) / 3,
-  },
-  vibeTile: {
-    borderRadius: 14,
-    overflow: "hidden",
-    backgroundColor: T.card,
-    borderWidth: 1,
-    borderColor: T.border,
-  },
-  vibeGrad: {
-    height: 78,
-    paddingHorizontal: 6,
-    paddingVertical: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "transparent",
-    gap: 4,
-  },
-  vibeIcon: {
-    width: 36,
-    height: 36,
-  },
-  vibeTitle: {
-    fontSize: 11,
-    fontFamily: VibeFonts.bold,
-    color: "#fff",
-    textAlign: "center",
-  },
-
-  heroStack: { gap: 12, marginBottom: 20 },
-  beaconCardWrap: {
-    borderRadius: 22,
-    overflow: "hidden",
-    shadowColor: "#DB2777",
-    shadowOpacity: 0.3,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 6,
-  },
-  beaconCard: {
+  seeAllRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 14,
-    paddingLeft: 16,
-    paddingRight: 4,
-    minHeight: 128,
-    overflow: "hidden",
+    gap: 2,
+    paddingTop: 3,
   },
-  beaconDecorBlob: {
-    position: "absolute",
-    right: -28,
-    top: -36,
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    backgroundColor: "rgba(255,255,255,0.12)",
-  },
-  beaconCopy: {
-    flex: 1.4,
-    zIndex: 2,
-    paddingRight: 6,
-    maxWidth: "62%",
-  },
-  beaconLivePill: {
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    backgroundColor: "rgba(15,23,42,0.28)",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    marginBottom: 6,
-  },
-  beaconLiveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#86EFAC",
-  },
-  beaconLiveText: {
-    fontSize: 9,
-    fontFamily: VibeFonts.extraBold,
-    color: "#fff",
-    letterSpacing: 0.8,
-  },
-  beaconTitle: {
-    fontSize: 17,
-    fontFamily: VibeFonts.extraBold,
-    color: "#fff",
-  },
-  beaconSub: {
-    marginTop: 4,
-    fontSize: 12,
-    fontFamily: VibeFonts.medium,
-    color: "rgba(255,255,255,0.9)",
-    lineHeight: 16,
-    marginBottom: 10,
-  },
-  beaconCta: {
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    backgroundColor: "#fff",
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 16,
-  },
-  beaconCtaText: {
-    fontSize: 12,
-    fontFamily: VibeFonts.bold,
-    color: "#9D174D",
-  },
-  beaconArt: {
-    width: 118,
-    height: 118,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  beaconPulseRing: {
-    position: "absolute",
-    width: 78,
-    height: 78,
-    borderRadius: 39,
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.55)",
-  },
-  beacon3dMain: { width: 92, height: 92 },
-  beacon3dPin: {
-    position: "absolute",
-    width: 34,
-    height: 34,
-    bottom: 8,
-    right: 6,
-  },
-
-  planHeroCard: {
-    borderRadius: 22,
-    paddingVertical: 14,
-    paddingLeft: 16,
-    paddingRight: 4,
-    flexDirection: "row",
-    overflow: "hidden",
-    minHeight: 140,
-    alignItems: "center",
-  },
-  planHeroLeft: {
-    flex: 1.5,
-    zIndex: 2,
-    maxWidth: "62%",
-    paddingRight: 6,
-  },
-  planHeroPill: {
-    alignSelf: "flex-start",
-    backgroundColor: "rgba(255,255,255,0.18)",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    marginBottom: 6,
-  },
-  planHeroPillText: {
-    fontSize: 9,
-    fontFamily: VibeFonts.extraBold,
-    color: "#fff",
-    letterSpacing: 0.6,
-  },
-  planHeroTitle: {
-    fontSize: 20,
-    fontFamily: VibeFonts.extraBold,
-    color: "#fff",
-    lineHeight: 24,
-  },
-  planHeroSub: {
-    fontSize: 12,
-    fontFamily: VibeFonts.medium,
-    color: "rgba(255,255,255,0.88)",
-    marginTop: 4,
-    marginBottom: 10,
-  },
-  planHeroBtn: {
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "#fff",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 18,
-  },
-  planHeroBtnText: {
-    color: "#6D28D9",
-    fontSize: 12,
-    fontFamily: VibeFonts.bold,
-  },
-  planHeroImage: {
-    width: 110,
-    height: 128,
-    marginRight: -4,
-    marginBottom: -10,
-  },
-
-  onlineBlock: {
-    marginBottom: 22,
-    borderRadius: 22,
-    overflow: "hidden",
-    backgroundColor: T.card,
-    borderWidth: 1,
-    borderColor: T.border,
-  },
-  onlineInner: {
-    padding: 14,
-    paddingBottom: 10,
-  },
-  stories: {
-    gap: 4,
-    paddingRight: 8,
-    alignItems: "center",
-  },
-  emptyInline: {
+  seeAllText: {
     fontSize: 13,
-    fontFamily: VibeFonts.medium,
-    color: T.muted,
-    paddingVertical: 12,
-    paddingRight: 24,
+    fontFamily: VibeFonts.semiBold,
+    color: "#94A3B8",
   },
 
-  emptyPlan: {
-    alignItems: "center",
-    backgroundColor: T.card,
-    borderRadius: 22,
-    borderWidth: 2,
-    borderColor: T.border,
-    borderStyle: "dashed",
-    paddingVertical: 28,
+  // ── Vibes Carousel ──
+  vibesScroll: {
     paddingHorizontal: 20,
-    gap: 4,
+    gap: 10,
   },
-  emptyPlanTitle: {
-    fontSize: 16,
-    fontFamily: VibeFonts.extraBold,
-    color: T.ink,
-    marginTop: 6,
+  vibeCard: {
+    width: 70,
+    height: 80,
+    borderRadius: 16,
+    backgroundColor: "#111625",
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.07)",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
   },
-  emptyPlanSub: {
-    fontSize: 13,
-    fontFamily: VibeFonts.medium,
-    color: T.muted,
-    textAlign: "center",
-    marginBottom: 10,
+  vibeCardActive: {
+    backgroundColor: "rgba(34,211,238,0.1)",
+    borderColor: "#22D3EE",
   },
-  emptyCta: {
-    backgroundColor: T.purple,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: 999,
+  vibeIconWrap: {
+    width: 46,
+    height: 46,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  emptyCtaText: {
-    color: "#fff",
-    fontSize: 13,
+  vibeCustomIcon: {
+    width: 44,
+    height: 44,
+  },
+  vibeLabel: {
+    fontSize: 11,
+    fontFamily: VibeFonts.semiBold,
+    color: "#94A3B8",
+  },
+  vibeLabelActive: {
+    color: "#22D3EE",
     fontFamily: VibeFonts.bold,
   },
 
-  planScroll: { gap: 12, paddingRight: 8 },
-  planCard: {
-    width: CARD_W,
-    height: 230,
-    borderRadius: 22,
-    overflow: "hidden",
-    backgroundColor: T.card,
-    shadowColor: "#7C3AED",
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+  // ── Create Hangout Banner ──
+  bannerWrap: {
+    paddingHorizontal: 20,
+    marginBottom: 22,
   },
-  planImage: { width: "100%", height: "100%" },
-  planOverlay: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    padding: 12,
-    paddingTop: 48,
-  },
-  planBadge: {
-    alignSelf: "flex-start",
-    backgroundColor: "#F472B6",
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginBottom: 6,
-  },
-  planBadgeText: {
-    fontSize: 10,
-    fontFamily: VibeFonts.extraBold,
-    color: "#fff",
-  },
-  planTitle: {
-    fontSize: 15,
-    fontFamily: VibeFonts.extraBold,
-    color: "#fff",
-    lineHeight: 19,
-  },
-  planMeta: {
-    marginTop: 4,
-    fontSize: 11,
-    fontFamily: VibeFonts.medium,
-    color: "rgba(255,255,255,0.85)",
-  },
-
-  suggestScroll: { gap: 12, paddingRight: 8 },
-  suggestCard: {
-    width: 148,
-    height: 200,
+  createBannerCard: {
+    width: "100%",
     borderRadius: 20,
     overflow: "hidden",
-    backgroundColor: T.card,
-    shadowColor: "#DB2777",
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "#062227",
   },
-  suggestAvatar: { width: "100%", height: "100%" },
-  suggestOverlay: {
+  createBannerImage: {
+    width: "100%",
+    height: (SCREEN_W - 40) * (262 / 724),
+  },
+
+  // ── Nearby Hangouts ──
+  nearbyTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  liveDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
+    backgroundColor: "#FF3B5C",
+  },
+  hangoutsScroll: {
+    paddingHorizontal: 20,
+    gap: 14,
+  },
+  hangoutCard: {
+    width: 205,
+    borderRadius: 20,
+    backgroundColor: "#0D1322",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    overflow: "hidden",
+  },
+  cardImageContainer: {
+    width: "100%",
+    height: 142,
+    position: "relative",
+    backgroundColor: "#13192B",
+  },
+  hangoutCardImage: {
+    width: "100%",
+    height: "100%",
+  },
+  cardHeartBtn: {
     position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
+    top: 10,
+    right: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dynamicDistanceBadge: {
+    position: "absolute",
+    top: 10,
+    left: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 999,
+  },
+  dynamicDistanceText: {
+    fontSize: 10.5,
+    fontFamily: VibeFonts.bold,
+    color: "#FFFFFF",
+  },
+  cardBody: {
     padding: 12,
-    paddingTop: 40,
   },
-  suggestName: {
+  cardTitle: {
     fontSize: 14,
-    fontFamily: VibeFonts.extraBold,
-    color: "#fff",
+    fontFamily: VibeFonts.bold,
+    color: "#FFFFFF",
   },
-  suggestMeta: {
-    marginTop: 2,
+  cardMeta: {
     fontSize: 11,
     fontFamily: VibeFonts.medium,
-    color: "rgba(255,255,255,0.85)",
+    color: "#94A3B8",
+    marginTop: 2,
+  },
+  cardActionsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 6,
+    marginTop: 10,
+  },
+  cardTagPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4.5,
+    borderRadius: 999,
+  },
+  cardTagEmoji: {
+    fontSize: 11,
+  },
+  cardTagText: {
+    fontSize: 11,
+    fontFamily: VibeFonts.bold,
+  },
+  cardJoinBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 4.5,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  cardJoinText: {
+    fontSize: 11,
+    fontFamily: VibeFonts.bold,
+  },
+  bottomGifWrap: {
+    paddingHorizontal: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
+  },
+  bottomGifImage: {
+    width: SCREEN_W - 40,
+    height: (SCREEN_W - 40) * (450 / 800),
   },
 });

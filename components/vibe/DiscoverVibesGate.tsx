@@ -52,24 +52,6 @@ export type VibeGateCard = {
 
 export const VIBE_GATE_CARDS: VibeGateCard[] = [
   {
-    id: "new",
-    title: "New profiles",
-    reason: "Because they just signed up",
-    reasonIcon: "people",
-    bg: "#C4B5FD",
-    ink: "#18181B",
-    accentShape: "rgba(109,40,217,0.18)",
-    ambient: "#2A1B4A",
-    ambientMid: "#1A1230",
-    titleColor: "#E9D5FF",
-    images: [
-      "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=400&h=500&fit=crop",
-      "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=400&h=500&fit=crop",
-      "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400&h=500&fit=crop",
-    ],
-    mode: "everyone",
-  },
-  {
     id: "sport",
     title: "Sport Zone",
     reason: "Because you like: Swimming",
@@ -86,6 +68,24 @@ export const VIBE_GATE_CARDS: VibeGateCard[] = [
       "https://images.unsplash.com/photo-1461896836934-ffe607ba6851?w=400&h=500&fit=crop",
     ],
     mode: "friends",
+  },
+  {
+    id: "new",
+    title: "New profiles",
+    reason: "Because they just signed up",
+    reasonIcon: "people",
+    bg: "#C4B5FD",
+    ink: "#18181B",
+    accentShape: "rgba(109,40,217,0.18)",
+    ambient: "#2A1B4A",
+    ambientMid: "#1A1230",
+    titleColor: "#E9D5FF",
+    images: [
+      "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=400&h=500&fit=crop",
+      "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=400&h=500&fit=crop",
+      "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400&h=500&fit=crop",
+    ],
+    mode: "everyone",
   },
   {
     id: "sunday",
@@ -324,7 +324,7 @@ export default function DiscoverVibesGate({ badgeCount = 0, onSeeProfiles }: Pro
                   <View style={[styles.cardBlob2, { backgroundColor: item.accentShape }]} />
 
                   <View style={styles.cardArt}>
-                    {item.images.map((uri, imgI) => (
+                    {item.images.map((uri: string, imgI: number) => (
                       <Image
                         key={`${item.id}-${imgI}`}
                         source={{ uri }}

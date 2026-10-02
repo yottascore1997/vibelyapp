@@ -426,12 +426,12 @@ export default function SwipeCard({
                   <View style={styles.modalHero}>
                     <Image source={{ uri: photoList[photoIdx] || avatarUrl }} style={styles.modalImage} />
                     <LinearGradient
-                      colors={["rgba(15,23,42,0.48)", "transparent", "rgba(15,23,42,0.2)", "#F8F9FD"]}
+                      colors={["rgba(7,10,20,0.5)", "transparent", "rgba(7,10,20,0.5)", "#070A14"]}
                       locations={[0, 0.3, 0.7, 1]}
                       style={styles.modalImageGradient}
                     />
                     <LinearGradient
-                      colors={["transparent", "rgba(124,58,237,0.14)", "transparent"]}
+                      colors={["transparent", "rgba(34,211,238,0.12)", "transparent"]}
                       start={{ x: 0.15, y: 0 }}
                       end={{ x: 1, y: 1 }}
                       style={styles.modalWash}
@@ -447,7 +447,7 @@ export default function SwipeCard({
                       </TouchableOpacity>
                       <View style={styles.modalTopRight}>
                         {vibeMatch ? (
-                          <LinearGradient colors={PURPLE_GRAD} style={styles.modalMatchChip}>
+                          <LinearGradient colors={["#D4F72C", "#22D3EE"]} style={styles.modalMatchChip}>
                             <Text style={styles.modalMatchChipText}>{vibeMatch}% match</Text>
                           </LinearGradient>
                         ) : null}
@@ -479,7 +479,7 @@ export default function SwipeCard({
                         </Text>
                         {isVerified ? (
                           <View style={styles.modalVerified}>
-                            <Ionicons name="checkmark" size={12} color="#FFF" />
+                            <Ionicons name="checkmark" size={12} color="#070A14" />
                           </View>
                         ) : null}
                       </View>
@@ -492,14 +492,14 @@ export default function SwipeCard({
 
                       <View style={styles.modalHeroMeta}>
                         <View style={styles.modalMetaChip}>
-                          <Ionicons name="location" size={12} color="#FFF" />
+                          <Ionicons name="location" size={12} color="#22D3EE" />
                           <Text style={styles.modalMetaChipText}>
                             {city ? `${city} · ` : ""}{distance} km
                           </Text>
                         </View>
                         {education ? (
                           <View style={styles.modalMetaChip}>
-                            <Ionicons name="school" size={12} color="#FFF" />
+                            <Ionicons name="school" size={12} color="#D4F72C" />
                             <Text style={styles.modalMetaChipText} numberOfLines={1}>
                               {education}
                             </Text>
@@ -513,7 +513,7 @@ export default function SwipeCard({
                   <View style={styles.modalBody}>
                     {/* Insight strip */}
                     <Animated.View entering={FadeInDown.delay(60).duration(360)} style={styles.insightCard}>
-                      <LinearGradient colors={["#F5F3FF", "#FFFFFF"]} style={styles.insightGrad}>
+                      <LinearGradient colors={["#0D1424", "#131C33"]} style={styles.insightGrad}>
                         <View style={styles.insightScoreWrap}>
                           <Text style={styles.insightScore}>{vibeMatch ?? "—"}</Text>
                           <Text style={styles.insightScoreLabel}>match</Text>
@@ -526,25 +526,25 @@ export default function SwipeCard({
                               <Ionicons
                                 name={freeNow ? "flash" : isOnline ? "radio" : "time"}
                                 size={11}
-                                color={freeNow || isOnline ? "#22C55E" : "#64748B"}
+                                color={freeNow || isOnline ? "#D4F72C" : "#64748B"}
                               />
                               <Text
                                 style={[
                                   styles.insightTagText,
-                                  { color: freeNow || isOnline ? "#22C55E" : "#64748B" },
+                                  { color: freeNow || isOnline ? "#D4F72C" : "#64748B" },
                                 ]}
                               >
                                 {freeNow ? "Free now" : isOnline ? "Online" : formatLastSeenShort(lastSeenAt)}
                               </Text>
                             </View>
                             <View style={styles.insightTag}>
-                              <Ionicons name="navigate" size={11} color="#7C3AED" />
+                              <Ionicons name="navigate" size={11} color="#22D3EE" />
                               <Text style={styles.insightTagText}>{distance} km away</Text>
                             </View>
                             {energy ? (
                               <View style={styles.insightTag}>
-                                <Ionicons name="battery-half" size={11} color="#F59E0B" />
-                                <Text style={styles.insightTagText}>{energy}</Text>
+                                <Ionicons name="battery-half" size={11} color="#FACC15" />
+                                <Text style={[styles.insightTagText, { color: "#FACC15" }]}>{energy}</Text>
                               </View>
                             ) : null}
                           </View>
@@ -567,7 +567,7 @@ export default function SwipeCard({
                         <View style={styles.factsRow}>
                           {jobTitle ? (
                             <View style={styles.factPill}>
-                              <Ionicons name="briefcase" size={13} color="#7C3AED" />
+                              <Ionicons name="briefcase" size={13} color="#22D3EE" />
                               <Text style={styles.factText} numberOfLines={1}>
                                 {jobTitle}
                               </Text>
@@ -575,14 +575,14 @@ export default function SwipeCard({
                           ) : null}
                           {education ? (
                             <View style={styles.factPill}>
-                              <Ionicons name="school" size={13} color="#7C3AED" />
+                              <Ionicons name="school" size={13} color="#D4F72C" />
                               <Text style={styles.factText} numberOfLines={1}>
                                 {education}
                               </Text>
                             </View>
                           ) : null}
                           <View style={styles.factPill}>
-                            <Ionicons name="location" size={13} color="#7C3AED" />
+                            <Ionicons name="location" size={13} color="#22D3EE" />
                             <Text style={styles.factText}>
                               {city || "Nagpur"} · {distance} km
                             </Text>
@@ -615,13 +615,13 @@ export default function SwipeCard({
                     {/* Prompt */}
                     <Animated.View entering={FadeInDown.delay(240).duration(360)} style={styles.promptCard}>
                       <LinearGradient
-                        colors={["#F5F3FF", "#ECFDF5"]}
+                        colors={["#0D1424", "#131C33"]}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                         style={styles.promptGrad}
                       >
                         <View style={styles.promptIcon}>
-                          <Ionicons name="sparkles" size={16} color="#7C3AED" />
+                          <Ionicons name="sparkles" size={16} color="#D4F72C" />
                         </View>
                         <View style={{ flex: 1 }}>
                           <Text style={styles.promptTitle}>Make the first move</Text>
@@ -644,7 +644,7 @@ export default function SwipeCard({
                     }}
                     activeOpacity={0.88}
                   >
-                    <Ionicons name="close" size={26} color="#64748B" />
+                    <Ionicons name="close" size={24} color="#94A3B8" />
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -655,7 +655,7 @@ export default function SwipeCard({
                     }}
                     activeOpacity={0.88}
                   >
-                    <Ionicons name="star" size={20} color="#7C3AED" />
+                    <Ionicons name="star" size={18} color="#FACC15" />
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -666,8 +666,8 @@ export default function SwipeCard({
                     }}
                     activeOpacity={0.88}
                   >
-                    <LinearGradient colors={PURPLE_GRAD} style={styles.modalLikeGrad}>
-                      <Ionicons name="heart" size={24} color="#FFFFFF" />
+                    <LinearGradient colors={["#D4F72C", "#22D3EE"]} style={styles.modalLikeGrad}>
+                      <Ionicons name="heart" size={22} color="#070A14" />
                       <Text style={styles.modalLikeText}>Like</Text>
                     </LinearGradient>
                   </TouchableOpacity>
@@ -870,36 +870,43 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   actionBtn: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 62,
+    height: 62,
+    borderRadius: 31,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FFFFFF",
-    shadowColor: "#8A56FF",
+    backgroundColor: "#0D1424",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.14,
+    shadowOpacity: 0.35,
     shadowRadius: 10,
     elevation: 5,
   },
   passBtn: {
-    // Solid white circle, no red background!
+    // dark action button
   },
   starBtn: { 
     width: 48, 
     height: 48, 
     borderRadius: 24,
-    backgroundColor: "#FFFFFF",
-    shadowColor: "#8A56FF",
+    backgroundColor: "#0D1424",
+    borderWidth: 1,
+    borderColor: "rgba(250, 204, 21, 0.25)",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
   likeBtn: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: "#0D1424",
+    borderWidth: 1,
+    borderColor: "rgba(212, 247, 44, 0.3)",
   },
 
   // MODAL DETAILS — premium Hangout profile sheet
@@ -908,14 +915,14 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.55)",
+    backgroundColor: "rgba(7, 10, 20, 0.75)",
     justifyContent: "flex-end",
   },
   dismissOverlay: {
     ...StyleSheet.absoluteFillObject,
   },
   modalSheet: {
-    backgroundColor: "#F8F9FD",
+    backgroundColor: "#070A14",
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     height: "100%",
@@ -926,7 +933,7 @@ const styles = StyleSheet.create({
   modalHero: {
     width: "100%",
     height: Math.min(SCREEN_H * 0.48, 420),
-    backgroundColor: "#1E1B4B",
+    backgroundColor: "#070A14",
   },
   modalImage: {
     width: "100%",
@@ -958,10 +965,10 @@ const styles = StyleSheet.create({
   modalGlassBtn: {
     width: 42,
     height: 42,
-    borderRadius: 15,
-    backgroundColor: "rgba(15,23,42,0.3)",
+    borderRadius: 21,
+    backgroundColor: "rgba(255,255,255,0.08)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.22)",
+    borderColor: "rgba(255,255,255,0.12)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -971,7 +978,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   modalMatchChipText: {
-    color: "#FFF",
+    color: "#070A14",
     fontSize: 11,
     fontFamily: VibeFonts.extraBold,
   },
@@ -1038,7 +1045,7 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: "#7C3AED",
+    backgroundColor: "#22D3EE",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
@@ -1060,9 +1067,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    backgroundColor: "rgba(15,23,42,0.32)",
+    backgroundColor: "rgba(13,20,36,0.85)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
+    borderColor: "rgba(255,255,255,0.1)",
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
@@ -1077,7 +1084,7 @@ const styles = StyleSheet.create({
     marginTop: -18,
     paddingHorizontal: 18,
     gap: 18,
-    backgroundColor: "#F8F9FD",
+    backgroundColor: "#070A14",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: 18,
@@ -1086,7 +1093,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "#EDE7FF",
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    backgroundColor: "#0D1424",
   },
   insightGrad: {
     flexDirection: "row",
@@ -1098,16 +1106,16 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: "#FFF",
-    borderWidth: 3,
-    borderColor: "#DDD6FE",
+    backgroundColor: "#070A14",
+    borderWidth: 2.5,
+    borderColor: "#22D3EE",
     alignItems: "center",
     justifyContent: "center",
   },
   insightScore: {
     fontSize: 18,
     fontFamily: VibeFonts.extraBold,
-    color: "#7C3AED",
+    color: "#22D3EE",
     letterSpacing: -0.4,
   },
   insightScoreLabel: {
@@ -1121,7 +1129,7 @@ const styles = StyleSheet.create({
   insightTitle: {
     fontSize: 15,
     fontFamily: VibeFonts.extraBold,
-    color: "#18181B",
+    color: "#FFFFFF",
     letterSpacing: -0.2,
   },
   insightSub: {
@@ -1129,7 +1137,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
     fontFamily: VibeFonts.medium,
-    color: "#64748B",
+    color: "#94A3B8",
   },
   insightTags: {
     flexDirection: "row",
@@ -1141,7 +1149,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "#F3E8FF",
+    backgroundColor: "rgba(34, 211, 238, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(34, 211, 238, 0.2)",
     paddingHorizontal: 9,
     paddingVertical: 5,
     borderRadius: 999,
@@ -1149,7 +1159,7 @@ const styles = StyleSheet.create({
   insightTagText: {
     fontSize: 11,
     fontFamily: VibeFonts.bold,
-    color: "#7C3AED",
+    color: "#22D3EE",
   },
   modalSection: {
     gap: 10,
@@ -1157,13 +1167,13 @@ const styles = StyleSheet.create({
   modalSectionTitle: {
     fontSize: 16,
     fontFamily: VibeFonts.extraBold,
-    color: "#18181B",
+    color: "#FFFFFF",
     letterSpacing: -0.2,
   },
   modalBioText: {
     fontSize: 14,
     fontFamily: VibeFonts.medium,
-    color: "#334155",
+    color: "#94A3B8",
     lineHeight: 21,
   },
   factsRow: {
@@ -1175,9 +1185,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#0D1424",
     borderWidth: 1,
-    borderColor: "#EDE7FF",
+    borderColor: "rgba(255, 255, 255, 0.08)",
     paddingHorizontal: 12,
     paddingVertical: 9,
     borderRadius: 999,
@@ -1186,7 +1196,7 @@ const styles = StyleSheet.create({
   factText: {
     fontSize: 12,
     fontFamily: VibeFonts.bold,
-    color: "#18181B",
+    color: "#FFFFFF",
     flexShrink: 1,
   },
   interestsGrid: {
@@ -1198,19 +1208,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: Radius.full,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#0D1424",
     borderWidth: 1,
-    borderColor: "#EDE7FF",
+    borderColor: "rgba(255, 255, 255, 0.08)",
   },
   interestPillText: {
     fontSize: 12,
     fontFamily: VibeFonts.bold,
-    color: "#18181B",
+    color: "#FFFFFF",
   },
   promptCard: {
     borderRadius: 18,
     overflow: "hidden",
     marginBottom: 4,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
   },
   promptGrad: {
     flexDirection: "row",
@@ -1222,21 +1234,23 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 13,
-    backgroundColor: "rgba(255,255,255,0.9)",
+    backgroundColor: "rgba(212, 247, 44, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(212, 247, 44, 0.25)",
     alignItems: "center",
     justifyContent: "center",
   },
   promptTitle: {
     fontSize: 13.5,
     fontFamily: VibeFonts.extraBold,
-    color: "#18181B",
+    color: "#FFFFFF",
   },
   promptSub: {
     marginTop: 2,
     fontSize: 12,
     lineHeight: 16,
     fontFamily: VibeFonts.medium,
-    color: "#64748B",
+    color: "#94A3B8",
   },
   modalFooterActions: {
     position: "absolute",
@@ -1249,27 +1263,27 @@ const styles = StyleSheet.create({
     gap: 14,
     paddingTop: 14,
     paddingHorizontal: 20,
-    backgroundColor: "#F8F9FD",
+    backgroundColor: "rgba(7, 10, 20, 0.96)",
     borderTopWidth: 1,
-    borderTopColor: "#EDE7FF",
+    borderTopColor: "rgba(255, 255, 255, 0.08)",
   },
   modalPassBtn: {
     width: 54,
     height: 54,
-    borderRadius: 18,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1.5,
-    borderColor: "#E2E8F0",
+    borderRadius: 27,
+    backgroundColor: "#0D1424",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
     alignItems: "center",
     justifyContent: "center",
   },
   modalStarBtn: {
     width: 48,
     height: 48,
-    borderRadius: 16,
-    backgroundColor: "#F3E8FF",
+    borderRadius: 24,
+    backgroundColor: "#0D1424",
     borderWidth: 1,
-    borderColor: "#DDD6FE",
+    borderColor: "rgba(250, 204, 21, 0.3)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1277,7 +1291,7 @@ const styles = StyleSheet.create({
     flex: 1,
     maxWidth: 180,
     height: 54,
-    borderRadius: 18,
+    borderRadius: 27,
     overflow: "hidden",
   },
   modalLikeGrad: {
@@ -1288,7 +1302,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   modalLikeText: {
-    color: "#FFF",
+    color: "#070A14",
     fontSize: 15,
     fontFamily: VibeFonts.extraBold,
   },

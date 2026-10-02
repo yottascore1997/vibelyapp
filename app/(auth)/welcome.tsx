@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   View,
   Text,
@@ -6,7 +6,6 @@ import {
   Pressable,
   Dimensions,
   Image,
-  ImageBackground,
   FlatList,
   NativeSyntheticEvent,
   NativeScrollEvent,
@@ -16,474 +15,363 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
-import { useFonts, Satisfy_400Regular } from "@expo-google-fonts/satisfy";
 import { VibeFonts } from "../../constants/vibeTheme";
 
-/**
- * Hero = Figma crop. Copy / CTA / footer = coded, device-stable.
- */
-
 const { width: W, height: H } = Dimensions.get("window");
-
 const FW = 402;
-const FH = 874;
-const STATUS = 48;
-const COPY_START = 520;
-
-/** Same scale on every device (width-locked, no topPad drift) */
 const s = W / FW;
-const fx = (n: number) => n * s;
-const fy = (n: number) => (n - STATUS) * s;
+const fx = (n: number) => Math.round(n * s);
 
-const welcomeFull = require("../../assets/onboarding/welcome-full.png");
-const loveFull = require("../../assets/onboarding/love-full.png");
-const peopleFull = require("../../assets/onboarding/people-full.png");
-const bgSpotlight = require("../../assets/onboarding/bg-spotlight.png");
-const pinkBrush = require("../../assets/onboarding/pink-brush.png");
+const heroPeople = require("../../assets/onboarding/hero-people.png");
+const heroHangouts = require("../../assets/onboarding/hero-hangouts.png");
+const heroCreate = require("../../assets/onboarding/hero-create.png");
+const heroFinal = require("../../assets/onboarding/figma-onboarding-4.png");
 
-type OnboardKey = "love" | "people";
-const ONBOARD: OnboardKey[] = ["love", "people"];
-
-function TypingWord({
-  text,
-  active,
-  fontSize = 34,
-  msPerChar = 65,
-  fontReady,
-}: {
-  text: string;
-  active: boolean;
-  fontSize?: number;
-  msPerChar?: number;
-  fontReady: boolean;
-}) {
-  const [shown, setShown] = useState("");
-
-  useEffect(() => {
-    if (!active || !fontReady) {
-      setShown(active && fontReady ? "" : active ? text : "");
-      return;
-    }
-    setShown("");
-    let i = 0;
-    const id = setInterval(() => {
-      i += 1;
-      setShown(text.slice(0, i));
-      if (i >= text.length) clearInterval(id);
-    }, msPerChar);
-    return () => clearInterval(id);
-  }, [active, text, msPerChar, fontReady]);
-
-  const display = fontReady ? (shown.length ? shown : " ") : text;
-  const size = fx(fontSize);
-
-  return (
-    <ImageBackground
-      source={pinkBrush}
-      resizeMode="stretch"
-      style={styles.scriptChip}
-      imageStyle={styles.scriptBrushImg}
-    >
-      <Text
-        numberOfLines={1}
-        style={[
-          styles.scriptText,
-          {
-            fontSize: size,
-            lineHeight: size * 1.4,
-            fontFamily: fontReady ? "Satisfy_400Regular" : VibeFonts.extraBold,
-            fontStyle: fontReady ? "normal" : "italic",
-          },
-        ]}
-      >
-        {display}
-      </Text>
-    </ImageBackground>
-  );
+interface OnboardingSlide {
+  id: string;
+  type: "standard" | "final";
+  title?: string;
+  highlight?: string;
+  subtitle: string;
+  hero: any;
 }
 
-function HeroShot({ source }: { source: number }) {
-  const clipH = (COPY_START - STATUS) * s;
-  return (
-    <View style={[styles.frameClip, { height: clipH }]}>
-      <Image
-        source={source}
-        style={{ width: W, height: FH * s, marginTop: -STATUS * s }}
-        resizeMode="stretch"
-      />
-    </View>
-  );
-}
-
-function ScreenShell({ children }: { children: React.ReactNode }) {
-  return (
-    <View style={styles.page}>
-      <View style={styles.bgFill} />
-      <Image source={bgSpotlight} style={styles.bgImage} resizeMode="cover" />
-      {children}
-    </View>
-  );
-}
-
-function PageWelcome({
-  onStart,
-  fontReady,
-  bottomPad,
-}: {
-  onStart: () => void;
-  fontReady: boolean;
-  bottomPad: number;
-}) {
-  return (
-    <ScreenShell>
-      <HeroShot source={welcomeFull} />
-
-      <View style={[styles.bottomStack, { paddingBottom: bottomPad + fx(12) }]}>
-        <View style={styles.copyBlockLeft}>
-          <Text style={styles.h1Left}>Make Plans</Text>
-          <View style={styles.rowNowrap}>
-            <Text style={styles.h1Left}>Make </Text>
-            <TypingWord text="Memories" active fontReady={fontReady} fontSize={34} />
-          </View>
-          <Text style={styles.subLeft}>
-            Find your people, discover new experiences into real-life hangouts.
-          </Text>
-        </View>
-
-        <Pressable
-          onPress={onStart}
-          style={styles.ctaPress}
-          accessibilityRole="button"
-          accessibilityLabel="Get Started"
-        >
-          <LinearGradient colors={["#93BEFF", "#0166FF"]} style={styles.ctaBtn}>
-            <Text style={styles.ctaText}>Get Started</Text>
-          </LinearGradient>
-        </Pressable>
-      </View>
-    </ScreenShell>
-  );
-}
-
-function PageLove({ active, fontReady }: { active: boolean; fontReady: boolean }) {
-  return (
-    <ScreenShell>
-      <HeroShot source={loveFull} />
-
-      <View style={styles.copyBlockCenter}>
-        <Text style={[styles.h1, styles.center]}>Everything You Love</Text>
-        <View style={styles.rowNowrapCenter}>
-          <Text style={styles.h1Soft}>all in </Text>
-          <TypingWord text="One Place" active={active} fontReady={fontReady} fontSize={32} />
-        </View>
-        <Text style={[styles.sub, styles.center]}>
-          Discover people, create plans{"\n"}Vibe together
-        </Text>
-      </View>
-    </ScreenShell>
-  );
-}
-
-function PagePeople({ active, fontReady }: { active: boolean; fontReady: boolean }) {
-  return (
-    <ScreenShell>
-      <HeroShot source={peopleFull} />
-
-      <View style={styles.copyBlockCenter}>
-        <Text style={[styles.h1, styles.center]}>Your People, Your</Text>
-        <View style={styles.rowNowrapCenter}>
-          <Text style={styles.h1}>Vibe Your </Text>
-          <TypingWord text="Hangout" active={active} fontReady={fontReady} fontSize={32} />
-        </View>
-        <Text style={[styles.sub, styles.center]}>
-          Join a community that's always{"\n"}up to something fun
-        </Text>
-      </View>
-    </ScreenShell>
-  );
-}
-
-function OnboardFooter({
-  index,
-  onSkip,
-  onNext,
-  bottomPad,
-}: {
-  index: number;
-  onSkip: () => void;
-  onNext: () => void;
-  bottomPad: number;
-}) {
-  const activeDot = index + 1;
-  return (
-    <View style={[styles.footerBar, { paddingBottom: Math.max(bottomPad, 16) }]}>
-      <Pressable onPress={onSkip} hitSlop={12} style={styles.skipHit}>
-        <Text style={styles.skip}>Skip</Text>
-      </Pressable>
-      <View style={styles.dotsRow}>
-        {[0, 1, 2].map((i) => (
-          <View key={i} style={[styles.dot, i === activeDot && styles.dotOn]} />
-        ))}
-      </View>
-      <Pressable onPress={onNext} style={styles.nextHit} accessibilityLabel="Next">
-        <View style={styles.nextRing}>
-          <LinearGradient colors={["#93BEFF", "#0166FF"]} style={styles.nextInner}>
-            <Ionicons name="chevron-forward" size={fx(22)} color="#fff" />
-          </LinearGradient>
-        </View>
-      </Pressable>
-    </View>
-  );
-}
+const SLIDES: OnboardingSlide[] = [
+  {
+    id: "people",
+    type: "standard",
+    title: "Meet Real People",
+    highlight: "Beyond Screens",
+    subtitle: "Find like-minded people, make new\nfriends and turn chats into real hangouts.",
+    hero: heroPeople,
+  },
+  {
+    id: "hangouts",
+    type: "standard",
+    title: "Find Hangouts",
+    highlight: "For Every Mood",
+    subtitle: "Find like-minded people, make new\nfriends and turn chats into real hangouts.",
+    hero: heroHangouts,
+  },
+  {
+    id: "create",
+    type: "standard",
+    title: "Create Your Own",
+    highlight: "Hangout",
+    subtitle: "Find like-minded people, make new\nfriends and turn chats into real hangouts.",
+    hero: heroCreate,
+  },
+  {
+    id: "final",
+    type: "final",
+    title: "Hangout",
+    subtitle: "Meet. Vibe. Make it Real.",
+    hero: heroFinal,
+  },
+];
 
 export default function WelcomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const listRef = useRef<FlatList>(null);
-  const [started, setStarted] = useState(false);
-  const [onboardIndex, setOnboardIndex] = useState(0);
-  const [fontReady] = useFonts({ Satisfy_400Regular });
+  const [currentIndex, setCurrentIndex] = useState(0);
 
   const goLogin = () => router.replace("/(auth)/login");
 
   const goNext = () => {
-    if (onboardIndex >= ONBOARD.length - 1) {
+    if (currentIndex >= SLIDES.length - 1) {
       goLogin();
       return;
     }
-    const next = onboardIndex + 1;
+    const next = currentIndex + 1;
     listRef.current?.scrollToIndex({ index: next, animated: true });
-    setOnboardIndex(next);
+    setCurrentIndex(next);
   };
 
   const onScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const i = Math.round(e.nativeEvent.contentOffset.x / W);
-    if (i !== onboardIndex) setOnboardIndex(i);
+    if (i >= 0 && i < SLIDES.length && i !== currentIndex) {
+      setCurrentIndex(i);
+    }
   };
 
-  const bottomPad = Math.max(insets.bottom, 12);
+  const isFinalSlide = currentIndex === SLIDES.length - 1;
 
   return (
     <View style={styles.root}>
       <StatusBar style="light" />
 
-      {!started ? (
-        <PageWelcome
-          onStart={() => setStarted(true)}
-          fontReady={!!fontReady}
-          bottomPad={bottomPad}
-        />
-      ) : (
-        <View style={styles.root}>
-          <FlatList
-            ref={listRef}
-            style={styles.list}
-            data={ONBOARD}
-            horizontal
-            pagingEnabled
-            bounces={false}
-            overScrollMode="never"
-            showsHorizontalScrollIndicator={false}
-            keyExtractor={(k) => k}
-            onMomentumScrollEnd={onScrollEnd}
-            getItemLayout={(_, i) => ({ length: W, offset: W * i, index: i })}
-            renderItem={({ item, index }) => (
+      {/* Top Skip Button */}
+      <View style={[styles.topBar, { top: Math.max(insets.top + 6, 44) }]}>
+        <Pressable
+          onPress={goLogin}
+          hitSlop={16}
+          style={styles.skipBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Skip onboarding"
+        >
+          <Text style={styles.skipText}>Skip</Text>
+        </Pressable>
+      </View>
+
+      {/* Swipable Carousel */}
+      <FlatList
+        ref={listRef}
+        style={styles.list}
+        data={SLIDES}
+        horizontal
+        pagingEnabled
+        bounces={false}
+        overScrollMode="never"
+        showsHorizontalScrollIndicator={false}
+        keyExtractor={(item) => item.id}
+        onMomentumScrollEnd={onScrollEnd}
+        getItemLayout={(_, i) => ({ length: W, offset: W * i, index: i })}
+        renderItem={({ item }) => {
+          if (item.type === "final") {
+            return (
               <View style={styles.slide}>
-                {item === "love" ? (
-                  <PageLove active={onboardIndex === index} fontReady={!!fontReady} />
-                ) : (
-                  <PagePeople active={onboardIndex === index} fontReady={!!fontReady} />
-                )}
+                <Image source={item.hero} style={styles.fullBgImage} resizeMode="cover" />
+                <LinearGradient
+                  colors={["transparent", "rgba(5, 7, 15, 0.45)", "rgba(5, 7, 15, 0.95)"]}
+                  style={styles.finalGradientOverlay}
+                />
+                <View style={[styles.finalContentBlock, { bottom: insets.bottom + fx(110) }]}>
+                  <Text style={styles.finalTitle}>{item.title}</Text>
+                  <Text style={styles.finalSubtitle}>{item.subtitle}</Text>
+                </View>
               </View>
-            )}
-          />
-          <OnboardFooter
-            index={onboardIndex}
-            onSkip={goLogin}
-            onNext={goNext}
-            bottomPad={bottomPad}
-          />
+            );
+          }
+
+          return (
+            <View style={styles.slide}>
+              <View style={[styles.textBlock, { marginTop: Math.max(insets.top + fx(60), fx(90)) }]}>
+                <Text style={styles.h1}>{item.title}</Text>
+                <Text style={styles.highlightText}>{item.highlight}</Text>
+                <Text style={styles.subtitle}>{item.subtitle}</Text>
+              </View>
+
+              <View style={styles.heroContainer}>
+                <Image
+                  source={item.hero}
+                  style={styles.heroImage}
+                  resizeMode="contain"
+                />
+              </View>
+            </View>
+          );
+        }}
+      />
+
+      {/* Bottom Controls (Dots + Gradient CTA Button) */}
+      <View
+        style={[
+          styles.bottomControls,
+          { paddingBottom: Math.max(insets.bottom, fx(20)) },
+        ]}
+      >
+        {/* Slider Dots */}
+        <View style={styles.dotsRow}>
+          {SLIDES.map((_, idx) => {
+            const isActive = idx === currentIndex;
+            return (
+              <View
+                key={idx}
+                style={[
+                  styles.dot,
+                  isActive ? styles.dotActive : styles.dotInactive,
+                ]}
+              />
+            );
+          })}
         </View>
-      )}
+
+        {/* Primary CTA Button (Yellow-to-Lime gradient pill) */}
+        <Pressable
+          onPress={goNext}
+          style={({ pressed }) => [
+            styles.ctaPressable,
+            pressed && { transform: [{ scale: 0.98 }] },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel={isFinalSlide ? "Get Started" : "Next"}
+        >
+          <LinearGradient
+            colors={["#FFF04B", "#94FA78", "#2EFA9E"]}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={styles.ctaGradient}
+          >
+            <Text style={styles.ctaText}>
+              {isFinalSlide ? "Get Started" : "Next"}
+            </Text>
+            <Ionicons
+              name="arrow-forward"
+              size={fx(20)}
+              color="#0A0F1D"
+              style={styles.ctaArrow}
+            />
+          </LinearGradient>
+        </Pressable>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#010103" },
-  list: { flex: 1, backgroundColor: "transparent" },
-  slide: { width: W, height: H, backgroundColor: "#010103" },
-  page: { flex: 1, width: W, height: H, backgroundColor: "#010103" },
-  bgFill: { ...StyleSheet.absoluteFillObject, backgroundColor: "#010103" },
-  bgImage: { ...StyleSheet.absoluteFillObject, width: W, height: H, opacity: 0.85 },
-  frameClip: {
-    position: "absolute",
-    top: 0,
-    left: 0,
+  root: {
+    flex: 1,
+    backgroundColor: "#070A13",
+  },
+  list: {
+    flex: 1,
+  },
+  slide: {
     width: W,
-    overflow: "hidden",
-    zIndex: 1,
+    height: H,
+    backgroundColor: "#070A13",
+    alignItems: "center",
   },
-
-  bottomStack: {
+  topBar: {
     position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: fx(15),
-    zIndex: 40,
+    right: fx(24),
+    zIndex: 100,
   },
-  copyBlockLeft: {
-    marginBottom: fx(18),
+  skipBtn: {
+    paddingVertical: fx(8),
+    paddingHorizontal: fx(12),
   },
-  copyBlockCenter: {
-    position: "absolute",
-    left: fx(16),
-    right: fx(16),
-    top: fy(534),
-    alignItems: "center",
-    zIndex: 40,
-  },
-
-  rowNowrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "nowrap",
-  },
-  rowNowrapCenter: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    flexWrap: "nowrap",
-    marginTop: fx(4),
-    width: "100%",
-  },
-  center: { textAlign: "center" },
-
-  h1: {
-    fontSize: fx(30),
-    fontFamily: VibeFonts.extraBold,
+  skipText: {
+    fontSize: fx(15),
+    fontFamily: VibeFonts.semiBold,
     color: "#FFFFFF",
-    letterSpacing: fx(0.5),
-    lineHeight: fx(40),
+    letterSpacing: fx(0.4),
   },
-  h1Left: {
+  textBlock: {
+    alignItems: "center",
+    paddingHorizontal: fx(24),
+  },
+  h1: {
     fontSize: fx(32),
     fontFamily: VibeFonts.extraBold,
     color: "#FFFFFF",
-    letterSpacing: fx(0.5),
-    lineHeight: fx(42),
-  },
-  h1Soft: {
-    fontSize: fx(28),
-    fontFamily: VibeFonts.bold,
-    color: "#FFFFFF",
-    letterSpacing: fx(0.4),
-    lineHeight: fx(40),
-    flexShrink: 0,
-  },
-  sub: {
-    marginTop: fx(16),
-    fontSize: fx(15.5),
-    fontFamily: VibeFonts.medium,
-    color: "#FFFFFF",
-    letterSpacing: fx(0.3),
-    lineHeight: fx(21),
-  },
-  subLeft: {
-    marginTop: fx(14),
-    fontSize: fx(15.5),
-    fontFamily: VibeFonts.medium,
-    color: "#FFFFFF",
-    letterSpacing: fx(0.3),
-    lineHeight: fx(21),
-    paddingRight: fx(8),
-  },
-
-  scriptChip: {
-    flexShrink: 0,
-    paddingLeft: fx(16),
-    paddingRight: fx(22),
-    paddingTop: fx(10),
-    paddingBottom: fx(12),
-    alignItems: "center",
-    justifyContent: "center",
-    alignSelf: "center",
-    transform: [{ rotate: "-1.5deg" }],
-  },
-  scriptBrushImg: {
-    resizeMode: "stretch",
-  },
-  scriptText: {
-    color: "#FFFFFF",
-    letterSpacing: fx(0.35),
     textAlign: "center",
-    includeFontPadding: false,
-    textAlignVertical: "center",
+    letterSpacing: fx(0.3),
+    lineHeight: fx(40),
   },
-
-  ctaPress: {
-    width: "100%",
-    height: fx(54),
-    borderRadius: fx(36),
-    overflow: "hidden",
+  highlightText: {
+    fontSize: fx(32),
+    fontFamily: VibeFonts.extraBold,
+    color: "#E3F650",
+    textAlign: "center",
+    letterSpacing: fx(0.3),
+    lineHeight: fx(40),
+    marginTop: fx(2),
   },
-  ctaBtn: {
+  subtitle: {
+    fontSize: fx(15),
+    fontFamily: VibeFonts.regular,
+    color: "rgba(255, 255, 255, 0.72)",
+    textAlign: "center",
+    lineHeight: fx(22),
+    marginTop: fx(12),
+  },
+  heroContainer: {
     flex: 1,
-    borderRadius: fx(36),
+    width: W,
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: fx(20),
+    marginBottom: fx(140),
   },
-  ctaText: {
-    fontSize: fx(20),
-    fontFamily: VibeFonts.semiBold,
+  heroImage: {
+    width: W * 0.88,
+    height: H * 0.46,
+  },
+  fullBgImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: W,
+    height: H,
+  },
+  finalGradientOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  finalContentBlock: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    paddingHorizontal: fx(24),
+  },
+  finalTitle: {
+    fontSize: fx(38),
+    fontFamily: VibeFonts.extraBold,
     color: "#FFFFFF",
-    letterSpacing: fx(0.4),
+    textAlign: "center",
+    letterSpacing: fx(0.5),
   },
-
-  footerBar: {
+  finalSubtitle: {
+    fontSize: fx(17),
+    fontFamily: VibeFonts.medium,
+    color: "rgba(255, 255, 255, 0.85)",
+    textAlign: "center",
+    marginTop: fx(10),
+    letterSpacing: fx(0.5),
+  },
+  bottomControls: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    paddingTop: 10,
-    paddingHorizontal: fx(15),
-    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#010103",
+    paddingHorizontal: fx(28),
     zIndex: 50,
   },
-  skipHit: { minWidth: fx(56), paddingVertical: 8 },
-  skip: {
-    fontSize: fx(14.2),
-    fontFamily: VibeFonts.semiBold,
-    color: "#FFFFFF",
-    letterSpacing: fx(0.42),
+  dotsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: fx(12),
+    marginBottom: fx(24),
   },
-  dotsRow: { flexDirection: "row", alignItems: "center", gap: fx(8) },
   dot: {
     width: fx(10),
     height: fx(10),
     borderRadius: fx(5),
-    backgroundColor: "rgba(255,255,255,0.85)",
   },
-  dotOn: { backgroundColor: "#0166FF" },
-  nextHit: { width: fx(65), height: fx(65), alignItems: "center", justifyContent: "center" },
-  nextRing: {
-    width: fx(65),
-    height: fx(65),
-    borderRadius: fx(32.5),
-    borderWidth: Math.max(1.5, fx(1.5)),
-    borderColor: "rgba(255,255,255,0.92)",
+  dotActive: {
+    backgroundColor: "#E3F650",
+    width: fx(24),
+  },
+  dotInactive: {
+    backgroundColor: "rgba(255, 255, 255, 0.35)",
+  },
+  ctaPressable: {
+    width: "100%",
+    height: fx(56),
+    borderRadius: fx(999),
+    overflow: "hidden",
+    shadowColor: "#2EFA9E",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  ctaGradient: {
+    flex: 1,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    borderRadius: fx(999),
+    paddingHorizontal: fx(24),
   },
-  nextInner: {
-    width: fx(48),
-    height: fx(48),
-    borderRadius: fx(24),
-    alignItems: "center",
-    justifyContent: "center",
+  ctaText: {
+    fontSize: fx(17),
+    fontFamily: VibeFonts.bold,
+    color: "#0A0F1D",
+    letterSpacing: fx(0.3),
+  },
+  ctaArrow: {
+    marginLeft: fx(8),
   },
 });

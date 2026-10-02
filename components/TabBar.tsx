@@ -16,46 +16,41 @@ const tabs = [
     label: "Home",
     icon: "home-outline" as const,
     activeIcon: "home" as const,
-    gradient: ["#7C3AED", "#6D28D9"] as const,
-    accent: "#7C3AED",
+    accent: "#22D3EE",
     hasBadge: false,
   },
   {
     name: "discover",
-    label: "Vibes",
+    label: "Discover",
     icon: "compass-outline" as const,
     activeIcon: "compass" as const,
-    gradient: ["#EC4899", "#E11D48"] as const,
-    accent: "#EC4899",
+    accent: "#22D3EE",
     hasBadge: false,
   },
   {
     name: "spot",
-    label: "Spot ⚡",
+    label: "Events Map",
     isCenterSpot: true,
-    icon: "flash" as const,
-    activeIcon: "flash" as const,
-    gradient: ["#7C3AED", "#EC4899"] as const,
-    accent: "#7C3AED",
+    icon: "map-outline" as const,
+    activeIcon: "map" as const,
+    accent: "#22D3EE",
     hasBadge: false,
   },
   {
-    name: "hangout",
-    label: "Hangout",
-    icon: "people-outline" as const,
-    activeIcon: "people" as const,
-    gradient: ["#8B5CF6", "#7C3AED"] as const,
-    accent: "#7C3AED",
+    name: "chats",
+    label: "Chat",
+    icon: "chatbubble-outline" as const,
+    activeIcon: "chatbubble" as const,
+    accent: "#22D3EE",
     hasBadge: true,
   },
   {
-    name: "chats",
-    label: "Chats",
-    icon: "chatbubble-ellipses-outline" as const,
-    activeIcon: "chatbubble-ellipses" as const,
-    gradient: ["#10B981", "#059669"] as const,
-    accent: "#10B981",
-    hasBadge: true,
+    name: "crew",
+    label: "My Crew",
+    icon: "people-outline" as const,
+    activeIcon: "people" as const,
+    accent: "#22D3EE",
+    hasBadge: false,
   },
 ];
 
@@ -72,7 +67,8 @@ function TabItem({
 }) {
   const scale = useSharedValue(1);
   const anim = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-  const idleColor = dark ? "#94A3B8" : "#64748B";
+  const idleColor = "#94A3B8";
+  const activeColor = "#2EFA9E";
 
   if (tab.isCenterSpot) {
     return (
@@ -88,27 +84,24 @@ function TabItem({
       >
         <Animated.View style={[styles.centerSpotInner, anim]}>
           <LinearGradient
-            colors={dark ? (["#D4AF37", "#E879A9"] as const) : [...tab.gradient]}
+            colors={["#D4F72C", "#A3E635"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={[
-              styles.centerSpotBtnGrad,
-              dark && styles.centerSpotBtnGradDark,
-            ]}
+            style={styles.centerSpotBtnGradDark}
           >
-            <Ionicons name={dark ? "add" : "flash"} size={dark ? 28 : 20} color="#FFFFFF" />
+            <Ionicons name="map" size={24} color="#0A0F1D" />
           </LinearGradient>
-          {!dark ? (
-            <Text
-              style={[
-                styles.centerSpotLabel,
-                dark && styles.centerSpotLabelDark,
-              ]}
-            >
-              {tab.label}
-            </Text>
-          ) : null}
         </Animated.View>
+        <Text
+          style={[
+            styles.label,
+            { color: active ? "#22D3EE" : "#94A3B8" },
+            active && styles.labelActive,
+          ]}
+          numberOfLines={1}
+        >
+          Events Map
+        </Text>
       </Pressable>
     );
   }
@@ -126,46 +119,29 @@ function TabItem({
     >
       <Animated.View style={[styles.tabInner, anim]}>
         <View style={styles.iconContainer}>
-          {active ? (
-            <LinearGradient
-              colors={tab.gradient as any}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.activePill}
-            >
-              <Ionicons name={tab.activeIcon} size={18} color="#FFFFFF" />
-            </LinearGradient>
-          ) : (
-            <View style={styles.iconIdle}>
-              <Ionicons name={tab.icon} size={20} color={idleColor} />
-            </View>
-          )}
+          <Ionicons
+            name={active ? tab.activeIcon : tab.icon}
+            size={21}
+            color={active ? activeColor : idleColor}
+          />
 
           {tab.hasBadge && !active ? (
-            <View style={[styles.badgeDot, dark && styles.badgeDotDark]} />
+            <View style={[styles.badgeDot, dark && styles.badgeDotDark]}>
+              <Text style={styles.badgeText}>2</Text>
+            </View>
           ) : null}
         </View>
 
-        {!dark ? (
-          <Text
-            style={[
-              styles.label,
-              { color: active ? tab.accent : idleColor },
-              active && styles.labelActive,
-            ]}
-            numberOfLines={1}
-          >
-            {tab.label}
-          </Text>
-        ) : (
-          <View style={styles.activeDotSpacer} />
-        )}
-
-        {active ? (
-          <View style={[styles.activeDotBar, { backgroundColor: tab.accent }]} />
-        ) : (
-          <View style={styles.activeDotSpacer} />
-        )}
+        <Text
+          style={[
+            styles.label,
+            { color: active ? activeColor : idleColor },
+            active && styles.labelActive,
+          ]}
+          numberOfLines={1}
+        >
+          {tab.label}
+        </Text>
       </Animated.View>
     </Pressable>
   );
@@ -185,15 +161,24 @@ export default function TabBar({ dark = false }: { dark?: boolean }) {
       return (
         pathname === "/" ||
         pathname === "/(tabs)" ||
-        pathname === "/(tabs)/" ||
-        pathname.includes("create-plan")
+        pathname === "/(tabs)/"
       );
     }
-    if (name === "hangout") {
-      return pathname.includes("hangout") || pathname.includes("plan-details");
+    if (name === "discover") {
+      return (
+        pathname.includes("discover") ||
+        pathname.includes("hangout") ||
+        pathname.includes("plan-details")
+      );
     }
     if (name === "chats") {
       return pathname.includes("chats") || pathname.includes("chat/");
+    }
+    if (name === "crew") {
+      return pathname.includes("crew") || pathname.includes("my-matches");
+    }
+    if (name === "spot") {
+      return pathname.includes("events-map") || pathname.includes("event");
     }
     return pathname.includes(name);
   };
@@ -219,12 +204,18 @@ export default function TabBar({ dark = false }: { dark?: boolean }) {
                 dark={dark}
                 onPress={() => {
                   if (tab.isCenterSpot) {
-                    router.push("/spot-broadcast");
+                    router.push("/events-map");
                     return;
                   }
-                  if (isActive(tab.name)) return;
-                  if (tab.name === "hangout") {
-                    router.navigate("/hangout");
+                  const isCurrentTabRoot =
+                    (tab.name === "index" && (pathname === "/" || pathname === "/(tabs)" || pathname === "/(tabs)/")) ||
+                    (tab.name === "discover" && pathname === "/(tabs)/discover") ||
+                    (tab.name === "chats" && pathname === "/(tabs)/chats") ||
+                    (tab.name === "crew" && pathname === "/(tabs)/crew");
+
+                  if (isCurrentTabRoot) return;
+                  if (tab.name === "discover") {
+                    router.navigate("/(tabs)/discover");
                   } else if (tab.name === "index") {
                     router.navigate("/(tabs)");
                   } else {
@@ -271,11 +262,11 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   floatingShellDark: {
-    backgroundColor: "rgba(18,18,18,0.45)",
-    borderColor: "rgba(255,255,255,0.12)",
-    shadowColor: "#FF2D7A",
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
+    backgroundColor: "#0B0F1C",
+    borderColor: "rgba(255,255,255,0.08)",
+    shadowColor: "#000000",
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
     elevation: 8,
   },
   bgOverlay: {
@@ -285,7 +276,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.85)",
   },
   bgOverlayDark: {
-    backgroundColor: "rgba(14,14,18,0.35)",
+    backgroundColor: "#0B0F1C",
   },
   row: {
     flex: 1,
@@ -327,7 +318,22 @@ const styles = StyleSheet.create({
     borderColor: "#FFFFFF",
   },
   badgeDotDark: {
-    borderColor: "#12182C",
+    backgroundColor: "#F43F5E",
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: "#0B0F1C",
+    top: -3,
+    right: 4,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badgeText: {
+    color: "#FFFFFF",
+    fontSize: 9,
+    fontFamily: VibeFonts.bold,
+    lineHeight: 11,
   },
   label: {
     fontSize: 9.5,
@@ -358,7 +364,7 @@ const styles = StyleSheet.create({
   centerSpotInner: {
     alignItems: "center",
     justifyContent: "center",
-    top: -10,
+    top: -6,
   },
   centerSpotBtnGrad: {
     width: 48,
@@ -375,14 +381,18 @@ const styles = StyleSheet.create({
     borderColor: "#FFFFFF",
   },
   centerSpotBtnGradDark: {
-    borderColor: "rgba(255,255,255,0.25)",
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    shadowColor: "#FF2D7A",
-    shadowOpacity: 0.55,
-    shadowRadius: 16,
+    borderColor: "#D4F72C",
+    borderWidth: 2,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    shadowColor: "#D4F72C",
+    shadowOpacity: 0.7,
+    shadowRadius: 14,
+    elevation: 10,
     top: -6,
+    alignItems: "center",
+    justifyContent: "center",
   },
   centerSpotLabel: {
     fontSize: 9.5,

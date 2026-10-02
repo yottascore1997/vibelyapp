@@ -78,9 +78,9 @@ function ChoiceGrid({
           >
             {active ? (
               <LinearGradient
-                colors={["#7C3AED", "#A855F7"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
+                colors={["#FFF04B", "#94FA78", "#2EFA9E"]}
+                start={{ x: 0, y: 0.5 }}
+                end={{ x: 1, y: 0.5 }}
                 style={styles.choicePillGrad}
               >
                 {opt.emoji ? <Text style={styles.choiceEmoji}>{opt.emoji}</Text> : null}
@@ -122,10 +122,10 @@ export default function AboutYouScreen() {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle="light-content" />
       <LinearGradient
-        colors={["#F3E8FF", "#FAF5FF", "#F8F9FD"]}
-        locations={[0, 0.35, 1]}
+        colors={["#070A13", "#0B1020", "#070A13"]}
+        locations={[0, 0.4, 1]}
         style={StyleSheet.absoluteFill}
       />
 
@@ -133,10 +133,10 @@ export default function AboutYouScreen() {
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        {/* Top bar — same as Let's meet */}
+        {/* Top bar */}
         <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
           <Pressable style={styles.backBtn} onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={20} color="#7C3AED" />
+            <Ionicons name="chevron-back" size={20} color="#E3F650" />
           </Pressable>
 
           <View style={styles.stepper}>
@@ -151,7 +151,7 @@ export default function AboutYouScreen() {
                 ]}
               >
                 {n < STEP ? (
-                  <Ionicons name="checkmark" size={12} color="#FFF" />
+                  <Ionicons name="checkmark" size={12} color="#0A0F1D" />
                 ) : (
                   <Text style={[styles.stepNum, n === STEP && styles.stepNumActive]}>{n}</Text>
                 )}
@@ -160,7 +160,7 @@ export default function AboutYouScreen() {
           </View>
 
           <View style={styles.stepChip}>
-            <Ionicons name="sparkles" size={11} color="#7C3AED" />
+            <Ionicons name="sparkles" size={11} color="#E3F650" />
             <Text style={styles.stepChipText}>
               Step {STEP} of {TOTAL}
             </Text>
@@ -252,7 +252,9 @@ export default function AboutYouScreen() {
                     <Pressable key={lang} onPress={() => toggleLanguage(lang)}>
                       {active ? (
                         <LinearGradient
-                          colors={["#7C3AED", "#A855F7"]}
+                          colors={["#FFF04B", "#94FA78", "#2EFA9E"]}
+                          start={{ x: 0, y: 0.5 }}
+                          end={{ x: 1, y: 0.5 }}
                           style={styles.langChipActive}
                         >
                           <Text style={styles.langTextActive}>{lang}</Text>
@@ -363,11 +365,11 @@ export default function AboutYouScreen() {
                 shown on your profile
               </Text>
               <View style={styles.lockWrap}>
-                <LinearGradient colors={["#7C3AED", "#A855F7"]} style={styles.lockBubble}>
-                  <Ionicons name="lock-closed" size={16} color="#FFF" />
+                <LinearGradient colors={["#FFF04B", "#94FA78"]} style={styles.lockBubble}>
+                  <Ionicons name="lock-closed" size={16} color="#0A0F1D" />
                 </LinearGradient>
                 <View style={styles.lockHeart}>
-                  <Ionicons name="heart" size={8} color="#FFF" />
+                  <Ionicons name="heart" size={8} color="#0A0F1D" />
                 </View>
               </View>
             </Animated.View>
@@ -379,15 +381,13 @@ export default function AboutYouScreen() {
               style={[styles.ctaWrap, !valid && { opacity: 0.55 }]}
             >
               <LinearGradient
-                colors={["#7C3AED", "#C026D3", "#EC4899"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
+                colors={["#FFF04B", "#94FA78", "#2EFA9E"]}
+                start={{ x: 0, y: 0.5 }}
+                end={{ x: 1, y: 0.5 }}
                 style={styles.cta}
               >
-                <Ionicons name="sparkles" size={14} color="rgba(255,255,255,0.85)" />
                 <Text style={styles.ctaText}>Continue</Text>
-                <Ionicons name="arrow-forward" size={18} color="#FFF" />
-                <Ionicons name="sparkles" size={14} color="rgba(255,255,255,0.85)" />
+                <Ionicons name="arrow-forward" size={18} color="#0A0F1D" />
               </LinearGradient>
             </Pressable>
 
@@ -464,26 +464,26 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   stepCircleActive: {
-    backgroundColor: "#7C3AED",
-    borderColor: "#7C3AED",
+    backgroundColor: "#E3F650",
+    borderColor: "#E3F650",
   },
   stepCircleDone: {
-    backgroundColor: "#A78BFA",
-    borderColor: "#A78BFA",
+    backgroundColor: "#E3F650",
+    borderColor: "#E3F650",
   },
   stepNum: {
     fontSize: 11,
     fontFamily: VibeFonts.bold,
     color: "#64748B",
   },
-  stepNumActive: { color: "#FFF" },
+  stepNumActive: { color: "#0A0F1D" },
   stepChip: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "rgba(227,246,80,0.12)",
     borderWidth: 1,
-    borderColor: "#E9D5FF",
+    borderColor: "rgba(227,246,80,0.3)",
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
@@ -491,7 +491,7 @@ const styles = StyleSheet.create({
   stepChipText: {
     fontSize: 11,
     fontFamily: VibeFonts.bold,
-    color: "#7C3AED",
+    color: "#E3F650",
   },
 
   hero: {
@@ -506,19 +506,19 @@ const styles = StyleSheet.create({
     fontSize: 30,
     lineHeight: 36,
     fontFamily: VibeFonts.extraBold,
-    color: "#18181B",
+    color: "#FFFFFF",
     letterSpacing: -0.7,
   },
-  heroTitleAccent: { color: "#7C3AED" },
+  heroTitleAccent: { color: "#E3F650" },
   heroSub: {
     marginTop: 8,
     fontSize: 13,
     lineHeight: 19,
     fontFamily: VibeFonts.medium,
-    color: "#64748B",
+    color: "rgba(255,255,255,0.72)",
   },
   heroSubAccent: {
-    color: "#7C3AED",
+    color: "#E3F650",
     fontFamily: VibeFonts.bold,
   },
   heroArt: {
@@ -545,7 +545,7 @@ const styles = StyleSheet.create({
     top: 10,
     left: 0,
     zIndex: 2,
-    backgroundColor: "#FFF",
+    backgroundColor: "#13192B",
     borderRadius: 12,
     padding: 4,
     elevation: 2,
@@ -558,21 +558,21 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: "#7C3AED",
+    backgroundColor: "#E3F650",
     alignItems: "center",
     justifyContent: "center",
   },
 
   card: {
     marginTop: 6,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#0D1222",
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     paddingHorizontal: 20,
     paddingTop: 22,
     paddingBottom: 18,
     borderWidth: 1,
-    borderColor: "rgba(124,58,237,0.1)",
+    borderColor: "rgba(255,255,255,0.08)",
     minHeight: 520,
   },
 
@@ -587,41 +587,41 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 9,
-    backgroundColor: "#F3E8FF",
+    backgroundColor: "rgba(227,246,80,0.12)",
     alignItems: "center",
     justifyContent: "center",
   },
   fieldLabel: {
     fontSize: 14,
     fontFamily: VibeFonts.extraBold,
-    color: "#18181B",
+    color: "#FFFFFF",
   },
   optionalTag: {
     fontSize: 12,
     fontFamily: VibeFonts.medium,
-    color: "#94A3B8",
+    color: "rgba(255,255,255,0.4)",
   },
   inputRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F8F9FD",
+    backgroundColor: "#13192B",
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: "#E2E8F0",
+    borderColor: "rgba(255,255,255,0.1)",
     paddingHorizontal: 14,
     paddingVertical: 4,
   },
   inputMulti: { alignItems: "flex-start", paddingVertical: 8 },
   inputRowFocus: {
-    borderColor: "#7C3AED",
-    backgroundColor: "#F5F3FF",
+    borderColor: "#E3F650",
+    backgroundColor: "#172036",
   },
   input: {
     flex: 1,
     paddingVertical: 12,
     fontSize: 15,
     fontFamily: VibeFonts.medium,
-    color: "#18181B",
+    color: "#FFFFFF",
   },
   inputMultiline: {
     minHeight: 88,
@@ -632,11 +632,11 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontSize: 11,
     fontFamily: VibeFonts.medium,
-    color: "#94A3B8",
+    color: "rgba(255,255,255,0.45)",
   },
   divider: {
     height: 1,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "rgba(255,255,255,0.08)",
     marginVertical: 14,
   },
 
@@ -649,9 +649,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: 999,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#13192B",
     borderWidth: 1.5,
-    borderColor: "#E2E8F0",
+    borderColor: "rgba(255,255,255,0.1)",
   },
   langChipActive: {
     paddingHorizontal: 14,
@@ -661,12 +661,12 @@ const styles = StyleSheet.create({
   langText: {
     fontSize: 12,
     fontFamily: VibeFonts.bold,
-    color: "#64748B",
+    color: "rgba(255,255,255,0.75)",
   },
   langTextActive: {
     fontSize: 12,
     fontFamily: VibeFonts.extraBold,
-    color: "#FFF",
+    color: "#0A0F1D",
   },
 
   choiceGrid: {
@@ -697,20 +697,20 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     paddingHorizontal: 6,
     borderRadius: 14,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#13192B",
     borderWidth: 1.5,
-    borderColor: "#E2E8F0",
+    borderColor: "rgba(255,255,255,0.1)",
   },
   choiceEmoji: { fontSize: 13 },
   choiceText: {
     fontSize: 12,
     fontFamily: VibeFonts.bold,
-    color: "#475569",
+    color: "rgba(255,255,255,0.75)",
   },
   choiceTextActive: {
     fontSize: 12,
     fontFamily: VibeFonts.extraBold,
-    color: "#FFF",
+    color: "#0A0F1D",
   },
 
   safeBanner: {
@@ -718,18 +718,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: "#F3E8FF",
+    backgroundColor: "rgba(227,246,80,0.08)",
     borderRadius: 16,
     paddingVertical: 12,
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: "#E9D5FF",
+    borderColor: "rgba(227,246,80,0.2)",
   },
   safeShield: {
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: "#7C3AED",
+    backgroundColor: "#E3F650",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -738,10 +738,10 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     lineHeight: 16,
     fontFamily: VibeFonts.medium,
-    color: "#475569",
+    color: "rgba(255,255,255,0.75)",
   },
   safeAccent: {
-    color: "#7C3AED",
+    color: "#E3F650",
     fontFamily: VibeFonts.extraBold,
   },
   lockWrap: { position: "relative" },
@@ -759,19 +759,19 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: "#EC4899",
+    backgroundColor: "#E3F650",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1.5,
-    borderColor: "#FFF",
+    borderColor: "#0D1222",
   },
 
   ctaWrap: {
     marginTop: 18,
     borderRadius: 999,
     overflow: "hidden",
-    shadowColor: "#7C3AED",
-    shadowOpacity: 0.3,
+    shadowColor: "#2EFA9E",
+    shadowOpacity: 0.35,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },
     elevation: 5,
@@ -785,7 +785,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   ctaText: {
-    color: "#FFF",
+    color: "#0A0F1D",
     fontSize: 16,
     fontFamily: VibeFonts.extraBold,
   },

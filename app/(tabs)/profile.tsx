@@ -27,8 +27,6 @@ import Animated, {
   withTiming,
   Easing,
 } from "react-native-reanimated";
-import AppHeader from "../../components/vibe/AppHeader";
-import HangoutCinematicBackground from "../../components/vibe/HangoutCinematicBackground";
 import { useAuth } from "../../context/AuthContext";
 import { useMatches } from "../../context/MatchesContext";
 import { usePlans } from "../../context/PlansContext";
@@ -36,29 +34,30 @@ import { api } from "../../services/api";
 import { usePremium } from "../../context/PremiumContext";
 import { API_URL } from "../../constants/theme";
 import { VibeFonts } from "../../constants/vibeTheme";
+import HomeHeader from "../../components/HomeHeader";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 const HERO_H = Math.min(SCREEN_W * 1.05, 420);
 
 const T = {
   bg: "#070A14",
-  card: "rgba(16, 20, 36, 0.92)",
-  cardSoft: "rgba(22, 26, 46, 0.72)",
-  ink: "#F4F6FB",
-  muted: "#A7B0C4",
-  soft: "#7C869C",
-  border: "rgba(160, 170, 200, 0.14)",
-  gold: "#FBBF24",
-  goldSoft: "rgba(251, 191, 36, 0.14)",
-  goldBorder: "rgba(251, 191, 36, 0.32)",
-  purple: "#A78BFA",
-  softPurple: "rgba(139, 92, 246, 0.16)",
-  green: "#34D399",
-  softGreen: "rgba(52, 211, 153, 0.14)",
-  yellow: "#FBBF24",
+  card: "#0D1424",
+  cardSoft: "#131C33",
+  ink: "#FFFFFF",
+  muted: "#94A3B8",
+  soft: "#64748B",
+  border: "rgba(255, 255, 255, 0.08)",
+  gold: "#D4F72C",
+  goldSoft: "rgba(212, 247, 44, 0.12)",
+  goldBorder: "rgba(212, 247, 44, 0.32)",
+  purple: "#22D3EE",
+  softPurple: "rgba(34, 211, 238, 0.12)",
+  green: "#22C55E",
+  softGreen: "rgba(34, 197, 94, 0.14)",
+  yellow: "#FACC15",
   red: "#F87171",
-  cta: ["#7C3AED", "#A78BFA"] as [string, string],
-  goldGrad: ["#F59E0B", "#D97706", "#B45309"] as [string, string, string],
+  cta: ["#D4F72C", "#22D3EE"] as [string, string],
+  goldGrad: ["#D4F72C", "#A3E635", "#84CC16"] as [string, string, string],
 };
 
 type Energy = "LESSGO" | "MAYBE" | "OFF_GRID";
@@ -316,10 +315,10 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.root}>
-      <HangoutCinematicBackground />
       <StatusBar barStyle="light-content" backgroundColor={T.bg} />
       <View style={styles.foreground}>
-        <AppHeader variant="dark" tagline="Your world · Your vibe" badgeCount={likesCount} />
+        {/* Home Header */}
+        <HomeHeader />
 
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -381,7 +380,7 @@ export default function ProfileScreen() {
                     </Text>
                     {profile?.isVerified ? (
                       <View style={styles.verifiedMark}>
-                        <Ionicons name="checkmark" size={12} color="#04140A" />
+                        <Ionicons name="checkmark" size={12} color="#070A14" />
                       </View>
                     ) : null}
                   </View>
@@ -420,13 +419,13 @@ export default function ProfileScreen() {
                     onPress={() => router.push("/edit-profile")}
                   >
                     <LinearGradient
-                      colors={T.cta}
+                      colors={["#D4F72C", "#22D3EE"]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
                       style={styles.editGrad}
                     >
-                      <Ionicons name="sparkles" size={15} color="#FFF" />
-                      <Text style={styles.editText}>Edit profile</Text>
+                      <Ionicons name="sparkles" size={15} color="#070A14" />
+                      <Text style={[styles.editText, { color: "#070A14" }]}>Edit profile</Text>
                     </LinearGradient>
                   </Pressable>
                 </View>
@@ -725,6 +724,69 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: T.bg },
   foreground: { flex: 1, zIndex: 1, backgroundColor: "transparent" },
+  headerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingBottom: 14,
+    backgroundColor: "#070A14",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.06)",
+    zIndex: 10,
+  },
+  backButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "rgba(255, 255, 255, 0.07)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitleCenter: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  headerTitleMy: {
+    color: "#FFFFFF",
+    fontSize: 20,
+    fontFamily: VibeFonts.extraBold,
+    letterSpacing: -0.4,
+  },
+  headerTitleCrew: {
+    color: "#D4F72C",
+    fontSize: 20,
+    fontFamily: VibeFonts.extraBold,
+    letterSpacing: -0.4,
+  },
+  headerSubtitle: {
+    color: "#94A3B8",
+    fontSize: 11,
+    fontFamily: VibeFonts.medium,
+    marginTop: 2,
+    letterSpacing: 0.2,
+  },
+  addButtonGlow: {
+    borderRadius: 21,
+    shadowColor: "#D4F72C",
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 6,
+  },
+  addBtnGrad: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   scroll: { paddingBottom: 120 },
   loader: {
     height: 280,
@@ -840,8 +902,8 @@ const styles = StyleSheet.create({
   verifiedMark: {
     width: 22,
     height: 22,
-    borderRadius: 8,
-    backgroundColor: T.green,
+    borderRadius: 11,
+    backgroundColor: "#22D3EE",
     alignItems: "center",
     justifyContent: "center",
   },

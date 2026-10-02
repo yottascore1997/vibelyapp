@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { API_URL, API_FALLBACKS } from "../constants/theme";
+import { API_URL, API_FALLBACKS, isLanHost } from "../constants/theme";
 import { Plan } from "../constants/plans";
 
 let memoryToken: string | null = null;
@@ -50,12 +50,6 @@ export function setAuthToken(token: string | null) {
   memoryToken = token;
 }
 
-function isLanHost(url: string) {
-  return /localhost|127\.0\.0\.1|192\.168\.|10\.\d+\.|172\.(1[6-9]|2\d|3[0-1])\./i.test(
-    url
-  );
-}
-
 /** Prefer the host that successfully handled login/register — Hangora only */
 export function setActiveApiBase(baseUrl: string | null) {
   if (!baseUrl) return;
@@ -76,8 +70,13 @@ export function getActiveApiBase() {
 /** Restore last working API host (call once on app start) — Hangora only */
 export async function hydrateActiveApiBase() {
   try {
+    if (isLanHost(API_URL)) {
+      activeBaseUrl = API_URL;
+      await AsyncStorage.setItem(ACTIVE_BASE_KEY, API_URL);
+      return;
+    }
     const saved = await AsyncStorage.getItem(ACTIVE_BASE_KEY);
-    if (saved && /hangora\.app/i.test(saved)) {
+    if (saved && (/hangora\.app/i.test(saved) || isLanHost(saved))) {
       activeBaseUrl = saved;
     } else {
       // Drop old Vibely / other hosts
@@ -110,8 +109,13 @@ export class ApiError extends Error {
 }
 
 function apiBases(): string[] {
+  if (isLanHost(API_URL)) {
+    return [API_URL, ...API_FALLBACKS].filter(
+      (u, i, arr): u is string => Boolean(u) && arr.indexOf(u) === i
+    );
+  }
   const raw = [activeBaseUrl, API_URL, ...API_FALLBACKS].filter(
-    (u, i, arr) => !!u && arr.indexOf(u) === i
+    (u, i, arr): u is string => Boolean(u) && arr.indexOf(u) === i
   );
   // Phone often can't reach LAN — try HTTPS cloud first, local last
   const cloud = raw.filter((u) => !isLanHost(u));

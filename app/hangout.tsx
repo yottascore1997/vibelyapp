@@ -24,6 +24,7 @@ import { useAuth } from "../context/AuthContext";
 import { VibeFonts } from "../constants/vibeTheme";
 import { formatFriendlyPlanWhen } from "../constants/plans";
 import TabBar from "../components/TabBar";
+import HomeHeader from "../components/HomeHeader";
 
 /**
  * Figma Hangout page 01 (node 112:31)
@@ -37,6 +38,10 @@ const CARD = "#12182A";
 const YELLOW = "#F5C518";
 const BLUE = "#2F6BFF";
 const MUTED = "rgba(255,255,255,0.55)";
+
+const coffeeIcon = require("../assets/icons/coffee.png");
+const beerIcon = require("../assets/icons/beer.png");
+const movieIcon = require("../assets/icons/movie.png");
 
 const bgSpotlight = require("../assets/onboarding/bg-spotlight.png");
 const cactusHero = require("../assets/hangout/cactus-hero.png");
@@ -96,6 +101,7 @@ const VIBE_TILES = [
     id: "coffee",
     label: "Coffee",
     emoji: "☕",
+    iconImg: coffeeIcon,
     image:
       "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&h=400&fit=crop",
     tint: "rgba(120, 53, 15, 0.45)",
@@ -120,6 +126,7 @@ const VIBE_TILES = [
     id: "beer",
     label: "Beer",
     emoji: "🍺",
+    iconImg: beerIcon,
     image:
       "https://images.unsplash.com/photo-1608270586620-248524c67de9?w=400&h=400&fit=crop",
     tint: "rgba(133, 77, 14, 0.5)",
@@ -128,6 +135,7 @@ const VIBE_TILES = [
     id: "movie",
     label: "Movie",
     emoji: "🎬",
+    iconImg: movieIcon,
     image:
       "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=400&h=400&fit=crop",
     tint: "rgba(67, 56, 202, 0.5)",
@@ -280,32 +288,16 @@ export default function HangoutScreen() {
       <View style={styles.bgFill} />
       <Image source={bgSpotlight} style={styles.bgImage} resizeMode="cover" />
 
+      {/* Header */}
+      <HomeHeader showBack />
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingTop: insets.top + 10,
+          paddingTop: 10,
           paddingBottom: 120 + insets.bottom,
         }}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.hi}>
-              Hi, {firstName} 👋
-            </Text>
-            <Text style={styles.sub}>Find people. Make memories.</Text>
-          </View>
-          <Pressable
-            style={styles.bellBtn}
-            onPress={() => router.push("/(tabs)/chats")}
-            hitSlop={8}
-          >
-            <Ionicons name="notifications-outline" size={22} color="#FFF" />
-          </Pressable>
-          <Pressable onPress={() => router.push("/(tabs)/profile")}>
-            <Image source={{ uri: avatarUri }} style={styles.avatar} />
-          </Pressable>
-        </View>
 
         {/* Let's Hangout hero */}
         <Pressable
@@ -375,7 +367,11 @@ export default function HangoutScreen() {
               <Image source={{ uri: v.image }} style={styles.vibeImg} />
               <View style={[styles.vibeTint, { backgroundColor: v.tint }]} />
               <View style={styles.vibeIconBubble}>
-                <Text style={{ fontSize: 11 }}>{v.emoji}</Text>
+                {v.iconImg ? (
+                  <Image source={v.iconImg} style={{ width: 14, height: 14 }} resizeMode="contain" />
+                ) : (
+                  <Text style={{ fontSize: 11 }}>{v.emoji}</Text>
+                )}
               </View>
               <Text style={styles.vibeLabel}>{v.label}</Text>
             </Pressable>

@@ -1,8 +1,12 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from "react";
 import { Alert } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "./AuthContext";
+import { usePremium } from "./PremiumContext";
 import { api } from "../services/api";
 import { Plan } from "../constants/plans";
+
+export const DAILY_FREE_HANGOUT_LIMIT = 3;
 
 interface CreatePlanInput {
   activityId: string;
@@ -32,6 +36,10 @@ interface PlansContextType {
   nearbyPlans: Plan[];
   loading: boolean;
   requestStatuses: Record<string, ReqStatus>;
+  dailyHangoutCount: number;
+  dailyHangoutLimit: number;
+  remainingDailyHangouts: number;
+  canCreateHangout: boolean;
   refresh: () => Promise<void>;
   createPlan: (input: CreatePlanInput) => Promise<Plan>;
   joinPlan: (planId: string, remark?: string) => Promise<void>;
@@ -59,10 +67,41 @@ function statusFromPlan(p: Plan & { myParticipationStatus?: string | null }, use
 
 export function PlansProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const { isPremium, openPaywall } = usePremium();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [requestStatuses, setRequestStatuses] = useState<Record<string, ReqStatus>>({});
   const [rejectionRemarks, setRejectionRemarks] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [dailyCreates, setDailyCreates] = useState(0);
+
+  const getTodayKey = () => new Date().toISOString().slice(0, 10);
+
+  const loadDailyCreates = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const todayKey = getTodayKey();
+      const storageKey = `@hangora_daily_creates_${todayKey}_${user.id}`;
+      const saved = await AsyncStorage.getItem(storageKey);
+      let count = saved ? parseInt(saved, 10) : 0;
+      if (isNaN(count)) count = 0;
+
+      const todayDateStr = new Date().toDateString();
+      const plansToday = plans.filter(
+        (p) =>
+          p.creatorId === user.id &&
+          ((p as any).createdAt
+            ? new Date((p as any).createdAt).toDateString() === todayDateStr
+            : false)
+      ).length;
+
+      const effective = Math.max(count, plansToday);
+      setDailyCreates(effective);
+    } catch {}
+  }, [user, plans]);
+
+  useEffect(() => {
+    loadDailyCreates();
+  }, [loadDailyCreates]);
 
   const refresh = useCallback(async () => {
     if (!user) {
@@ -111,8 +150,19 @@ export function PlansProvider({ children }: { children: ReactNode }) {
   );
   const nearbyPlans = plans.filter((p) => p.creatorId !== user?.id);
 
+  const dailyHangoutLimit = isPremium ? Infinity : DAILY_FREE_HANGOUT_LIMIT;
+  const remainingDailyHangouts = isPremium
+    ? 999
+    : Math.max(0, DAILY_FREE_HANGOUT_LIMIT - dailyCreates);
+  const canCreateHangout = isPremium || dailyCreates < DAILY_FREE_HANGOUT_LIMIT;
+
   const createPlan = async (input: CreatePlanInput): Promise<Plan> => {
     if (!user) throw new Error("Login required");
+
+    if (!isPremium && dailyCreates >= DAILY_FREE_HANGOUT_LIMIT) {
+      openPaywall();
+      throw new Error("DAILY_LIMIT_REACHED");
+    }
 
     const { buildScheduledAt } = await import("../constants/plans");
     const scheduledAt = buildScheduledAt({
@@ -141,6 +191,18 @@ export function PlansProvider({ children }: { children: ReactNode }) {
     });
 
     if (!plan) throw new Error("Could not create plan. Check your connection.");
+
+    if (!isPremium) {
+      const newCount = dailyCreates + 1;
+      setDailyCreates(newCount);
+      if (user?.id) {
+        const todayKey = getTodayKey();
+        AsyncStorage.setItem(
+          `@hangora_daily_creates_${todayKey}_${user.id}`,
+          String(newCount)
+        ).catch(() => {});
+      }
+    }
 
     setPlans((prev) => [plan, ...prev.filter((p) => p.id !== plan.id)]);
     setRequestStatuses((s) => ({ ...s, [plan.id]: "accepted" }));
@@ -305,6 +367,10 @@ export function PlansProvider({ children }: { children: ReactNode }) {
         nearbyPlans,
         loading,
         requestStatuses,
+        dailyHangoutCount: dailyCreates,
+        dailyHangoutLimit,
+        remainingDailyHangouts,
+        canCreateHangout,
         refresh,
         createPlan,
         joinPlan,

@@ -52,7 +52,7 @@ export default function NearbyPlanCard({
   const isLocal = plan.location?.toLowerCase().includes("nagpur") || 
                   plan.location?.toLowerCase().includes("ccd") || 
                   plan.location?.toLowerCase().includes("sitabuldi") || 
-                  (plan.distance !== undefined && plan.distance < 5.0);
+                  (plan.distance != null && plan.distance < 5.0);
 
   const tags = [
     plan.activity ? plan.activity.toUpperCase() : "HANGOUT",
@@ -82,7 +82,7 @@ export default function NearbyPlanCard({
                   <Ionicons name="people" size={10} color="#fff" />
                   <Text style={styles.counterText}>{plan.going}/{plan.maxParticipants}</Text>
                 </View>
-                {plan.distance !== undefined && (
+                {plan.distance != null && (
                   <View style={styles.counterItem}>
                     <Ionicons name="navigate" size={10} color="#fff" />
                     <Text style={styles.counterText}>{plan.distance.toFixed(1)} km</Text>
