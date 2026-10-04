@@ -18,6 +18,7 @@ export interface ChatThread {
   lastSeenAt?: string | null;
   isVerified?: boolean;
   isGroup?: boolean;
+  members?: { id: string; name: string; avatarUrl?: string | null }[];
   lastMessage: string;
   lastMessageAt: string;
   unread: number;

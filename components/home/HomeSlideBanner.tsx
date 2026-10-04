@@ -85,7 +85,7 @@ export default function HomeSlideBanner() {
         decelerationRate="fast"
         onScroll={onSlideScroll}
         scrollEventThrottle={16}
-        onScrollToIndexFailed={() => {}}
+        onScrollToIndexFailed={() => { }}
         renderItem={({ item, index }) => (
           <Pressable
             onPress={() => router.push(item.route as any)}

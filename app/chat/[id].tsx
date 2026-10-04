@@ -25,15 +25,17 @@ import Animated, {
   withTiming,
   withSequence,
   withDelay,
+  FadeInDown,
+  FadeOutDown,
 } from "react-native-reanimated";
 import * as ImagePicker from "expo-image-picker";
 import PulseDot from "../../components/home/PulseDot";
 import GlassCard from "../../components/vibe/GlassCard";
-import HangoutCinematicBackground from "../../components/vibe/HangoutCinematicBackground";
 import VibeSplitModal from "../../components/vibe/VibeSplitModal";
 import { useMatches } from "../../context/MatchesContext";
 import { usePlans } from "../../context/PlansContext";
 import { useAuth } from "../../context/AuthContext";
+import { useNotifications } from "../../context/NotificationContext";
 import { api } from "../../services/api";
 import { showSafetyMenu, ICEBREAKERS } from "../../utils/datingSafety";
 import {
@@ -52,9 +54,9 @@ import { Radius, Spacing, API_URL } from "../../constants/theme";
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 const T = {
-  bg: "#070A14",
-  card: "#0D1424",
-  cardElevated: "#101930",
+  bg: "#000000",
+  card: "#0C0F17",
+  cardElevated: "#131722",
   ink: "#FFFFFF",
   muted: "#94A3B8",
   faint: "#64748B",
@@ -67,12 +69,13 @@ const T = {
   pink: "#D4F72C",
   green: "#22C55E",
   greenSoft: "rgba(34, 197, 94, 0.18)",
-  red: "#F87171",
-  glass: "rgba(13, 20, 36, 0.92)",
-  cta: ["#06B6D4", "#0284C7"] as const,
+  red: "#EF4444",
+  glass: "#000000",
+  cta: ["#D4F72C", "#22D3EE"] as const,
+  bubbleGradMe: ["#0EA5E9", "#0284C7"] as const,
 };
 
-const MEMBER_COLORS = ["#A855F7", "#EC4899", "#3B82F6", "#10B981", "#F59E0B", "#06B6D4"];
+const MEMBER_COLORS = ["#22D3EE", "#D4F72C", "#38BDF8", "#34D399", "#FBBF24", "#A78BFA"];
 const getMemberColor = (name?: string) => {
   if (!name) return MEMBER_COLORS[0];
   let hash = 0;
@@ -225,9 +228,11 @@ export default function ChatScreen() {
     deleteMessage,
     getChatGate,
     unmatch,
+    deleteCustomGroup,
   } = useMatches();
   const { myPlans, nearbyPlans, refresh: refreshPlans } = usePlans();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const { openInviteModal } = useNotifications();
   const [text, setText] = useState("");
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -462,7 +467,22 @@ export default function ChatScreen() {
       const [, activityName, emoji, status, hangoutId] = matchInvite;
 
       return (
-        <View style={styles.inviteCard}>
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => {
+            const matchProfile = matches.find((m) => m.id === id);
+            openInviteModal({
+              senderName: msg.fromMe ? (user?.name || "You") : (matchProfile?.name || "Friend"),
+              senderAvatar: msg.fromMe
+                ? (user?.avatar || undefined)
+                : (matchProfile?.avatarUrl || undefined),
+              category: activityName.toLowerCase(),
+              location: "CHAYOS, GALLERIA",
+              time: "6 PM TODAY",
+            });
+          }}
+          style={styles.inviteCard}
+        >
           {replyPreview ? (
             <Text style={styles.replyQuote} numberOfLines={1}>
               ↪ {replyPreview}
@@ -531,7 +551,7 @@ export default function ChatScreen() {
               <Text style={styles.inviteStatusTextDeclined}>Proposal Declined</Text>
             </View>
           )}
-        </View>
+        </TouchableOpacity>
       );
     }
 
@@ -586,7 +606,7 @@ export default function ChatScreen() {
     const displayBody = contentText;
 
     return msg.fromMe ? (
-      <LinearGradient colors={[...T.cta]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.bubbleGrad}>
+      <LinearGradient colors={[...T.bubbleGradMe]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.bubbleGrad}>
         {replyPreview ? (
           <Text style={styles.replyQuoteMe} numberOfLines={2}>
             ↪ {replyPreview}
@@ -719,7 +739,7 @@ export default function ChatScreen() {
     if (!id || thread?.isGroup) return;
     showSafetyMenu({
       userId: id,
-      name: thread?.name || match?.name,
+      name: thread?.matchName || match?.name || "Friend",
       onUnmatch: handleUnmatch,
       alsoUnmatchOnBlock: async () => {
         await unmatch(id);
@@ -751,11 +771,10 @@ export default function ChatScreen() {
   if (!thread) {
     return (
       <View style={styles.root}>
-        <HangoutCinematicBackground />
         <StatusBar style="light" />
         <SafeAreaView style={styles.safe}>
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color={T.ink} />
+            <Ionicons name="arrow-back" size={20} color={T.ink} />
           </Pressable>
           <Text style={styles.missing}>Chat not found</Text>
         </SafeAreaView>
@@ -765,22 +784,14 @@ export default function ChatScreen() {
 
   return (
     <View style={styles.root}>
-      <HangoutCinematicBackground />
       <StatusBar style="light" />
-      <View style={styles.foreground}>
-      <LinearGradient
-        colors={[T.softPurple, T.softPink, "transparent"]}
-        style={styles.topGlow}
-        pointerEvents="none"
-      />
-
       <SafeAreaView style={styles.safe} edges={["top"]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color={T.ink} />
+            <Ionicons name="arrow-back" size={20} color={T.ink} />
           </Pressable>
           <Pressable style={styles.headerCenter} onPress={() => setShowDetailsModal(true)}>
-            <LinearGradient colors={[...T.cta]} style={styles.headerAvatarRing}>
+            <LinearGradient colors={[...T.cta]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.headerAvatarRing}>
               <Image source={{ uri: thread.avatarUrl }} style={styles.headerAvatar} />
             </LinearGradient>
             <View style={{ flex: 1 }}>
@@ -795,7 +806,9 @@ export default function ChatScreen() {
                 ) : thread.isGroup ? (
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
                     <Ionicons name="people" size={12} color={T.purple} />
-                    <Text style={[styles.headerStatus, { color: T.purple }]}>Hangout group</Text>
+                    <Text style={[styles.headerStatus, { color: T.purple }]}>
+                      {thread.members ? `${thread.members.length} members` : "Group chat"}
+                    </Text>
                   </View>
                 ) : (
                   <>
@@ -810,65 +823,30 @@ export default function ChatScreen() {
               </View>
             </View>
           </Pressable>
-          {!thread.isGroup ? (
-            <Pressable style={styles.moreBtn} onPress={handleSafetyMenu}>
-              <Ionicons name="ellipsis-vertical" size={20} color={T.pink} />
-            </Pressable>
-          ) : (
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-              <TouchableOpacity
-                style={styles.headerSplitBadge}
-                onPress={() => setShowSplitModal(true)}
-                activeOpacity={0.8}
-              >
-                <LinearGradient colors={["#8B5CF6", "#EC4899"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.headerSplitGrad}>
-                  <Ionicons name="wallet-outline" size={13} color="#FFF" />
-                  <Text style={styles.headerSplitText}>Split 💳</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-              <Pressable style={styles.moreBtn} onPress={() => setShowDetailsModal(true)}>
-                <Ionicons name="ellipsis-vertical" size={20} color={T.purple} />
-              </Pressable>
-            </View>
-          )}
+          <Pressable
+            style={styles.moreBtn}
+            onPress={() => (thread.isGroup ? setShowDetailsModal(true) : handleSafetyMenu())}
+          >
+            <Ionicons name="ellipsis-vertical" size={20} color="#22D3EE" />
+          </Pressable>
         </View>
 
-        <View style={styles.matchBanner}>
-          <View style={styles.matchBannerGrad}>
-            <View style={styles.matchBannerIcon}>
-              <Ionicons
-                name={
-                  thread.isGroup
-                    ? "people"
-                    : chatGate?.waitingForOther
-                      ? "time"
-                      : chatGate?.unlocked
-                        ? "chatbubbles"
-                        : "heart"
-                }
-                size={13}
-                color={thread.isGroup ? T.purple : T.pink}
-              />
+        {!thread.isGroup && !chatGate?.unlocked && (
+          <View style={styles.matchBanner}>
+            <View style={styles.matchBannerGrad}>
+              <View style={styles.matchBannerIcon}>
+                <Ionicons
+                  name={chatGate?.waitingForOther ? "time" : "heart"}
+                  size={13}
+                  color="#070A14"
+                />
+              </View>
+              <Text style={styles.matchBannerText}>
+                {chatGate?.reason || "Send one hello to start the chat"}
+              </Text>
             </View>
-            <Text style={[styles.matchBannerText, thread.isGroup && { flex: 1 }]}>
-              {thread.isGroup
-                ? "Hangout group chat — coordinate & split bills"
-                : chatGate?.unlocked
-                  ? "Chat unlocked — ab freely baat karo"
-                  : chatGate?.reason || "Send one hello to start the chat"}
-            </Text>
-            {thread.isGroup && (
-              <TouchableOpacity
-                onPress={() => setShowSplitModal(true)}
-                style={styles.bannerSplitPill}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="card" size={11} color="#8B5CF6" />
-                <Text style={styles.bannerSplitPillText}>Split Bill 💳</Text>
-              </TouchableOpacity>
-            )}
           </View>
-        </View>
+        )}
       </SafeAreaView>
 
       <KeyboardAvoidingView
@@ -959,6 +937,114 @@ export default function ChatScreen() {
           })}
         </ScrollView>
 
+        {/* Backdrop to dismiss floating menu */}
+        {showAttachPanel && (
+          <Pressable
+            style={StyleSheet.absoluteFillObject}
+            onPress={() => setShowAttachPanel(false)}
+          />
+        )}
+
+        {/* Floating Menu Popover (Split, Create Hangout, Photo) */}
+        {showAttachPanel && (
+          <Animated.View
+            entering={FadeInDown.duration(180)}
+            exiting={FadeOutDown.duration(150)}
+            style={styles.floatingMenuCard}
+          >
+            <TouchableOpacity
+              style={styles.floatingMenuItem}
+              activeOpacity={0.8}
+              onPress={() => {
+                setShowAttachPanel(false);
+                setShowSplitModal(true);
+              }}
+            >
+              <LinearGradient
+                colors={["#D4F72C", "#22D3EE"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.floatingMenuIconBg}
+              >
+                <Ionicons name="wallet" size={17} color="#070A14" />
+              </LinearGradient>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.floatingMenuTitle}>Split Bill 💳</Text>
+                <Text style={styles.floatingMenuSub}>VibeSplit expense</Text>
+              </View>
+            </TouchableOpacity>
+
+            <View style={styles.floatingMenuDivider} />
+
+            <TouchableOpacity
+              style={styles.floatingMenuItem}
+              activeOpacity={0.8}
+              onPress={() => {
+                setShowAttachPanel(false);
+                toggleHangoutPanel();
+              }}
+            >
+              <LinearGradient
+                colors={["#F59E0B", "#D97706"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.floatingMenuIconBg}
+              >
+                <Ionicons name="cafe" size={17} color="#FFFFFF" />
+              </LinearGradient>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.floatingMenuTitle}>Create Hangout ☕</Text>
+                <Text style={styles.floatingMenuSub}>Propose quick plan</Text>
+              </View>
+            </TouchableOpacity>
+
+            <View style={styles.floatingMenuDivider} />
+
+            <TouchableOpacity
+              style={styles.floatingMenuItem}
+              activeOpacity={0.8}
+              disabled={uploadingPhoto || !canSend}
+              onPress={() => {
+                setShowAttachPanel(false);
+                handlePickPhoto();
+              }}
+            >
+              <LinearGradient
+                colors={["#0EA5E9", "#0284C7"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.floatingMenuIconBg}
+              >
+                <Ionicons name={uploadingPhoto ? "cloud-upload" : "image"} size={17} color="#FFFFFF" />
+              </LinearGradient>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.floatingMenuTitle}>{uploadingPhoto ? "Uploading…" : "Photo / Gallery 📷"}</Text>
+                <Text style={styles.floatingMenuSub}>Send from gallery</Text>
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
+        {/* Floating Plus Button in Corner */}
+        <TouchableOpacity
+          style={styles.cornerFloatingFab}
+          activeOpacity={0.85}
+          onPress={toggleAttachPanel}
+        >
+          <LinearGradient
+            colors={showAttachPanel ? ["#EF4444", "#DC2626"] : ["#D4F72C", "#22D3EE"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.cornerFloatingFabGrad}
+          >
+            <Ionicons
+              name={showAttachPanel ? "close" : "add"}
+              size={24}
+              color={showAttachPanel ? "#FFFFFF" : "#070A14"}
+            />
+          </LinearGradient>
+        </TouchableOpacity>
+
         <SafeAreaView edges={["bottom"]} style={styles.inputBar}>
           {replyTo ? (
             <View style={styles.replyBar}>
@@ -975,38 +1061,13 @@ export default function ChatScreen() {
             </View>
           ) : null}
           <View style={styles.inputRow}>
-            <Pressable style={styles.attachBtn} onPress={toggleAttachPanel}>
-              <Ionicons name={showAttachPanel ? "close" : "add"} size={22} color={T.purple} />
-            </Pressable>
-
             <Pressable style={styles.emojiToggleBtn} onPress={toggleEmojiPanel}>
               <Ionicons
                 name={showEmojiPanel ? "keypad-outline" : "happy-outline"}
-                size={22}
-                color={T.purple}
+                size={23}
+                color="#22D3EE"
               />
             </Pressable>
-
-            <Pressable style={styles.hangoutToggleBtn} onPress={toggleHangoutPanel}>
-              <Ionicons name="cafe-outline" size={22} color={T.purple} />
-            </Pressable>
-
-            {thread.isGroup && (
-              <Pressable
-                style={styles.splitToggleBtn}
-                onPress={() => {
-                  Keyboard.dismiss();
-                  setShowEmojiPanel(false);
-                  setShowHangoutPanel(false);
-                  setShowAttachPanel(false);
-                  setShowSplitModal(true);
-                }}
-              >
-                <LinearGradient colors={["#8B5CF6", "#EC4899"]} style={styles.splitBtnGrad}>
-                  <Ionicons name="wallet-outline" size={16} color="#fff" />
-                </LinearGradient>
-              </Pressable>
-            )}
 
             <TextInput
               style={[styles.input, !canSend && styles.inputDisabled]}
@@ -1042,76 +1103,6 @@ export default function ChatScreen() {
               )}
             </Pressable>
           </View>
-
-          {showAttachPanel && (
-            <View style={styles.attachPanel}>
-              <Text style={styles.attachPanelTitle}>Quick actions</Text>
-              <Text style={styles.attachPanelSub}>
-                Photo, hangout invite, or react
-              </Text>
-              <View style={styles.attachOptionsRow}>
-                <TouchableOpacity
-                  style={styles.attachOptionCard}
-                  activeOpacity={0.85}
-                  disabled={uploadingPhoto || !canSend}
-                  onPress={handlePickPhoto}
-                >
-                  <LinearGradient colors={["#EC4899", "#DB2777"]} style={styles.attachOptionIconBg}>
-                    <Ionicons name={uploadingPhoto ? "cloud-upload" : "image"} size={20} color="#FFF" />
-                  </LinearGradient>
-                  <Text style={styles.attachOptionLabel}>{uploadingPhoto ? "Uploading…" : "Photo"}</Text>
-                  <Text style={styles.attachOptionSub}>Gallery</Text>
-                </TouchableOpacity>
-
-                {thread.isGroup && (
-                  <TouchableOpacity
-                    style={styles.attachOptionCard}
-                    activeOpacity={0.85}
-                    onPress={() => {
-                      setShowAttachPanel(false);
-                      setShowSplitModal(true);
-                    }}
-                  >
-                    <LinearGradient colors={["#8B5CF6", "#EC4899"]} style={styles.attachOptionIconBg}>
-                      <Ionicons name="card" size={20} color="#FFF" />
-                    </LinearGradient>
-                    <Text style={styles.attachOptionLabel}>Split Bills</Text>
-                    <Text style={styles.attachOptionSub}>VibeSplit</Text>
-                  </TouchableOpacity>
-                )}
-
-                <TouchableOpacity
-                  style={styles.attachOptionCard}
-                  activeOpacity={0.85}
-                  onPress={() => {
-                    setShowAttachPanel(false);
-                    toggleHangoutPanel();
-                  }}
-                >
-                  <LinearGradient colors={["#F59E0B", "#D97706"]} style={styles.attachOptionIconBg}>
-                    <Ionicons name="cafe" size={20} color="#FFF" />
-                  </LinearGradient>
-                  <Text style={styles.attachOptionLabel}>Hangout</Text>
-                  <Text style={styles.attachOptionSub}>Proposal</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.attachOptionCard}
-                  activeOpacity={0.85}
-                  onPress={() => {
-                    setShowAttachPanel(false);
-                    toggleEmojiPanel();
-                  }}
-                >
-                  <LinearGradient colors={["#06B6D4", "#0284C7"]} style={styles.attachOptionIconBg}>
-                    <Ionicons name="happy" size={20} color="#FFF" />
-                  </LinearGradient>
-                  <Text style={styles.attachOptionLabel}>Emojis</Text>
-                  <Text style={styles.attachOptionSub}>React</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
 
           {showEmojiPanel && (
             <View style={styles.emojiPanel}>
@@ -1195,19 +1186,19 @@ export default function ChatScreen() {
                   activeOpacity={0.85}
                 >
                   <LinearGradient
-                    colors={["#8B5CF6", "#EC4899"]}
+                    colors={["#D4F72C", "#22D3EE"]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.modalSplitGrad}
                   >
                     <View style={styles.modalSplitIconCircle}>
-                      <Ionicons name="wallet" size={18} color="#FFF" />
+                      <Ionicons name="wallet" size={18} color="#070A14" />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.modalSplitTitle}>VibeSplit — Split Bills 💳💸</Text>
-                      <Text style={styles.modalSplitSub}>Add expenses & settle balances for this hangout group</Text>
+                      <Text style={styles.modalSplitSub}>Add expenses & settle balances for this group</Text>
                     </View>
-                    <Ionicons name="chevron-forward" size={16} color="#FFF" />
+                    <Ionicons name="chevron-forward" size={16} color="#070A14" />
                   </LinearGradient>
                 </TouchableOpacity>
 
@@ -1257,9 +1248,76 @@ export default function ChatScreen() {
                       ))}
                     </ScrollView>
                   </View>
+                ) : thread.members && thread.members.length > 0 ? (
+                  <View style={styles.groupInfoBox}>
+                    <Text style={styles.groupDesc} numberOfLines={3}>
+                      Vibe group chat with your crew 👥
+                    </Text>
+
+                    <Text style={styles.membersTitle}>
+                      Group Members ({thread.members.length})
+                    </Text>
+
+                    <ScrollView
+                      style={styles.membersScroll}
+                      contentContainerStyle={styles.membersScrollContent}
+                      showsVerticalScrollIndicator={false}
+                    >
+                      {thread.members.map((member) => (
+                        <View key={member.id} style={styles.memberRow}>
+                          <Image
+                            source={{
+                              uri:
+                                member.avatarUrl ||
+                                "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100",
+                            }}
+                            style={styles.memberAvatar}
+                          />
+                          <Text style={styles.memberName} numberOfLines={1}>
+                            {member.name} {member.id === user?.id ? "(You)" : ""}
+                          </Text>
+                        </View>
+                      ))}
+                    </ScrollView>
+                  </View>
                 ) : (
-                  <Text style={styles.errorTextInline}>Plan details unavailable</Text>
+                  <Text style={styles.errorTextInline}>Group details</Text>
                 )}
+
+                <TouchableOpacity
+                  style={[
+                    styles.modalConfirmBtn,
+                    {
+                      marginTop: 14,
+                      backgroundColor: "rgba(239, 68, 68, 0.15)",
+                      borderColor: "rgba(239, 68, 68, 0.4)",
+                      borderWidth: 1,
+                    },
+                  ]}
+                  onPress={() => {
+                    Alert.alert(
+                      "Leave Group",
+                      "Are you sure you want to leave this group chat?",
+                      [
+                        { text: "Cancel", style: "cancel" },
+                        {
+                          text: "Leave",
+                          style: "destructive",
+                          onPress: async () => {
+                            setShowDetailsModal(false);
+                            await deleteCustomGroup(id);
+                            router.back();
+                          },
+                        },
+                      ]
+                    );
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.modalConfirmBtnText, { color: "#EF4444" }]}>
+                    Leave Group 🚪
+                  </Text>
+                </TouchableOpacity>
               </View>
             ) : (
               <View style={styles.modalContent}>
@@ -1328,23 +1386,23 @@ export default function ChatScreen() {
           titleName={thread.matchName || "Hangout"}
         />
       )}
-      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: T.bg },
-  foreground: { flex: 1, zIndex: 1, backgroundColor: "transparent" },
-  topGlow: { position: "absolute", top: 0, left: 0, right: 0, height: 220 },
-  safe: { backgroundColor: "transparent" },
-  flex: { flex: 1 },
+  root: { flex: 1, backgroundColor: "#000000" },
+  safe: { backgroundColor: "#000000" },
+  flex: { flex: 1, backgroundColor: "#000000" },
   header: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
     paddingBottom: 12,
     gap: 12,
+    backgroundColor: "#000000",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.07)",
   },
   backBtn: {
     width: 42,
@@ -1403,9 +1461,9 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: T.card,
     borderWidth: 1,
-    borderColor: T.border,
-    shadowColor: "#7C3AED",
-    shadowOpacity: 0.04,
+    borderColor: "rgba(34, 211, 238, 0.2)",
+    shadowColor: "#22D3EE",
+    shadowOpacity: 0.08,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
@@ -1413,27 +1471,27 @@ const styles = StyleSheet.create({
   matchBannerIcon: {
     width: 30,
     height: 30,
-    borderRadius: 11,
-    backgroundColor: T.softPink,
+    borderRadius: 15,
+    backgroundColor: T.pink,
     alignItems: "center",
     justifyContent: "center",
   },
   matchBannerText: {
     flex: 1,
-    fontSize: 11,
+    fontSize: 11.5,
     fontFamily: VibeFonts.semiBold,
-    color: T.muted,
+    color: "#E2E8F0",
     lineHeight: 16,
   },
   messages: { flex: 1 },
-  messagesContent: { padding: 16, paddingBottom: 16, gap: 14 },
+  messagesContent: { padding: 16, paddingBottom: 84, gap: 14 },
   iceWrap: {
     marginBottom: 8,
     padding: 14,
     borderRadius: 18,
-    backgroundColor: "rgba(124,58,237,0.12)",
+    backgroundColor: "rgba(13, 20, 36, 0.9)",
     borderWidth: 1,
-    borderColor: "rgba(167,139,250,0.28)",
+    borderColor: "rgba(34, 211, 238, 0.25)",
     gap: 8,
   },
   iceTitle: {
@@ -1444,21 +1502,21 @@ const styles = StyleSheet.create({
   iceSub: {
     fontSize: 12,
     fontFamily: VibeFonts.medium,
-    color: "rgba(255,255,255,0.55)",
+    color: "#94A3B8",
     marginBottom: 4,
   },
   iceChip: {
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "rgba(255, 255, 255, 0.04)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: "rgba(255, 255, 255, 0.08)",
   },
   iceChipText: {
     fontSize: 13,
     fontFamily: VibeFonts.medium,
-    color: "rgba(255,255,255,0.9)",
+    color: "rgba(255, 255, 255, 0.9)",
   },
   bubbleWrap: { maxWidth: "82%" },
   bubbleWrapMe: { alignSelf: "flex-end", alignItems: "flex-end" },
@@ -1481,22 +1539,24 @@ const styles = StyleSheet.create({
   },
   bubble: { borderRadius: 22, overflow: "hidden", maxWidth: "100%" },
   bubbleMe: {
-    borderBottomRightRadius: 6,
-    shadowColor: "#8B5CF6",
-    shadowOpacity: 0.28,
+    borderBottomRightRadius: 4,
+    borderRadius: 20,
+    shadowColor: "#0284C7",
+    shadowOpacity: 0.35,
     shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
   bubbleThem: {
     backgroundColor: T.cardElevated,
     borderWidth: 1,
-    borderColor: T.border,
-    borderBottomLeftRadius: 6,
+    borderColor: "rgba(255, 255, 255, 0.09)",
+    borderRadius: 20,
+    borderBottomLeftRadius: 4,
     shadowColor: "#000000",
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.25,
     shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
+    shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
   bubbleGrad: { paddingHorizontal: 16, paddingVertical: 12 },
@@ -1509,7 +1569,7 @@ const styles = StyleSheet.create({
   bubbleTextThem: {
     fontSize: 14.5,
     fontFamily: VibeFonts.medium,
-    color: T.ink,
+    color: "#F8FAFC",
     lineHeight: 21,
   },
   msgTime: {
@@ -1596,12 +1656,8 @@ const styles = StyleSheet.create({
   },
   inputBar: {
     borderTopWidth: 1,
-    borderTopColor: T.border,
-    backgroundColor: T.glass,
-    shadowColor: "#0F172A",
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: -3 },
+    borderTopColor: "rgba(255, 255, 255, 0.08)",
+    backgroundColor: "#000000",
   },
   inputRow: {
     flexDirection: "row",
@@ -1611,49 +1667,45 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   attachBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 15,
-    backgroundColor: T.softPurple,
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "rgba(167, 139, 250, 0.35)",
+    borderColor: "rgba(255, 255, 255, 0.1)",
   },
   input: {
     flex: 1,
     maxHeight: 110,
-    backgroundColor: T.card,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 11,
+    backgroundColor: "#11141B",
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     fontSize: 14,
     fontFamily: VibeFonts.medium,
     color: T.ink,
     borderWidth: 1,
-    borderColor: T.border,
-    shadowColor: "#0F172A",
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
+    borderColor: "rgba(255, 255, 255, 0.12)",
   },
   inputDisabled: { opacity: 0.55 },
   sendBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#D4F72C",
-    shadowOpacity: 0.5,
+    shadowOpacity: 0.45,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
     elevation: 3,
   },
   sendBtnDisabled: {
-    backgroundColor: T.softPurple,
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
     borderWidth: 1,
-    borderColor: T.border,
+    borderColor: "rgba(255, 255, 255, 0.08)",
     shadowOpacity: 0,
     elevation: 0,
   },
@@ -1697,14 +1749,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     zIndex: 10,
     borderWidth: 1,
-    borderColor: "rgba(167, 139, 250, 0.35)",
+    borderColor: "rgba(34, 211, 238, 0.3)",
   },
   modalContent: {
     width: "100%",
     alignItems: "center",
   },
   avatarGlowContainer: {
-    shadowColor: "#8B5CF6",
+    shadowColor: "#22D3EE",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
@@ -1745,7 +1797,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: "rgba(167, 139, 250, 0.35)",
+    borderColor: "rgba(34, 211, 238, 0.3)",
   },
   infoTextInline: {
     color: T.ink,
@@ -1820,20 +1872,20 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   emojiToggleBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 15,
-    backgroundColor: T.softPurple,
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "rgba(167, 139, 250, 0.35)",
+    borderColor: "rgba(255, 255, 255, 0.1)",
   },
   emojiPanel: {
     height: 250,
     borderTopWidth: 1,
-    borderTopColor: T.border,
-    backgroundColor: T.card,
+    borderTopColor: "rgba(255, 255, 255, 0.08)",
+    backgroundColor: "#0A0D14",
     paddingVertical: 10,
   },
   emojiGrid: {
@@ -1852,21 +1904,21 @@ const styles = StyleSheet.create({
   emojiPanelText: { fontSize: 24 },
   emojiText: { fontSize: 15 },
   hangoutToggleBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 15,
-    backgroundColor: T.softPurple,
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "rgba(167, 139, 250, 0.35)",
+    borderColor: "rgba(255, 255, 255, 0.1)",
   },
   hangoutPanel: {
     paddingVertical: 16,
     paddingHorizontal: Spacing.md,
     borderTopWidth: 1,
-    borderTopColor: T.border,
-    backgroundColor: T.card,
+    borderTopColor: "rgba(255, 255, 255, 0.08)",
+    backgroundColor: "#0A0D14",
   },
   hangoutPanelTitle: {
     color: T.ink,
@@ -1948,7 +2000,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "rgba(167, 139, 250, 0.35)",
+    borderColor: "rgba(34, 211, 238, 0.3)",
   },
   inviteIconText: { fontSize: 22 },
   inviteTitle: {
@@ -2028,18 +2080,18 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: T.card,
     borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.25)",
+    borderColor: "rgba(34, 211, 238, 0.25)",
     maxWidth: 280,
     gap: 8,
-    shadowColor: "#8B5CF6",
-    shadowOpacity: 0.08,
+    shadowColor: "#22D3EE",
+    shadowOpacity: 0.1,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 3 },
     elevation: 3,
   },
   vibeSplitCardExpense: {
     backgroundColor: T.cardElevated,
-    borderColor: "rgba(139, 92, 246, 0.3)",
+    borderColor: "rgba(34, 211, 238, 0.3)",
   },
   vibeSplitCardSettled: {
     backgroundColor: T.greenSoft,
@@ -2055,7 +2107,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
-    backgroundColor: "rgba(139, 92, 246, 0.1)",
+    backgroundColor: "rgba(34, 211, 238, 0.1)",
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
@@ -2098,7 +2150,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   headerSplitText: {
-    color: "#FFFFFF",
+    color: "#070A14",
     fontFamily: VibeFonts.bold,
     fontSize: 11,
   },
@@ -2106,17 +2158,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: T.cardElevated,
+    backgroundColor: "rgba(34, 211, 238, 0.12)",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.3)",
+    borderColor: "rgba(34, 211, 238, 0.3)",
   },
   bannerSplitPillText: {
-    fontSize: 10,
+    fontSize: 10.5,
     fontFamily: VibeFonts.bold,
-    color: T.purpleBright,
+    color: "#22D3EE",
   },
   splitToggleBtn: {
     borderRadius: 12,
@@ -2155,10 +2207,10 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     padding: 10,
-    backgroundColor: T.softPurple,
+    backgroundColor: "rgba(255, 255, 255, 0.04)",
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.15)",
+    borderColor: "rgba(34, 211, 238, 0.2)",
   },
   attachOptionIconBg: {
     width: 38,
@@ -2178,6 +2230,73 @@ const styles = StyleSheet.create({
     fontFamily: VibeFonts.medium,
     color: T.muted,
     marginTop: 1,
+  },
+  cornerFloatingFab: {
+    position: "absolute",
+    right: 16,
+    bottom: 74,
+    zIndex: 20,
+    shadowColor: "#22D3EE",
+    shadowOpacity: 0.45,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  cornerFloatingFabGrad: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  floatingMenuCard: {
+    position: "absolute",
+    right: 16,
+    bottom: 132,
+    width: 224,
+    backgroundColor: "#0D1424",
+    borderRadius: 20,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: "rgba(34, 211, 238, 0.3)",
+    zIndex: 25,
+    shadowColor: "#000",
+    shadowOpacity: 0.6,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 10,
+    gap: 4,
+  },
+  floatingMenuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+  },
+  floatingMenuIconBg: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  floatingMenuTitle: {
+    fontSize: 13.5,
+    fontFamily: VibeFonts.bold,
+    color: "#FFFFFF",
+  },
+  floatingMenuSub: {
+    fontSize: 10.5,
+    fontFamily: VibeFonts.medium,
+    color: "#94A3B8",
+    marginTop: 1,
+  },
+  floatingMenuDivider: {
+    height: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.07)",
+    marginHorizontal: 4,
   },
   modalSplitCard: {
     borderRadius: 18,
@@ -2201,12 +2320,12 @@ const styles = StyleSheet.create({
   modalSplitTitle: {
     fontSize: 13,
     fontFamily: VibeFonts.extraBold,
-    color: "#FFFFFF",
+    color: "#070A14",
   },
   modalSplitSub: {
     fontSize: 10.5,
     fontFamily: VibeFonts.medium,
-    color: "rgba(255, 255, 255, 0.85)",
+    color: "rgba(7, 10, 20, 0.75)",
     marginTop: 1,
   },
 });

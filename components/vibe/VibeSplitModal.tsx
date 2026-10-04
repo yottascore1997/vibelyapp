@@ -191,7 +191,7 @@ export default function VibeSplitModal({
             <View>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                 <Text style={styles.headerTitle}>VibeSplit 💳💸</Text>
-                <LinearGradient colors={["#8B5CF6", "#EC4899"]} style={styles.pillBadge}>
+                <LinearGradient colors={["#D4F72C", "#22D3EE"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.pillBadge}>
                   <Text style={styles.pillBadgeText}>BILL SPLITTER</Text>
                 </LinearGradient>
               </View>
@@ -204,7 +204,7 @@ export default function VibeSplitModal({
 
           {/* Cards Summary Dashboard */}
           <View style={styles.summaryRow}>
-            <LinearGradient colors={["#2E1065", "#1E1B4B"]} style={styles.summaryCard}>
+            <LinearGradient colors={["#0D1424", "#101930"]} style={styles.summaryCard}>
               <Text style={styles.summaryLabel}>TOTAL SPENT</Text>
               <Text style={styles.summaryValueSpent}>₹{totalSpent.toLocaleString("en-IN")}</Text>
             </LinearGradient>
@@ -258,7 +258,7 @@ export default function VibeSplitModal({
           {/* Body Content */}
           {loading ? (
             <View style={styles.centerLoading}>
-              <ActivityIndicator size="large" color="#A78BFA" />
+              <ActivityIndicator size="large" color="#22D3EE" />
             </View>
           ) : (
             <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
@@ -458,9 +458,9 @@ export default function VibeSplitModal({
                   <Text style={styles.cancelFormText}>Cancel</Text>
                 </Pressable>
                 <Pressable disabled={adding} onPress={handleAddExpense} style={{ flex: 1 }}>
-                  <LinearGradient colors={["#8B5CF6", "#EC4899"]} style={styles.submitFormBtn}>
+                  <LinearGradient colors={["#D4F72C", "#22D3EE"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.submitFormBtn}>
                     {adding ? (
-                      <ActivityIndicator color="#fff" size="small" />
+                      <ActivityIndicator color="#070A14" size="small" />
                     ) : (
                       <Text style={styles.submitFormText}>+ Add Expense 🚀</Text>
                     )}
@@ -470,8 +470,8 @@ export default function VibeSplitModal({
             </View>
           ) : (
             <Pressable onPress={() => setShowAddForm(true)} style={{ marginTop: 10 }}>
-              <LinearGradient colors={["#8B5CF6", "#EC4899"]} style={styles.addExpenseBtn}>
-                <Ionicons name="add-circle" size={20} color="#fff" />
+              <LinearGradient colors={["#D4F72C", "#22D3EE"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.addExpenseBtn}>
+                <Ionicons name="add-circle" size={20} color="#070A14" />
                 <Text style={styles.addExpenseBtnText}>+ Add New Expense</Text>
               </LinearGradient>
             </Pressable>
@@ -489,7 +489,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   container: {
-    backgroundColor: "#0D091B",
+    backgroundColor: "#0D1424",
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     padding: 20,
@@ -497,7 +497,7 @@ const styles = StyleSheet.create({
     maxHeight: "88%",
     minHeight: "68%",
     borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.3)",
+    borderColor: "rgba(255, 255, 255, 0.12)",
   },
   grabHandle: {
     width: 40,
@@ -527,7 +527,7 @@ const styles = StyleSheet.create({
   pillBadgeText: {
     fontSize: 9,
     fontFamily: VibeFonts.bold,
-    color: "#FFFFFF",
+    color: "#070A14",
     letterSpacing: 0.5,
   },
   headerSub: {
@@ -557,7 +557,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.3)",
+    borderColor: "rgba(34, 211, 238, 0.25)",
   },
   summaryLabel: {
     fontSize: 9,
@@ -568,7 +568,7 @@ const styles = StyleSheet.create({
   summaryValueSpent: {
     fontSize: 18,
     fontFamily: VibeFonts.extraBold,
-    color: "#C4B5FD",
+    color: "#22D3EE",
     marginTop: 3,
   },
   summaryValue: {
@@ -592,9 +592,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   tabBtnActive: {
-    backgroundColor: "rgba(139, 92, 246, 0.35)",
+    backgroundColor: "rgba(34, 211, 238, 0.15)",
     borderWidth: 1,
-    borderColor: "rgba(167, 139, 250, 0.5)",
+    borderColor: "rgba(34, 211, 238, 0.4)",
   },
   tabBtnText: {
     fontSize: 12,
@@ -603,7 +603,7 @@ const styles = StyleSheet.create({
   },
   tabBtnTextActive: {
     fontFamily: VibeFonts.bold,
-    color: "#FFFFFF",
+    color: "#D4F72C",
   },
   centerLoading: {
     flex: 1,
@@ -647,7 +647,7 @@ const styles = StyleSheet.create({
     height: 42,
     borderRadius: 21,
     borderWidth: 1.5,
-    borderColor: "rgba(139, 92, 246, 0.5)",
+    borderColor: "#22D3EE",
   },
   memberName: {
     fontSize: 14,
@@ -655,7 +655,7 @@ const styles = StyleSheet.create({
     color: "#F9FAFB",
   },
   youBadge: {
-    backgroundColor: "rgba(139, 92, 246, 0.3)",
+    backgroundColor: "rgba(34, 211, 238, 0.15)",
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
@@ -663,7 +663,7 @@ const styles = StyleSheet.create({
   youBadgeText: {
     fontSize: 9,
     fontFamily: VibeFonts.bold,
-    color: "#C4B5FD",
+    color: "#22D3EE",
   },
   waBadge: {
     flexDirection: "row",
@@ -760,10 +760,10 @@ const styles = StyleSheet.create({
   expAmount: {
     fontSize: 15,
     fontFamily: VibeFonts.extraBold,
-    color: "#C4B5FD",
+    color: "#22D3EE",
   },
   perPersonPill: {
-    backgroundColor: "rgba(236, 72, 153, 0.2)",
+    backgroundColor: "rgba(34, 211, 238, 0.15)",
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
@@ -771,23 +771,23 @@ const styles = StyleSheet.create({
   perPersonText: {
     fontSize: 10,
     fontFamily: VibeFonts.bold,
-    color: "#F472B6",
+    color: "#22D3EE",
   },
   addFormContainer: {
-    backgroundColor: "rgba(30, 20, 55, 0.95)",
+    backgroundColor: "#101930",
     borderRadius: 22,
     padding: 16,
     borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.4)",
+    borderColor: "rgba(34, 211, 238, 0.3)",
     marginTop: 10,
   },
   addFormTitle: {
     fontSize: 14,
     fontFamily: VibeFonts.extraBold,
-    color: "#C4B5FD",
+    color: "#D4F72C",
   },
   input: {
-    backgroundColor: "rgba(15, 10, 30, 0.8)",
+    backgroundColor: "#070A14",
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 11,
@@ -796,7 +796,7 @@ const styles = StyleSheet.create({
     color: "#F9FAFB",
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.3)",
+    borderColor: "rgba(34, 211, 238, 0.25)",
   },
   presetRow: {
     flexDirection: "row",
@@ -807,15 +807,15 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 6,
     borderRadius: 10,
-    backgroundColor: "rgba(139, 92, 246, 0.15)",
+    backgroundColor: "rgba(34, 211, 238, 0.1)",
     borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.3)",
+    borderColor: "rgba(34, 211, 238, 0.25)",
     alignItems: "center",
   },
   presetChipText: {
     fontSize: 11,
     fontFamily: VibeFonts.bold,
-    color: "#A78BFA",
+    color: "#22D3EE",
   },
   catChip: {
     paddingHorizontal: 12,
@@ -826,8 +826,8 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255, 255, 255, 0.1)",
   },
   catChipActive: {
-    backgroundColor: "rgba(139, 92, 246, 0.3)",
-    borderColor: "#A78BFA",
+    backgroundColor: "rgba(212, 247, 44, 0.15)",
+    borderColor: "#D4F72C",
   },
   catChipText: {
     fontSize: 12,
@@ -836,7 +836,7 @@ const styles = StyleSheet.create({
   },
   catChipTextActive: {
     fontFamily: VibeFonts.bold,
-    color: "#FFFFFF",
+    color: "#D4F72C",
   },
   cancelFormBtn: {
     paddingHorizontal: 16,
@@ -860,7 +860,7 @@ const styles = StyleSheet.create({
   submitFormText: {
     fontSize: 13,
     fontFamily: VibeFonts.bold,
-    color: "#FFFFFF",
+    color: "#070A14",
   },
   addExpenseBtn: {
     flexDirection: "row",
@@ -873,6 +873,6 @@ const styles = StyleSheet.create({
   addExpenseBtnText: {
     fontSize: 14,
     fontFamily: VibeFonts.bold,
-    color: "#FFFFFF",
+    color: "#070A14",
   },
 });

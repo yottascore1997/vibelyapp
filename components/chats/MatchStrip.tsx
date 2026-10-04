@@ -20,7 +20,8 @@ interface Props {
 }
 
 export default function MatchStrip({ matches, onPressMatch, onDiscover }: Props) {
-  if (matches.length === 0) return null;
+  if (!matches || matches.length === 0) return null;
+  const isEmpty = matches.length === 0;
 
   return (
     <View style={styles.wrap}>
@@ -30,76 +31,126 @@ export default function MatchStrip({ matches, onPressMatch, onDiscover }: Props)
         </View>
         <View style={styles.countPill}>
           <LinearGradient
-            colors={["rgba(212, 247, 44, 0.15)", "rgba(34, 211, 238, 0.15)"]}
+            colors={
+              isEmpty
+                ? ["rgba(255, 255, 255, 0.08)", "rgba(255, 255, 255, 0.04)"]
+                : ["rgba(212, 247, 44, 0.15)", "rgba(34, 211, 238, 0.15)"]
+            }
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
-            style={styles.countPillGrad}
+            style={[styles.countPillGrad, isEmpty && styles.countPillGradEmpty]}
           >
-            <Text style={styles.countText}>{matches.length} NEW</Text>
+            <Text style={[styles.countText, isEmpty && styles.countTextEmpty]}>
+              {isEmpty ? "0 NEW" : `${matches.length} NEW`}
+            </Text>
           </LinearGradient>
         </View>
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
-      >
-        {matches.map((m, idx) => {
-          const grad = RING_GRADIENTS[idx % RING_GRADIENTS.length];
-          return (
+      {isEmpty ? (
+        <View style={styles.emptyContainer}>
+          {onDiscover ? (
             <Pressable
-              key={m.id}
-              style={({ pressed }) => [styles.cell, pressed && styles.cellPressed]}
-              onPress={() => onPressMatch(m)}
+              style={({ pressed }) => [styles.emptyActionRow, pressed && styles.cellPressed]}
+              onPress={onDiscover}
             >
-              <View style={styles.avatarContainer}>
+              <View style={styles.emptyIconCircle}>
                 <LinearGradient
-                  colors={[...grad]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.ring}
+                  colors={["rgba(34, 211, 238, 0.18)", "rgba(212, 247, 44, 0.12)"]}
+                  style={styles.emptyIconGrad}
                 >
-                  <Image source={{ uri: m.avatarUrl }} style={styles.avatar} />
+                  <Ionicons name="sparkles" size={22} color="#D4F72C" />
                 </LinearGradient>
-
-                {m.isOnline ? (
-                  <View style={styles.online}>
-                    <PulseDot size={5} color="#22C55E" />
-                  </View>
-                ) : null}
-
-                {m.isVerified ? (
-                  <View style={styles.verifiedBadge}>
-                    <Ionicons name="checkmark" size={10} color="#070A14" />
-                  </View>
-                ) : null}
               </View>
-
-              <Text style={styles.name} numberOfLines={1}>
-                {m.name.split(" ")[0]}
-              </Text>
+              <View style={styles.emptyTextCol}>
+                <Text style={styles.emptyTitle}>No new matches yet</Text>
+                <Text style={styles.emptySub}>
+                  Swipe on Discover or join Hangouts to find your match!
+                </Text>
+              </View>
+              <View style={styles.emptyCtaBadge}>
+                <LinearGradient
+                  colors={["#D4F72C", "#22D3EE"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.emptyCtaBadgeGrad}
+                >
+                  <Text style={styles.emptyCtaBadgeText}>Discover</Text>
+                  <Ionicons name="chevron-forward" size={12} color="#070A14" />
+                </LinearGradient>
+              </View>
             </Pressable>
-          );
-        })}
-
-        {onDiscover ? (
-          <Pressable
-            style={({ pressed }) => [styles.newCell, pressed && styles.cellPressed]}
-            onPress={onDiscover}
-          >
-            <View style={styles.newRing}>
-              <LinearGradient
-                colors={["rgba(34, 211, 238, 0.12)", "rgba(212, 247, 44, 0.08)"]}
-                style={styles.newRingGrad}
-              >
-                <Ionicons name="add" size={26} color="#22D3EE" />
-              </LinearGradient>
+          ) : (
+            <View style={styles.emptyTextColOnly}>
+              <Text style={styles.emptyTitle}>No new matches yet</Text>
+              <Text style={styles.emptySub}>
+                Check back soon or explore new people on Discover.
+              </Text>
             </View>
-            <Text style={styles.newLabel}>Discover</Text>
-          </Pressable>
-        ) : null}
-      </ScrollView>
+          )}
+        </View>
+      ) : (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.scroll}
+        >
+          {matches.map((m, idx) => {
+            const grad = RING_GRADIENTS[idx % RING_GRADIENTS.length];
+            return (
+              <Pressable
+                key={m.id}
+                style={({ pressed }) => [styles.cell, pressed && styles.cellPressed]}
+                onPress={() => onPressMatch(m)}
+              >
+                <View style={styles.avatarContainer}>
+                  <LinearGradient
+                    colors={[...grad]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.ring}
+                  >
+                    <Image source={{ uri: m.avatarUrl }} style={styles.avatar} />
+                  </LinearGradient>
+
+                  {m.isOnline ? (
+                    <View style={styles.online}>
+                      <PulseDot size={5} color="#22C55E" />
+                    </View>
+                  ) : null}
+
+                  {m.isVerified ? (
+                    <View style={styles.verifiedBadge}>
+                      <Ionicons name="checkmark" size={10} color="#070A14" />
+                    </View>
+                  ) : null}
+                </View>
+
+                <Text style={styles.name} numberOfLines={1}>
+                  {m.name.split(" ")[0]}
+                </Text>
+              </Pressable>
+            );
+          })}
+
+          {onDiscover ? (
+            <Pressable
+              style={({ pressed }) => [styles.newCell, pressed && styles.cellPressed]}
+              onPress={onDiscover}
+            >
+              <View style={styles.newRing}>
+                <LinearGradient
+                  colors={["rgba(34, 211, 238, 0.12)", "rgba(212, 247, 44, 0.08)"]}
+                  style={styles.newRingGrad}
+                >
+                  <Ionicons name="add" size={26} color="#22D3EE" />
+                </LinearGradient>
+              </View>
+              <Text style={styles.newLabel}>Discover</Text>
+            </Pressable>
+          ) : null}
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -213,5 +264,78 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: VibeFonts.medium,
     color: "#94A3B8",
+  },
+  countPillGradEmpty: {
+    borderColor: "rgba(255, 255, 255, 0.15)",
+  },
+  countTextEmpty: {
+    color: "#94A3B8",
+  },
+  emptyContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 2,
+    paddingBottom: 4,
+  },
+  emptyActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    padding: 10,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.06)",
+  },
+  emptyIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    overflow: "hidden",
+  },
+  emptyIconGrad: {
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: "rgba(212, 247, 44, 0.25)",
+  },
+  emptyTextCol: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  emptyTextColOnly: {
+    alignItems: "center",
+    paddingVertical: 12,
+  },
+  emptyTitle: {
+    fontSize: 13,
+    fontFamily: VibeFonts.bold,
+    color: "#FFFFFF",
+  },
+  emptySub: {
+    fontSize: 11,
+    fontFamily: VibeFonts.medium,
+    color: "#94A3B8",
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  emptyCtaBadge: {
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  emptyCtaBadgeGrad: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  emptyCtaBadgeText: {
+    fontSize: 11,
+    fontFamily: VibeFonts.bold,
+    color: "#070A14",
   },
 });

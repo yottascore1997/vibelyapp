@@ -388,6 +388,21 @@ export const api = {
       body: formData,
     });
   },
+  getNotifications: () => fetchApi<any[]>("/notifications"),
+  markNotificationRead: (id: string) =>
+    fetchApi("/notifications", {
+      method: "PATCH",
+      body: JSON.stringify({ id }),
+    }),
+  markAllNotificationsRead: () =>
+    fetchApi("/notifications", {
+      method: "PATCH",
+      body: JSON.stringify({ markAll: true }),
+    }),
+  deleteNotification: (id: string) =>
+    fetchApi(`/notifications?id=${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    }),
   getInvites: (_userId?: string) => fetchApi<any[]>(`/invites`),
   sendInvite: (data: {
     receiverId: string;

@@ -5,7 +5,7 @@ import { api } from "../services/api";
 import { useAuth } from "./AuthContext";
 import { usePlans } from "./PlansContext";
 import { DiscoverProfile, MatchProfile, SwipeAction } from "../constants/matches";
-import { ChatThread, buildEmptyThread, formatChatPreview, parseReplyPayload } from "../constants/chats";
+import { ChatThread, ChatMessage, buildEmptyThread, formatChatPreview, parseReplyPayload } from "../constants/chats";
 import { ChatGate, evaluateLocalChatGate } from "../constants/chatGate";
 import { resolveChatWsUrl } from "../constants/theme";
 import { getActiveApiBase } from "../services/api";
@@ -44,6 +44,12 @@ interface MatchesContextType {
   sendTypingStatus: (matchId: string, isTyping: boolean) => void;
   updateMessageContent: (messageId: string, newContent: string, matchId: string, isGroup?: boolean) => void;
   deleteMessage: (messageId: string, matchId: string, isGroup?: boolean) => void;
+  createCustomGroup: (
+    name: string,
+    members: { id: string; name: string; avatarUrl?: string }[],
+    avatarUrl?: string
+  ) => Promise<string>;
+  deleteCustomGroup: (groupId: string) => Promise<void>;
 }
 
 const MatchesContext = createContext<MatchesContextType | null>(null);
@@ -74,7 +80,7 @@ function syncThreads(matches: MatchProfile[], stored: ChatThread[]): ChatThread[
   }
 
   return threads
-    .filter((t) => t.isGroup || matches.some((m) => m.id === t.matchId))
+    .filter((t) => (t.isGroup && t.matchId.startsWith("group_")) || matches.some((m) => m.id === t.matchId))
     .sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime());
 }
 
@@ -202,7 +208,11 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
 
       const chatsRaw = await AsyncStorage.getItem(STORAGE_CHATS);
       const localChats = chatsRaw ? (JSON.parse(chatsRaw) as ChatThread[]) : [];
-      const threads = syncThreads(mergedMatches, localChats);
+      // Clean up any previously auto-generated hangout groups (only keep manually created custom groups)
+      const cleanedLocalChats = localChats.filter(
+        (t) => !t.isGroup || t.matchId.startsWith("group_")
+      );
+      const threads = syncThreads(mergedMatches, cleanedLocalChats);
 
       // Sync actual historical messages from MySQL database
       const nextGates: Record<string, ChatGate> = {};
@@ -212,33 +222,35 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
         threads.map(async (t) => {
           try {
             if (t.isGroup) {
-              const serverMsgs = await api.getGroupChatMessages(t.matchId);
-              if (serverMsgs) {
-                const messages = serverMsgs.map((m: any) => {
-                  const parsed = parseReplyPayload(m.text || "");
-                  return {
-                    id: m.id,
-                    text: m.text,
-                    sentAt: m.sentAt,
-                    fromMe: m.senderId === user.id,
-                    senderName: m.senderName,
-                    senderAvatar: m.senderAvatar,
-                    replyToId: parsed.replyToId,
-                    replyToText: parsed.replyToText,
-                  };
-                });
+              if (!t.matchId.startsWith("group_")) {
+                const serverMsgs = await api.getGroupChatMessages(t.matchId).catch(() => null);
+                if (serverMsgs) {
+                  const messages = serverMsgs.map((m: any) => {
+                    const parsed = parseReplyPayload(m.text || "");
+                    return {
+                      id: m.id,
+                      text: m.text,
+                      sentAt: m.sentAt,
+                      fromMe: m.senderId === user.id,
+                      senderName: m.senderName,
+                      senderAvatar: m.senderAvatar,
+                      replyToId: parsed.replyToId,
+                      replyToText: parsed.replyToText,
+                    };
+                  });
 
-                const lastRaw = messages[messages.length - 1]?.text || "";
-                return {
-                  ...t,
-                  messages,
-                  lastMessage: lastRaw
-                    ? formatChatPreview(lastRaw)
-                    : "Say hi to the group",
-                  lastMessageAt:
-                    messages[messages.length - 1]?.sentAt || t.lastMessageAt,
-                  unread: 0,
-                };
+                  const lastRaw = messages[messages.length - 1]?.text || "";
+                  return {
+                    ...t,
+                    messages,
+                    lastMessage: lastRaw
+                      ? formatChatPreview(lastRaw)
+                      : "Say hi to the group",
+                    lastMessageAt:
+                      messages[messages.length - 1]?.sentAt || t.lastMessageAt,
+                    unread: 0,
+                  };
+                }
               }
               return t;
             }
@@ -321,74 +333,6 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     refresh();
   }, [refresh]);
-
-  // Synchronize Group Chats based on Hangouts created by or joined by the user
-  useEffect(() => {
-    if (!user) return;
-
-    // Get all plans created by me, OR where I am accepted (going)
-    const activePlans = [...myPlans, ...nearbyPlans].filter((p) => {
-      const isCreator = p.creatorId === user.id;
-      const isAccepted = getRequestStatus(p.id) === "accepted" || p.participants?.some((pt) => pt.id === user.id);
-      return isCreator || isAccepted;
-    });
-
-    setConversations((prev) => {
-      let changed = false;
-      const updated = [...prev];
-
-      // Update existing group chats or add new ones
-      for (const plan of activePlans) {
-        const existingIdx = updated.findIndex((t) => t.matchId === plan.id);
-        const groupName = `${plan.title}`;
-        const groupAvatar = plan.imageUrl || "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=200&h=200&fit=crop";
-
-        if (existingIdx !== -1) {
-          // Sync changes
-          const existingThread = updated[existingIdx];
-          if (existingThread.matchName !== groupName || existingThread.avatarUrl !== groupAvatar || !existingThread.isGroup) {
-            changed = true;
-            updated[existingIdx] = {
-              ...existingThread,
-              isGroup: true,
-              matchName: groupName,
-              avatarUrl: groupAvatar,
-            };
-          }
-        } else {
-          // Add new group chat thread
-          changed = true;
-          const now = new Date().toISOString();
-          updated.push({
-            matchId: plan.id,
-            matchName: groupName,
-            avatarUrl: groupAvatar,
-            isGroup: true,
-            unread: 0,
-            lastMessage: "Say hi to the group",
-            lastMessageAt: now,
-            messages: [],
-          });
-        }
-      }
-
-      // Cleanup group chats for plans that the user has left
-      const cleaned = updated.filter((t) => {
-        if (!t.isGroup) return true;
-        return activePlans.some((p) => p.id === t.matchId);
-      });
-
-      if (cleaned.length !== updated.length) changed = true;
-
-      if (changed) {
-        // Sort and persist
-        const sorted = cleaned.sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime());
-        persistChats(sorted);
-        return sorted;
-      }
-      return prev;
-    });
-  }, [myPlans, nearbyPlans, requestStatuses, user]);
 
   const addMatch = async (matchProfile: MatchProfile) => {
     const updated = [...matches.filter((m) => m.id !== matchProfile.id), matchProfile];
@@ -1079,6 +1023,78 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
     });
   }, [user]);
 
+  const createCustomGroup = useCallback(
+    async (
+      name: string,
+      selectedMembers: { id: string; name: string; avatarUrl?: string }[],
+      avatarUrl?: string
+    ): Promise<string> => {
+      const groupId = `group_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const now = new Date().toISOString();
+      const defaultAvatar =
+        avatarUrl ||
+        "https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=200&h=200&fit=crop";
+
+      const currentUserName = user?.name || "You";
+      const allMembers = [
+        {
+          id: user?.id || "me",
+          name: currentUserName,
+          avatarUrl: user?.avatarUrl || undefined,
+        },
+        ...selectedMembers,
+      ];
+
+      const memberNames = selectedMembers.map((m) => m.name.split(" ")[0]).join(", ");
+      const starterText = `Group "${name}" created with ${memberNames || "friends"} 🎉`;
+
+      const starterMessage: ChatMessage = {
+        id: `msg-${Date.now()}`,
+        text: starterText,
+        sentAt: now,
+        fromMe: true,
+        isRead: true,
+      };
+
+      const newThread: ChatThread = {
+        matchId: groupId,
+        matchName: name,
+        avatarUrl: defaultAvatar,
+        isGroup: true,
+        members: allMembers,
+        lastMessage: starterText,
+        lastMessageAt: now,
+        unread: 0,
+        messages: [starterMessage],
+      };
+
+      setConversations((prev) => {
+        const next = [newThread, ...prev.filter((t) => t.matchId !== groupId)];
+        persistChats(next);
+        return next;
+      });
+
+      // Join socket room immediately so messages can be sent/received
+      if (socketRef.current) {
+        socketRef.current.emit("join_room", groupId);
+      }
+
+      return groupId;
+    },
+    [user]
+  );
+
+  const deleteCustomGroup = useCallback(async (groupId: string) => {
+    setConversations((prev) => {
+      const next = prev.filter((t) => t.matchId !== groupId);
+      persistChats(next);
+      return next;
+    });
+    if (socketRef.current) {
+      socketRef.current.emit("leave_room", groupId);
+    }
+  }, []);
+
   return (
     <MatchesContext.Provider
       value={{
@@ -1105,6 +1121,8 @@ export function MatchesProvider({ children }: { children: ReactNode }) {
         sendTypingStatus,
         updateMessageContent,
         deleteMessage,
+        createCustomGroup,
+        deleteCustomGroup,
       }}
     >
       {children}

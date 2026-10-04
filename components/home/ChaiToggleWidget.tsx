@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Pressable,
   Image,
+  Dimensions,
 } from "react-native";
 import Animated, {
   useSharedValue,
@@ -14,23 +15,24 @@ import Animated, {
   interpolate,
   FadeInDown,
 } from "react-native-reanimated";
-import { useRouter } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { VibeFonts } from "../../constants/vibeTheme";
 import ChaiHangoutModal from "./ChaiHangoutModal";
 
-const chaiIcon = require("../../assets/icons/chai.png");
-const homeChaiImg = require("../../assets/icons/homechai.png");
+const { width: SCREEN_W } = Dimensions.get("window");
 
-// Switch dimensions
-const TRACK_WIDTH = 164;
-const TRACK_HEIGHT = 64;
-const KNOB_SIZE = 54;
+const chaiIcon = require("../../assets/icons/chai.png");
+const chaiGuyImg = require("../../assets/home/chai-guy.png");
+
+// Switch track dimensions: wide sleek pill
+const TRACK_WIDTH = Math.min(SCREEN_W - 80, 270);
+const TRACK_HEIGHT = 60;
+const KNOB_SIZE = 50;
 const PADDING = 5;
-const MAX_SLIDE = TRACK_WIDTH - KNOB_SIZE - PADDING * 2; // 164 - 54 - 10 = 100
+const MAX_SLIDE = TRACK_WIDTH - KNOB_SIZE - PADDING * 2;
 
 export default function ChaiToggleWidget() {
-  const router = useRouter();
   const [isOn, setIsOn] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const progress = useSharedValue(0);
@@ -40,22 +42,22 @@ export default function ChaiToggleWidget() {
     setIsOn(next);
     progress.value = withSpring(next ? 1 : 0, {
       damping: 14,
-      stiffness: 160,
-      mass: 0.9,
+      stiffness: 170,
+      mass: 0.85,
     });
   };
 
-  // Track background color: grey (#4B5563) -> warm chai caramel (#C87D32)
+  // Track background color: Dark slate (#161F33) -> Warm Chai Caramel Amber (#D97706)
   const animatedTrackStyle = useAnimatedStyle(() => {
     const backgroundColor = interpolateColor(
       progress.value,
       [0, 1],
-      ["#3E465A", "#C87D32"]
+      ["#161F33", "#D97706"]
     );
     const borderColor = interpolateColor(
       progress.value,
       [0, 1],
-      ["rgba(255,255,255,0.12)", "rgba(245, 158, 11, 0.45)"]
+      ["rgba(255,255,255,0.12)", "rgba(251, 191, 36, 0.45)"]
     );
     return {
       backgroundColor,
@@ -74,14 +76,14 @@ export default function ChaiToggleWidget() {
 
   // White circle knob (visible when OFF, fades out when ON)
   const animatedCircleStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(progress.value, [0, 0.6], [1, 0]);
+    const opacity = interpolate(progress.value, [0, 0.5], [1, 0]);
     return { opacity };
   });
 
   // Chai glass knob (fades in and scales as it slides to ON)
   const animatedChaiStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(progress.value, [0.3, 1], [0, 1]);
-    const scale = interpolate(progress.value, [0.3, 1], [0.8, 1]);
+    const opacity = interpolate(progress.value, [0.35, 1], [0, 1]);
+    const scale = interpolate(progress.value, [0.35, 1], [0.8, 1]);
     return {
       opacity,
       transform: [{ scale }],
@@ -91,7 +93,7 @@ export default function ChaiToggleWidget() {
   // "stress off" label animation
   const animatedStressLabelStyle = useAnimatedStyle(() => {
     const opacity = interpolate(progress.value, [0, 0.4], [1, 0]);
-    const translateY = interpolate(progress.value, [0, 0.4], [0, -6]);
+    const translateY = interpolate(progress.value, [0, 0.4], [0, -8]);
     return {
       opacity,
       transform: [{ translateY }],
@@ -101,7 +103,7 @@ export default function ChaiToggleWidget() {
   // "chai on" label animation
   const animatedChaiLabelStyle = useAnimatedStyle(() => {
     const opacity = interpolate(progress.value, [0.6, 1], [0, 1]);
-    const translateY = interpolate(progress.value, [0.6, 1], [6, 0]);
+    const translateY = interpolate(progress.value, [0.6, 1], [8, 0]);
     return {
       opacity,
       transform: [{ translateY }],
@@ -113,12 +115,12 @@ export default function ChaiToggleWidget() {
     const borderColor = interpolateColor(
       progress.value,
       [0, 1],
-      ["rgba(255,255,255,0.08)", "rgba(200, 125, 50, 0.35)"]
+      ["rgba(255,255,255,0.08)", "rgba(217, 119, 6, 0.35)"]
     );
     const backgroundColor = interpolateColor(
       progress.value,
       [0, 1],
-      ["#0D1220", "#131622"]
+      ["#080E1B", "#0C1322"]
     );
     return {
       borderColor,
@@ -129,28 +131,49 @@ export default function ChaiToggleWidget() {
   return (
     <Animated.View entering={FadeInDown.delay(200).duration(360)} style={styles.container}>
       <Animated.View style={[styles.card, animatedCardStyle]}>
-        {/* Header Pill */}
+        {/* ── Header Pill ── */}
         <View style={styles.headerRow}>
           <View style={styles.badgePill}>
             <Text style={styles.badgeEmoji}>✨</Text>
-            <Text style={styles.badgeText}>MOOD SWITCH</Text>
+            <Text style={styles.badgeText}>CHAI MOOD</Text>
           </View>
           <Text style={styles.helperText}>
-            {isOn ? "Chai mode active ☕" : "Tap switch to relax"}
+            {isOn ? "Chai mode active ☕" : "Tap switch to relax ☕"}
           </Text>
         </View>
 
-        {/* Dynamic Animated Label (stress off / chai on) */}
+        {/* ── Dynamic Animated Label (// stress off // vs // chai on //) ── */}
         <View style={styles.labelContainer}>
-          <Animated.Text style={[styles.label, styles.stressLabel, animatedStressLabelStyle]}>
-            stress off
-          </Animated.Text>
-          <Animated.Text style={[styles.label, styles.chaiLabel, animatedChaiLabelStyle]}>
-            chai on
-          </Animated.Text>
+          {/* Left colored slashes */}
+          <View style={styles.slashesWrapLeft}>
+            <View style={[styles.slashBar, { backgroundColor: "#FACC15" }]} />
+            <View style={[styles.slashBar, { backgroundColor: "#EC4899" }]} />
+          </View>
+
+          {/* Animated Center Text */}
+          <View style={styles.centerTextWrap}>
+            <Animated.View style={[styles.textAbsolute, animatedStressLabelStyle]}>
+              <Text style={styles.labelText}>
+                <Text style={styles.labelWhite}>stress </Text>
+                <Text style={styles.labelRose}>off</Text>
+              </Text>
+            </Animated.View>
+            <Animated.View style={[styles.textAbsolute, animatedChaiLabelStyle]}>
+              <Text style={styles.labelText}>
+                <Text style={styles.labelWhite}>chai </Text>
+                <Text style={styles.labelLime}>on</Text>
+              </Text>
+            </Animated.View>
+          </View>
+
+          {/* Right colored slashes */}
+          <View style={styles.slashesWrapRight}>
+            <View style={[styles.slashBar, { backgroundColor: "#EC4899" }]} />
+            <View style={[styles.slashBar, { backgroundColor: "#22D3EE" }]} />
+          </View>
         </View>
 
-        {/* Interactive Toggle Switch */}
+        {/* ── Interactive Toggle Switch ── */}
         <Pressable
           onPress={handleToggle}
           hitSlop={12}
@@ -159,11 +182,19 @@ export default function ChaiToggleWidget() {
           <Animated.View style={[styles.switchTrack, animatedTrackStyle]}>
             {/* Sliding Knob */}
             <Animated.View style={[styles.knobWrap, animatedKnobStyle]}>
-              {/* State OFF: White Circle */}
-              <Animated.View style={[styles.whiteKnob, animatedCircleStyle]} />
+              {/* State OFF: Sleek white glowing circle knob */}
+              <Animated.View style={[styles.whiteKnob, animatedCircleStyle]}>
+                <Ionicons name="sparkles" size={18} color="#D97706" />
+              </Animated.View>
 
-              {/* State ON: Cutting Chai Glass overflowing track */}
+              {/* State ON: Cutting Chai Glass overflowing track with steam */}
               <Animated.View style={[styles.chaiKnob, animatedChaiStyle]}>
+                {/* 3 Steam lines rising above glass */}
+                <View style={styles.steamLinesWrap}>
+                  <View style={[styles.steamLine, { height: 9 }]} />
+                  <View style={[styles.steamLine, { height: 13 }]} />
+                  <View style={[styles.steamLine, { height: 9 }]} />
+                </View>
                 <Image
                   source={chaiIcon}
                   style={styles.chaiImage}
@@ -174,34 +205,58 @@ export default function ChaiToggleWidget() {
           </Animated.View>
         </Pressable>
 
-        {/* Bottom Subtitle / Action directly below toggle */}
+        {/* ── Active State Details (Guy, Bhaiya ik cup chai!, Button) ── */}
         {isOn ? (
-          <Animated.View entering={FadeInDown.duration(260)} style={styles.activeFooter}>
-            {/* homechai icon with Bhaiya ik cup chai in White */}
+          <Animated.View entering={FadeInDown.duration(280)} style={styles.activeFooter}>
+            {/* Middle Row: Guy on left, Text & tag on right */}
             <View style={styles.bhaiyaRow}>
-              <Image
-                source={homeChaiImg}
-                style={styles.bhaiyaChaiIcon}
-                resizeMode="contain"
-              />
-              <Text style={styles.bhaiyaChaiText}>
-                Bhaiya, ik cup chai!
-              </Text>
+              <View style={styles.bhaiyaGuyWrap}>
+                <Image
+                  source={chaiGuyImg}
+                  style={styles.bhaiyaGuyImg}
+                  resizeMode="contain"
+                />
+              </View>
+
+              <View style={styles.bhaiyaTextCol}>
+                <View style={styles.bhaiyaTitleRow}>
+                  <Text style={styles.bhaiyaTitleWhite}>Bhaiya, ik cup </Text>
+                  <View style={styles.chaiHighlightWrap}>
+                    <Text style={styles.bhaiyaTitleLime}>chai!</Text>
+                    <View style={styles.pinkBrushUnderline} />
+                  </View>
+                </View>
+
+                {/* #चायप्रेमी • Daily Ritual */}
+                <View style={styles.hindiTagPill}>
+                  <Text style={styles.hindiTagText}>#चायप्रेमी</Text>
+                  <Text style={styles.hindiTagDot}> • </Text>
+                  <Text style={styles.hindiTagSub}>Daily Ritual</Text>
+                </View>
+              </View>
             </View>
 
-            {/* #चायप्रेमी in Hindi */}
-            <View style={styles.hindiTagPill}>
-              <Text style={styles.hindiTagText}>#चायप्रेमी</Text>
-            </View>
-
+            {/* Neon Gradient Action Button */}
             <Pressable
               onPress={() => setIsModalOpen(true)}
-              style={styles.ctaButton}
+              style={styles.ctaButtonWrap}
             >
-              <Ionicons name="cafe" size={16} color="#0D1220" />
-              <Text style={styles.ctaButtonText}>Start a Chai Hangout</Text>
-              <Ionicons name="arrow-forward" size={14} color="#0D1220" />
+              <LinearGradient
+                colors={["#D4F72C", "#10E5C9"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.ctaButtonGrad}
+              >
+                <Text style={styles.ctaEmoji}>☕</Text>
+                <Text style={styles.ctaButtonText}>Start a Chai Hangout</Text>
+                <Ionicons name="arrow-forward" size={17} color="#0D1220" />
+              </LinearGradient>
             </Pressable>
+
+            {/* Subtext */}
+            <Text style={styles.notifySubtext}>
+              Notifies 4 nearby tea lovers in your circle
+            </Text>
           </Animated.View>
         ) : (
           <Pressable onPress={handleToggle} style={styles.idleFooter}>
@@ -212,7 +267,7 @@ export default function ChaiToggleWidget() {
         )}
       </Animated.View>
 
-      {/* ── Chai Hangout Bottom Sheet Popup with Smoke, Breakfast & Invite Friends ── */}
+      {/* ── Chai Hangout Bottom Sheet Modal ── */}
       <ChaiHangoutModal
         visible={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -224,45 +279,43 @@ export default function ChaiToggleWidget() {
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 20,
-    marginBottom: 26,
+    marginTop: 8,
+    marginBottom: 20,
   },
   card: {
-    borderRadius: 22,
+    borderRadius: 24,
     paddingVertical: 18,
     paddingHorizontal: 18,
-    borderWidth: 1.5,
+    borderWidth: 1.2,
+    borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "#080E1B",
     alignItems: "center",
-    shadowColor: "#C87D32",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 4,
   },
   headerRow: {
     width: "100%",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 12,
+    marginBottom: 10,
   },
   badgePill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    paddingHorizontal: 10,
-    paddingVertical: 4.5,
+    backgroundColor: "#0C182B",
+    paddingHorizontal: 11,
+    paddingVertical: 5,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: "#1D2D49",
   },
   badgeEmoji: {
     fontSize: 11,
   },
   badgeText: {
-    fontSize: 10.5,
+    fontSize: 11,
     fontFamily: VibeFonts.extraBold,
-    color: "#E2E8F0",
+    color: "#FFFFFF",
     letterSpacing: 0.6,
   },
   helperText: {
@@ -271,35 +324,66 @@ const styles = StyleSheet.create({
     color: "#94A3B8",
   },
 
-  // Dynamic Label (stress off / chai on)
+  // ── Dynamic Label (// stress off // vs // chai on //) ──
   labelContainer: {
     height: 38,
+    flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 8,
-    position: "relative",
+    marginBottom: 10,
     width: "100%",
   },
-  label: {
+  slashesWrapLeft: {
+    flexDirection: "row",
+    gap: 4,
+    marginRight: 8,
+    alignItems: "center",
+  },
+  slashesWrapRight: {
+    flexDirection: "row",
+    gap: 4,
+    marginLeft: 8,
+    alignItems: "center",
+  },
+  slashBar: {
+    width: 3.5,
+    height: 18,
+    borderRadius: 2,
+    transform: [{ rotate: "-28deg" }],
+  },
+  centerTextWrap: {
+    position: "relative",
+    width: 140,
+    height: 36,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  textAbsolute: {
+    position: "absolute",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  labelText: {
     fontSize: 27,
     fontFamily: VibeFonts.extraBold,
     letterSpacing: -0.6,
     textAlign: "center",
-    position: "absolute",
   },
-  stressLabel: {
-    color: "#F87171", // Soft rose / stress off red
+  labelWhite: {
+    color: "#FFFFFF",
   },
-  chaiLabel: {
-    color: "#22C55E", // Rich green / chai on green
+  labelRose: {
+    color: "#F87171",
+  },
+  labelLime: {
+    color: "#E2F832",
   },
 
-  // Toggle Switch
+  // ── Toggle Switch ──
   switchPressable: {
     alignItems: "center",
     justifyContent: "center",
-    paddingTop: 2,
-    paddingBottom: 0,
+    paddingVertical: 4,
   },
   switchTrack: {
     width: TRACK_WIDTH,
@@ -322,95 +406,173 @@ const styles = StyleSheet.create({
     height: KNOB_SIZE,
     borderRadius: KNOB_SIZE / 2,
     backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.28,
-    shadowRadius: 5,
-    elevation: 5,
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 6,
     position: "absolute",
   },
   chaiKnob: {
     width: KNOB_SIZE + 10,
-    height: KNOB_SIZE + 24, // Taller than track so it stands tall like in meme!
-    top: -12, // Centers the tall chai glass vertically over track
+    height: KNOB_SIZE + 24,
+    top: -12,
     alignItems: "center",
     justifyContent: "center",
     position: "absolute",
+  },
+  steamLinesWrap: {
+    flexDirection: "row",
+    gap: 3,
+    marginBottom: -4,
+    alignItems: "flex-end",
+  },
+  steamLine: {
+    width: 2,
+    backgroundColor: "rgba(255,255,255,0.7)",
+    borderRadius: 1,
   },
   chaiImage: {
     width: "100%",
     height: "100%",
   },
 
-  // Footers
+  // ── Active Footer ──
   activeFooter: {
-    marginTop: 2, // Zero gap directly under toggle switch
+    marginTop: 10,
     alignItems: "center",
     width: "100%",
-    gap: 6,
+    gap: 10,
   },
   bhaiyaRow: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "flex-start",
+    width: "100%",
+    gap: 10,
+    marginTop: 4,
+  },
+  bhaiyaGuyWrap: {
+    width: 95,
+    height: 105,
+    alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    marginTop: 0,
   },
-  bhaiyaChaiIcon: {
-    width: 60,
-    height: 56,
+  bhaiyaGuyImg: {
+    width: 95,
+    height: 105,
   },
-  bhaiyaChaiText: {
-    fontSize: 21,
+  bhaiyaTextCol: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  bhaiyaTitleRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    flexWrap: "wrap",
+  },
+  bhaiyaTitleWhite: {
+    fontSize: 18,
     fontFamily: VibeFonts.extraBold,
-    color: "#FFFFFF", // WHITE as requested!
-    textAlign: "center",
+    color: "#FFFFFF",
     letterSpacing: -0.2,
   },
+  chaiHighlightWrap: {
+    position: "relative",
+    alignItems: "center",
+  },
+  bhaiyaTitleLime: {
+    fontSize: 20,
+    fontFamily: VibeFonts.extraBold,
+    color: "#E2F832",
+    letterSpacing: -0.2,
+  },
+  pinkBrushUnderline: {
+    height: 3.5,
+    backgroundColor: "#F43F5E",
+    borderRadius: 2,
+    marginTop: 2,
+    width: "100%",
+  },
   hindiTagPill: {
-    backgroundColor: "rgba(234, 179, 8, 0.12)",
-    borderWidth: 1,
-    borderColor: "rgba(234, 179, 8, 0.3)",
-    paddingHorizontal: 16,
-    paddingVertical: 4.5,
-    borderRadius: 999,
-  },
-  hindiTagText: {
-    fontSize: 15,
-    fontFamily: VibeFonts.bold,
-    color: "#FDE047",
-    letterSpacing: 0.5,
-  },
-  ctaButton: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    backgroundColor: "#22D3EE",
-    paddingHorizontal: 16,
-    paddingVertical: 9,
+    backgroundColor: "#0D1627",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    paddingHorizontal: 12,
+    paddingVertical: 5,
     borderRadius: 999,
-    shadowColor: "#22D3EE",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 4,
+    alignSelf: "flex-start",
+    marginTop: 8,
   },
-  ctaButtonText: {
+  hindiTagText: {
     fontSize: 12.5,
     fontFamily: VibeFonts.bold,
-    color: "#070A13",
+    color: "#FACC15",
   },
+  hindiTagDot: {
+    fontSize: 12,
+    color: "#64748B",
+  },
+  hindiTagSub: {
+    fontSize: 12,
+    fontFamily: VibeFonts.medium,
+    color: "#94A3B8",
+  },
+
+  // ── Neon Gradient Button ──
+  ctaButtonWrap: {
+    width: "100%",
+    marginTop: 6,
+    borderRadius: 999,
+    overflow: "hidden",
+    shadowColor: "#D4F72C",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  ctaButtonGrad: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 999,
+  },
+  ctaEmoji: {
+    fontSize: 16,
+  },
+  ctaButtonText: {
+    fontSize: 15,
+    fontFamily: VibeFonts.bold,
+    color: "#070A13",
+    letterSpacing: -0.2,
+  },
+  notifySubtext: {
+    fontSize: 11.5,
+    fontFamily: VibeFonts.medium,
+    color: "#64748B",
+    marginTop: 2,
+    textAlign: "center",
+  },
+
+  // ── Idle Footer (when OFF) ──
   idleFooter: {
     marginTop: 12,
     paddingVertical: 4,
   },
   idleText: {
-    fontSize: 12,
+    fontSize: 12.5,
     fontFamily: VibeFonts.medium,
     color: "#94A3B8",
   },
   highlightText: {
-    color: "#22D3EE",
+    color: "#10E5C9",
     fontFamily: VibeFonts.bold,
   },
 });

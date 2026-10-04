@@ -4,6 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useAuth } from "../../context/AuthContext";
 import { usePlans } from "../../context/PlansContext";
+import { useNotifications } from "../../context/NotificationContext";
 import { api } from "../../services/api";
 import JoinHangInviteModal, {
   IncomingInvite,
@@ -28,6 +29,7 @@ function resolveAvatar(url?: string | null) {
 export default function IncomingInviteWatcher() {
   const { user, token } = useAuth();
   const { refresh: refreshPlans, myPlans } = usePlans();
+  const { openInviteModal } = useNotifications();
   const router = useRouter();
   const [invite, setInvite] = useState<IncomingInvite | null>(null);
   const [joined, setJoined] = useState<JoinedHangInfo | null>(null);
@@ -202,23 +204,16 @@ export default function IncomingInviteWatcher() {
 
       if (pending[0]) {
         const next = pending[0];
-        setInvite({
-          id: next.id,
+        seenRef.current.add(next.id);
+        persistSet(SEEN_KEY, seenRef.current);
+        openInviteModal({
+          planId: next.id,
           senderName: next.senderName || "Someone",
-          senderAvatar: resolveAvatar(next.senderAvatar),
-          recipientName: next.recipientName,
-          activityName: next.activityName,
-          activityEmoji: next.activityEmoji,
-          timeLabel: next.timeLabel,
-          isCounter: !!next.isCounter,
-          status: next.status,
-          type: next.type,
-          parentActivity: next.parentActivity || null,
-          settle: next.settle || null,
+          senderAvatar: resolveAvatar(next.senderAvatar) || undefined,
+          category: (next.activityName || "chai").toLowerCase(),
+          location: "CHAYOS, GALLERIA",
+          time: next.timeLabel || "6 PM TODAY",
         });
-        setPhase("invite");
-        setJoined(null);
-        setVisible(true);
         for (const i of list) {
           statusMapRef.current.set(i.id, String(i.status).toLowerCase());
         }

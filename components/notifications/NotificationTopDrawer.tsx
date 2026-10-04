@@ -37,6 +37,7 @@ export default function NotificationTopDrawer() {
     notifications,
     markAllAsRead,
     markAsRead,
+    openInviteModal,
   } = useNotifications();
 
   const [shouldRender, setShouldRender] = useState(isOpen);
@@ -108,6 +109,44 @@ export default function NotificationTopDrawer() {
   const handleItemPress = (item: NotificationItem) => {
     markAsRead(item.id);
     closeNotifications();
+    if (item.type === "invite") {
+      const realName =
+        item.inviteData?.senderName ||
+        item.user?.name ||
+        item.titleUser ||
+        (item.titleHighlight && item.titleHighlight.includes(" invited you")
+          ? item.titleHighlight.split(" invited you")[0]?.trim()
+          : undefined) ||
+        (item.titlePrefix && item.titlePrefix.includes(" invited you")
+          ? item.titlePrefix.split(" invited you")[0]?.trim()
+          : undefined) ||
+        "Friend";
+
+      const realAvatar = item.inviteData?.senderAvatar || item.user?.avatar;
+
+      setTimeout(() => {
+        openInviteModal({
+          planId:
+            item.inviteData?.planId ||
+            (item.id.startsWith("invite-") ? item.id.replace("invite-", "") : item.id),
+          senderName: realName,
+          senderAvatar: realAvatar,
+          category:
+            item.inviteData?.category ||
+            item.category ||
+            (item.titleHighlight?.includes("sutta") ? "smoke" : "chai"),
+          location:
+            item.inviteData?.location ||
+            item.subtitle.split("·")[1]?.trim() ||
+            "CHAYOS, GALLERIA",
+          time:
+            item.inviteData?.time ||
+            item.subtitle.split("·")[2]?.trim() ||
+            "6 PM TODAY",
+        });
+      }, 160);
+      return;
+    }
     if (item.route) {
       setTimeout(() => {
         router.push(item.route as any);
@@ -118,6 +157,44 @@ export default function NotificationTopDrawer() {
   const handleOpenAction = (item: NotificationItem) => {
     markAsRead(item.id);
     closeNotifications();
+    if (item.type === "invite") {
+      const realName =
+        item.inviteData?.senderName ||
+        item.user?.name ||
+        item.titleUser ||
+        (item.titleHighlight && item.titleHighlight.includes(" invited you")
+          ? item.titleHighlight.split(" invited you")[0]?.trim()
+          : undefined) ||
+        (item.titlePrefix && item.titlePrefix.includes(" invited you")
+          ? item.titlePrefix.split(" invited you")[0]?.trim()
+          : undefined) ||
+        "Friend";
+
+      const realAvatar = item.inviteData?.senderAvatar || item.user?.avatar;
+
+      setTimeout(() => {
+        openInviteModal({
+          planId:
+            item.inviteData?.planId ||
+            (item.id.startsWith("invite-") ? item.id.replace("invite-", "") : item.id),
+          senderName: realName,
+          senderAvatar: realAvatar,
+          category:
+            item.inviteData?.category ||
+            item.category ||
+            (item.titleHighlight?.includes("sutta") ? "smoke" : "chai"),
+          location:
+            item.inviteData?.location ||
+            item.subtitle.split("·")[1]?.trim() ||
+            "CHAYOS, GALLERIA",
+          time:
+            item.inviteData?.time ||
+            item.subtitle.split("·")[2]?.trim() ||
+            "6 PM TODAY",
+        });
+      }, 160);
+      return;
+    }
     setTimeout(() => {
       if (item.route) {
         router.push(item.route as any);

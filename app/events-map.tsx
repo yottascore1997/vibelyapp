@@ -18,19 +18,17 @@ import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
   FadeInDown,
-  FadeInUp,
   ZoomIn,
   useAnimatedStyle,
   useSharedValue,
-  withRepeat,
+  withSpring,
+  withSequence,
   withTiming,
-  Easing,
 } from "react-native-reanimated";
 import {
   CITIES,
   CITY_BY_ID,
   CityId,
-  resolveCityId,
 } from "../constants/mapEvents";
 import { useAuth } from "../context/AuthContext";
 import { useMatches } from "../context/MatchesContext";
@@ -42,7 +40,7 @@ import TabBar from "../components/TabBar";
 const { width: SCREEN_W } = Dimensions.get("window");
 const CITY_STORAGE_KEY = "@hangora_map_city";
 
-// Home Page icons for consistency
+// Home Page icons
 const chaiIcon = require("../assets/icons/chai.png");
 const coffeeIcon = require("../assets/icons/coffee.png");
 const beerIcon = require("../assets/icons/beer.png");
@@ -50,27 +48,26 @@ const movieIcon = require("../assets/icons/movie.png");
 const walkIcon = require("../assets/icons/walk.png");
 const cokeIcon = require("../assets/icons/dietcoke.png");
 
-// Hangora Dark Neon Design Palette
+// Figma Color Palette
 const T = {
   bg: "#050811",
-  card: "#0B101D",
-  cardElevated: "#0E1526",
+  card: "#0C1322",
+  cardElevated: "#0E1729",
   ink: "#FFFFFF",
-  muted: "#94A3B8",
+  muted: "#8E9CAE",
   faint: "#64748B",
   border: "rgba(255, 255, 255, 0.08)",
-  borderActive: "rgba(212, 247, 44, 0.4)",
-  lime: "#D4F72C",
-  limeDark: "#B8E91A",
-  mint: "#2EFA9E",
+  borderActive: "rgba(210, 253, 56, 0.4)",
+  lime: "#D2FD38",
   cyan: "#22D3EE",
   pink: "#EC4899",
-  hotPink: "#F43F5E",
+  hotPink: "#FF136A",
+  mint: "#2EFA9E",
   purple: "#8B5CF6",
   orange: "#FB923C",
 };
 
-// 10 Vibe Activities for 'What’s the move?' sheet (Exact matching Home Page Icons)
+// 10 Vibe Activities for 'What’s the move?' sheet
 const VIBES = [
   { id: "tea", label: "Tea", image: chaiIcon, icon: "tea" as const, emoji: "☕", color: "#22D3EE" },
   { id: "coffee", label: "Coffee", image: coffeeIcon, icon: "coffee" as const, emoji: "☕", color: "#F59E0B" },
@@ -102,9 +99,6 @@ export default function EventsMapScreen() {
   const [cityId, setCityId] = useState<CityId>("kolkata");
   const [showCityPicker, setShowCityPicker] = useState(false);
   const [citySearch, setCitySearch] = useState("");
-  const [mode, setMode] = useState<"events" | "people">("events");
-  const [selectedHotspot, setSelectedHotspot] = useState<string | null>(null);
-  const [mapZoom, setMapZoom] = useState(1);
   const [likedCards, setLikedCards] = useState<Record<string, boolean>>({});
   const [joinedCards, setJoinedCards] = useState<Record<string, boolean>>({});
   const [nearbyPeople, setNearbyPeople] = useState<any[]>([]);
@@ -121,7 +115,24 @@ export default function EventsMapScreen() {
     return () => { mounted = false; };
   }, [cityId]);
 
-  // Bottom Sheet Popup ('What’s the move?') state
+  // Load saved city
+  useEffect(() => {
+    AsyncStorage.getItem(CITY_STORAGE_KEY).then((saved) => {
+      if (saved && (saved in CITY_BY_ID)) {
+        setCityId(saved as CityId);
+      }
+    }).catch(() => {});
+  }, []);
+
+  const handleSelectCity = (id: CityId) => {
+    setCityId(id);
+    AsyncStorage.setItem(CITY_STORAGE_KEY, id).catch(() => {});
+    setShowCityPicker(false);
+  };
+
+  const city = CITY_BY_ID[cityId] || CITY_BY_ID.kolkata;
+
+  // Bottom Sheet ('What’s the move?') state
   const [showMoveModal, setShowMoveModal] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<{
     id?: string;
@@ -129,94 +140,63 @@ export default function EventsMapScreen() {
     handle: string;
     avatar: any;
   }>({
-    name: "Aanya",
-    handle: "@aanya.official",
-    avatar: require("../assets/events-map/aanya-hd.jpg"),
+    name: "Match",
+    handle: "@hangora.match",
+    avatar: require("../assets/events-map/figma_aanya_avatar.png"),
   });
   const [selectedVibe, setSelectedVibe] = useState("smoke");
   const [selectedTime, setSelectedTime] = useState("30min");
-  const [invitedFriends, setInvitedFriends] = useState<string[]>(["aanya", "rohan", "sneha"]);
+  const [invitedFriends, setInvitedFriends] = useState<string[]>([]);
 
-  // Animated Event Creation / Community Motivation Modal state
-  const [showEventCreateModal, setShowEventCreateModal] = useState(false);
-  const [eventBroadcasted, setEventBroadcasted] = useState(false);
-
-  // Kabir's "terrace in 10? ☕" Interactive Live Poll State
-  const [pollVotedId, setPollVotedId] = useState<string | null>(null);
-  const [pollOptions, setPollOptions] = useState([
-    { id: "yes", label: "I'm in! 🏃‍♂️☕", votes: 14 },
-    { id: "10m", label: "Need 10 mins ⏳", votes: 6 },
-    { id: "cant", label: "Can't today 😴", votes: 2 },
-  ]);
-
-  const totalPollVotes = useMemo(() => {
-    return pollOptions.reduce((acc, curr) => acc + curr.votes, 0);
-  }, [pollOptions]);
-
-  const handlePollVote = (optionId: string) => {
-    setPollOptions((prev) =>
-      prev.map((opt) => {
-        if (pollVotedId === optionId) {
-          // Unvote if tapped again
-          return { ...opt, votes: Math.max(0, opt.votes - 1) };
-        } else if (pollVotedId && opt.id === pollVotedId) {
-          // Deselect previous
-          return { ...opt, votes: Math.max(0, opt.votes - 1) };
-        } else if (opt.id === optionId) {
-          // Select new
-          return { ...opt, votes: opt.votes + 1 };
-        }
-        return opt;
-      })
-    );
-    setPollVotedId((prev) => (prev === optionId ? null : optionId));
-  };
-
-  // Radar wave pulse animation
-  const pulseAnim = useSharedValue(1);
   useEffect(() => {
-    pulseAnim.value = withRepeat(
-      withTiming(1.35, { duration: 1800, easing: Easing.out(Easing.ease) }),
-      -1,
-      true
-    );
-  }, [pulseAnim]);
+    if (matches && matches.length > 0) {
+      const first = matches[0];
+      setSelectedFriend({
+        id: first.id,
+        name: first.name,
+        handle: `@${first.name.toLowerCase().replace(/\s+/g, "")}`,
+        avatar: first.avatarUrl
+          ? { uri: first.avatarUrl }
+          : require("../assets/events-map/figma_aanya_avatar.png"),
+      });
+    }
+  }, [matches]);
 
-  const pulseStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: pulseAnim.value }],
-    opacity: 1.5 - pulseAnim.value,
+  // Event Creation Modal state
+  const [showEventCreateModal, setShowEventCreateModal] = useState(false);
+  const [showSurpriseModal, setShowSurpriseModal] = useState(false);
+
+  // Gamified Jar Progress & Animation
+  const [hangoutCount, setHangoutCount] = useState(2);
+  const jarScale = useSharedValue(1);
+
+  const jarAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: jarScale.value }],
   }));
 
-  const city = CITY_BY_ID[cityId] || CITY_BY_ID["kolkata"];
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const saved = await AsyncStorage.getItem(CITY_STORAGE_KEY);
-        if (saved && CITIES.some((c) => c.id === saved)) {
-          setCityId(saved as CityId);
-        } else if (token) {
-          try {
-            const res = (await api.getProfile(token)) as any;
-            const profileResolved = resolveCityId(res?.profile?.city);
-            if (profileResolved) {
-              setCityId(profileResolved);
-            }
-          } catch {
-            /* ignore */
-          }
-        }
-      } catch {
-        /* ignore */
+  const incrementHangoutProgress = () => {
+    jarScale.value = withSequence(
+      withTiming(0.94, { duration: 90 }),
+      withSpring(1.06, { damping: 10, stiffness: 300 }),
+      withSpring(1, { damping: 12, stiffness: 200 })
+    );
+    setHangoutCount((prev) => {
+      const next = prev + 1;
+      if (next >= 5) {
+        setTimeout(() => setShowSurpriseModal(true), 400);
       }
-    })();
-  }, [token]);
+      return next > 5 ? 1 : next;
+    });
+  };
 
-  const selectCity = useCallback(async (id: CityId) => {
-    setCityId(id);
-    setShowCityPicker(false);
-    await AsyncStorage.setItem(CITY_STORAGE_KEY, id);
-  }, []);
+  const handleCreateHangoutAction = () => {
+    router.push("/create-plan");
+  };
+
+  const openMoveModal = (name: string, handle: string, avatar: any, id?: string) => {
+    setSelectedFriend({ name, handle, avatar, id });
+    setShowMoveModal(true);
+  };
 
   const toggleLike = (key: string) => {
     setLikedCards((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -225,55 +205,6 @@ export default function EventsMapScreen() {
   const toggleJoin = (key: string) => {
     setJoinedCards((prev) => ({ ...prev, [key]: !prev[key] }));
   };
-
-  const openMoveModal = (
-    name = "Aanya",
-    handle = "@aanya.official",
-    avatar = require("../assets/events-map/aanya-hd.jpg"),
-    id?: string
-  ) => {
-    setSelectedFriend({ name, handle, avatar, id });
-    setShowMoveModal(true);
-  };
-
-  const pullUpPeople = useMemo(() => {
-    const list: any[] = [];
-    if (matches && matches.length > 0) {
-      matches.slice(0, 4).forEach((m, idx) => {
-        list.push({
-          id: m.id,
-          name: m.name.split(" ")[0],
-          handle: `@${m.name.toLowerCase().replace(/\s+/g, "")}`,
-          avatar: m.avatarUrl || require("../assets/events-map/aanya-hd.jpg"),
-          isOnline: m.isOnline ?? true,
-          ringColor: idx % 2 === 0 ? T.pink : T.mint,
-        });
-      });
-    }
-    if (nearbyPeople && nearbyPeople.length > 0) {
-      nearbyPeople.slice(0, 5 - list.length).forEach((p, idx) => {
-        if (!list.some((x) => x.id === p.id)) {
-          list.push({
-            id: p.id,
-            name: p.name.split(" ")[0],
-            handle: `@${p.name.toLowerCase().replace(/\s+/g, "")}`,
-            avatar: p.avatarUrl || require("../assets/events-map/rohan-hd.jpg"),
-            isOnline: p.isOnline ?? true,
-            ringColor: idx % 2 === 0 ? T.cyan : T.lime,
-          });
-        }
-      });
-    }
-    if (list.length === 0) {
-      return [
-        { id: "sample-1", name: "Aanya", handle: "@aanya.official", avatar: require("../assets/events-map/aanya-hd.jpg"), isOnline: true, ringColor: T.pink },
-        { id: "sample-2", name: "Rohan", handle: "@rohan.vibe", avatar: require("../assets/events-map/rohan-hd.jpg"), isOnline: true, ringColor: T.mint },
-        { id: "sample-3", name: "Sneha", handle: "@sneha.style", avatar: require("../assets/events-map/sneha-hd.jpg"), isOnline: true, ringColor: T.cyan },
-        { id: "sample-4", name: "Kabir", handle: "@kabir.live", avatar: require("../assets/events-map/kabir-hd.jpg"), isOnline: false, ringColor: T.purple },
-      ];
-    }
-    return list;
-  }, [matches, nearbyPeople]);
 
   const currentVibe = VIBES.find((v) => v.id === selectedVibe) || VIBES[5];
 
@@ -287,6 +218,14 @@ export default function EventsMapScreen() {
     <View style={styles.root}>
       <StatusBar style="light" />
 
+      {/* Radiant Background Gradient matching Figma */}
+      <LinearGradient
+        colors={["#0C1628", "#060A14", "#020408"]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+
       {/* Main Scrollable View */}
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -295,40 +234,40 @@ export default function EventsMapScreen() {
           { paddingTop: insets.top + 8, paddingBottom: Math.max(insets.bottom, 16) + 95 },
         ]}
       >
-        {/* Top App Bar Header */}
+        {/* 1. Top App Bar Header */}
         <View style={styles.topHeader}>
-          {/* Back Button (Perfect Circle) */}
+          {/* Back Button */}
           <Pressable style={styles.circleBtn} onPress={() => router.back()}>
             <Ionicons name="chevron-back" size={20} color="#FFFFFF" />
           </Pressable>
 
-          {/* Center Brand Title & City Selector */}
+          {/* Centered Title & Location Pill */}
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>
               Events <Text style={{ color: T.lime }}>Map</Text>
             </Text>
 
-            {/* City Selector Pill */}
+            {/* Location Pill */}
             <Pressable
               style={styles.cityPill}
               onPress={() => setShowCityPicker(true)}
             >
-              <Text style={styles.pinEmoji}>📍</Text>
+              <Text style={{ fontSize: 11, marginRight: 3 }}>📍</Text>
               <Text style={styles.cityNameText}>{city.name}</Text>
-              <Ionicons name="chevron-down" size={13} color="#38BDF8" style={{ marginLeft: 3 }} />
+              <Ionicons name="chevron-down" size={12} color="#38BDF8" style={{ marginLeft: 3 }} />
             </Pressable>
           </View>
 
-          {/* Right Camera Button (Perfect Circle) */}
+          {/* Right Camera Button */}
           <Pressable style={styles.circleBtn} onPress={() => router.push("/create-plan")}>
             <Ionicons name="camera-outline" size={20} color="#FFFFFF" />
           </Pressable>
         </View>
 
-        {/* Top Banner Card: Kolkata Hangout Live */}
+        {/* 2. Top Live Banner Card: Kolkata Hangout Live */}
         <Animated.View entering={FadeInDown.duration(400)} style={styles.liveBannerCard}>
           <Image
-            source={require("../assets/events-map/kolkata-live-thumb.png")}
+            source={require("../assets/events-map/figma_liveBannerThumb.png")}
             style={styles.bannerThumb}
           />
           <View style={styles.bannerInfo}>
@@ -340,7 +279,7 @@ export default function EventsMapScreen() {
             </View>
             <View style={styles.bannerSubRow}>
               <View style={styles.pulsingDot} />
-              <Text style={styles.bannerSubText}>3 Live Hangouts · 12 People Nearby</Text>
+              <Text style={styles.bannerSubText}>3 Live Hangouts  •  12 People Nearby</Text>
             </View>
           </View>
 
@@ -353,252 +292,172 @@ export default function EventsMapScreen() {
           </Pressable>
         </Animated.View>
 
-        {/* Interactive Radar Map Area */}
-        <Animated.View entering={FadeInDown.delay(100).duration(450)} style={styles.mapCard}>
-          {/* Subtle Radar Concentric Rings in background */}
-          <View style={styles.radarCenterAnchor} pointerEvents="none">
-            <Animated.View style={[styles.radarWaveOuter, pulseStyle]} />
-            <View style={styles.radarRing3} />
-            <View style={styles.radarRing2} />
-            <View style={styles.radarRing1} />
-            <View style={styles.radarCrossH} />
-            <View style={styles.radarCrossV} />
+        {/* 3. The Gamified Centerpiece: Neon Blue Water Jar & Glossy Thermometer */}
+        <Animated.View entering={FadeInDown.delay(100).duration(450)} style={styles.jarSectionCard}>
+          <View style={styles.jarRowContainer}>
+            {/* Left: Glowing Glass Water Jar (Exact Figma Asset) */}
+            <Pressable
+              onPress={incrementHangoutProgress}
+              style={styles.jarWrap}
+            >
+              <Animated.View style={[styles.jarInner, jarAnimatedStyle]}>
+                <Image
+                  source={require("../assets/events-map/figma_jar.png")}
+                  style={styles.jarImage}
+                  resizeMode="contain"
+                />
+              </Animated.View>
+              {/* Cyan glow puddle under jar */}
+              <View style={styles.jarGlowPuddle} />
+            </Pressable>
+
+            {/* Right: Glossy Thermometer with 5 Emotion Milestones (Exact Figma Asset) */}
+            <View style={styles.thermometerWrap}>
+              <Image
+                source={require("../assets/events-map/figma_thermometer.png")}
+                style={styles.thermometerImage}
+                resizeMode="contain"
+              />
+            </View>
           </View>
 
-          {/* Top-Left Toggle Pill: Events vs People */}
-          <View style={styles.mapModeToggle}>
-            <Pressable
-              style={[styles.modeTab, mode === "events" && styles.modeTabActive]}
-              onPress={() => setMode("events")}
-            >
-              <Text style={[styles.modeTabText, mode === "events" && styles.modeTabTextActive]}>
-                🗓️ Events
+          {/* 4. Reward / Surprise Card */}
+          <Pressable
+            style={styles.surpriseCard}
+            onPress={() => setShowSurpriseModal(true)}
+          >
+            <Image
+              source={require("../assets/events-map/figma_giftBox.png")}
+              style={styles.surpriseBoxImg}
+              resizeMode="contain"
+            />
+            <View style={styles.surpriseInfoGroup}>
+              <Text style={styles.surprisePreLabel}>FILL THE JAR TO GET A</Text>
+              <Text style={styles.surpriseTitle}>Surprise!</Text>
+              <Text style={styles.surpriseDescription}>
+                Create more hangouts and unlock something special.
               </Text>
-            </Pressable>
-            <Pressable
-              style={[styles.modeTab, mode === "people" && styles.modeTabActive]}
-              onPress={() => setMode("people")}
-            >
-              <View style={styles.modeTabRow}>
-                <Ionicons
-                  name="people"
-                  size={13}
-                  color={mode === "people" ? "#0A0F1D" : T.muted}
-                  style={{ marginRight: 4 }}
-                />
-                <Text style={[styles.modeTabText, mode === "people" && styles.modeTabTextActive]}>
-                  People
-                </Text>
-              </View>
-            </Pressable>
-          </View>
-
-          {/* Top-Right Compass Needle Button (Perfect Circle) */}
-          <Pressable
-            style={styles.compassBtn}
-            onPress={() => setSelectedHotspot(null)}
-          >
-            <Ionicons name="navigate" size={16} color={T.hotPink} />
-          </Pressable>
-
-          {/* Left Vertical Zoom Controls (+ / -) */}
-          <View style={styles.zoomControls}>
-            <Pressable
-              style={styles.zoomBtn}
-              onPress={() => setMapZoom((z) => Math.min(z + 0.1, 1.4))}
-            >
-              <Ionicons name="add" size={16} color="#FFFFFF" />
-            </Pressable>
-            <View style={styles.zoomDivider} />
-            <Pressable
-              style={styles.zoomBtn}
-              onPress={() => setMapZoom((z) => Math.max(z - 0.1, 0.7))}
-            >
-              <Ionicons name="remove" size={16} color="#FFFFFF" />
-            </Pressable>
-          </View>
-
-          {/* Hotspot 1: Park Street (Top Center) */}
-          <Pressable
-            style={[styles.hotspotAnchor, styles.hotspotParkStreet]}
-            onPress={() => setSelectedHotspot("Park Street")}
-          >
-            <View style={styles.hotspotWrapper}>
-              <View style={styles.hotspotRing}>
-                <Image
-                  source={require("../assets/events-map/park-street-hd.jpg")}
-                  style={styles.circleImage}
-                />
-              </View>
-              {/* Overlapping Count Badge (Perfect Circle) */}
-              <View style={styles.countBadge}>
-                <Text style={styles.countBadgeText}>12</Text>
-              </View>
             </View>
-            <Text style={styles.hotspotLabel}>Park Street</Text>
           </Pressable>
 
-          {/* Hotspot 2: Salt Lake (Right) */}
+          {/* 5. Full-width 'Create a Hangout ➔' Button */}
           <Pressable
-            style={[styles.hotspotAnchor, styles.hotspotSaltLake]}
-            onPress={() => setSelectedHotspot("Salt Lake")}
+            style={styles.createHangoutBtn}
+            onPress={handleCreateHangoutAction}
           >
-            <View style={styles.hotspotWrapper}>
-              <View style={styles.hotspotRing}>
-                <Image
-                  source={require("../assets/events-map/salt-lake-hd.jpg")}
-                  style={styles.circleImage}
-                />
-              </View>
-              {/* Overlapping Count Badge (Perfect Circle) */}
-              <View style={styles.countBadge}>
-                <Text style={styles.countBadgeText}>8</Text>
-              </View>
-            </View>
-            <Text style={styles.hotspotLabel}>Salt Lake</Text>
-          </Pressable>
-
-          {/* Hotspot 3: New Town (Bottom Left) */}
-          <Pressable
-            style={[styles.hotspotAnchor, styles.hotspotNewTown]}
-            onPress={() => setSelectedHotspot("New Town")}
-          >
-            <View style={styles.hotspotWrapper}>
-              <View style={styles.hotspotRing}>
-                <Image
-                  source={require("../assets/events-map/new-town-hd.jpg")}
-                  style={styles.circleImage}
-                />
-              </View>
-              {/* Overlapping Count Badge (Perfect Circle) */}
-              <View style={styles.countBadge}>
-                <Text style={styles.countBadgeText}>5</Text>
-              </View>
-            </View>
-            <Text style={styles.hotspotLabel}>New Town</Text>
-          </Pressable>
-
-          {/* Center User Location Pin & 'You are here' Tooltip */}
-          <View style={styles.userLocationWrap} pointerEvents="none">
-            {/* Tooltip on top with exact lime-to-cyan gradient */}
             <LinearGradient
-              colors={["#D4F72C", "#22D3EE"]}
+              colors={["#D2FD38", "#00F0FF"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
-              style={styles.youAreHerePill}
+              style={styles.createHangoutGrad}
             >
-              <Text style={styles.youAreHereText}>You are here</Text>
+              <Text style={styles.createHangoutBtnText}>Create a Hangout</Text>
+              <Ionicons name="arrow-forward" size={19} color="#000000" style={{ marginLeft: 8 }} />
             </LinearGradient>
-
-            {/* Outer translucent radar ring (Perfect Circle) */}
-            <View style={styles.userRadarAura}>
-              {/* Inner glowing cyan circle with coffee icon (Perfect Circle) */}
-              <View style={styles.userCoffeeCircle}>
-                <Text style={{ fontSize: 18 }}>☕</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Scattered Live Activity Neon Dots (Perfect Circles) */}
-          <View style={[styles.dotLive, { top: "25%", left: "30%", backgroundColor: T.mint }]} />
-          <View style={[styles.dotLive, { top: "21%", left: "68%", backgroundColor: T.mint }]} />
-          <View style={[styles.dotLive, { top: "33%", left: "75%", backgroundColor: "#FACC15" }]} />
-          <View style={[styles.dotLive, { top: "42%", left: "34%", backgroundColor: "#FACC15" }]} />
-          <View style={[styles.dotLive, { top: "46%", left: "77%", backgroundColor: T.cyan }]} />
-          <View style={[styles.dotLive, { top: "54%", left: "79%", backgroundColor: T.mint }]} />
-          <View style={[styles.dotLive, { top: "60%", left: "10%", backgroundColor: T.mint }]} />
-          <View style={[styles.dotLive, { top: "72%", left: "9%", backgroundColor: T.mint }]} />
-
-          {/* Bottom Map Controls: '3 Live' & 'Recenter' */}
-          <View style={styles.mapBottomBar}>
-            <Pressable
-              style={styles.mapBottomBtn}
-              onPress={() => setSelectedHotspot("Park Street")}
-            >
-              <Text style={styles.mapBottomBtnText}>☕ 3 Live</Text>
-            </Pressable>
-
-            <Pressable
-              style={styles.mapBottomBtn}
-              onPress={() => {
-                setMapZoom(1);
-                setSelectedHotspot(null);
-              }}
-            >
-              <Ionicons name="locate-outline" size={15} color="#22D3EE" style={{ marginRight: 5 }} />
-              <Text style={styles.mapBottomBtnText}>Recenter</Text>
-            </Pressable>
-          </View>
+          </Pressable>
         </Animated.View>
 
-        {/* 'Pull up ✨' Section */}
+        {/* 6. 'Pull up ✨' Section */}
         <Animated.View entering={FadeInDown.delay(180).duration(450)} style={styles.sectionWrap}>
           <View style={styles.sectionHeaderRow}>
             <Pressable
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              onPress={() => openMoveModal("Aanya", "@aanya.official", require("../assets/events-map/aanya-hd.jpg"))}
+              hitSlop={10}
+              onPress={() => {
+                if (matches.length > 0) {
+                  const m = matches[0];
+                  openMoveModal(
+                    m.name,
+                    `@${m.name.toLowerCase().replace(/\s+/g, "")}`,
+                    m.avatarUrl
+                      ? { uri: m.avatarUrl }
+                      : require("../assets/events-map/figma_aanya_avatar.png"),
+                    m.id
+                  );
+                } else {
+                  router.push("/invite-friends");
+                }
+              }}
             >
               <Text style={styles.sectionTitle}>Pull up ✨</Text>
             </Pressable>
             <Pressable
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              onPress={() => openMoveModal("Aanya", "@aanya.official", require("../assets/events-map/aanya-hd.jpg"))}
+              hitSlop={10}
+              onPress={() => router.push("/invite-friends")}
             >
-              <Text style={styles.sectionLink}>Tap to hang →</Text>
+              <Text style={styles.sectionLink}>Invite Matches →</Text>
             </Pressable>
           </View>
 
-          <View style={styles.pullUpRow}>
-            {/* 1. Pick button */}
-            <Pressable
-              style={styles.pullUpItem}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              onPress={() => {
-                const first = pullUpPeople[0];
-                if (first) openMoveModal(first.name, first.handle, first.avatar, first.id);
-                else openMoveModal("Aanya", "@aanya.official", require("../assets/events-map/aanya-hd.jpg"));
-              }}
-            >
-              <View style={styles.pickCircle}>
-                <Ionicons name="add" size={22} color="#FFFFFF" />
-              </View>
-              <Text style={styles.pullUpName}>Pick</Text>
-            </Pressable>
-
-            {/* Dynamic People list */}
-            {pullUpPeople.map((person) => (
+          <View style={styles.pullUpCard}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pullUpRow}>
+              {/* 1. Add button */}
               <Pressable
-                key={person.id || person.name}
                 style={styles.pullUpItem}
-                onPress={() => openMoveModal(person.name, person.handle, person.avatar, person.id)}
+                hitSlop={6}
+                onPress={() => router.push("/invite-friends")}
               >
-                <View style={styles.avatarWrapper}>
-                  <View style={[styles.avatarRing, { borderColor: person.ringColor || T.pink }]}>
-                    <Image
-                      source={typeof person.avatar === "string" ? { uri: person.avatar } : person.avatar}
-                      style={styles.circleImage}
-                    />
-                  </View>
-                  {person.isOnline && <View style={styles.onlineStatusDot} />}
+                <View style={styles.pickCircle}>
+                  <Ionicons name="add" size={24} color="#FFFFFF" />
                 </View>
-                <Text style={styles.pullUpName} numberOfLines={1}>{person.name}</Text>
+                <Text style={styles.pullUpName}>Add</Text>
               </Pressable>
-            ))}
 
-            {/* More */}
-            <Pressable
-              style={styles.pullUpItem}
-              onPress={() => router.push("/invite-friends")}
-            >
-              <View style={styles.moreCircle}>
-                <Ionicons name="ellipsis-horizontal" size={18} color="#94A3B8" />
-              </View>
-              <Text style={styles.pullUpName}>More</Text>
-            </Pressable>
+              {/* Real Matches Only */}
+              {matches.map((m) => {
+                const avatarSource = m.avatarUrl
+                  ? { uri: m.avatarUrl }
+                  : require("../assets/events-map/figma_aanya_avatar.png");
+                const handle = `@${m.name.toLowerCase().replace(/\s+/g, "")}`;
+                return (
+                  <Pressable
+                    key={m.id}
+                    style={styles.pullUpItem}
+                    onPress={() => openMoveModal(m.name, handle, avatarSource, m.id)}
+                  >
+                    <Image source={avatarSource} style={styles.avatarImg} />
+                    <Text style={styles.pullUpName} numberOfLines={1}>
+                      {m.name.split(" ")[0]}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+
+              {matches.length === 0 && (
+                <Pressable
+                  style={styles.pullUpItem}
+                  onPress={() => router.push("/(tabs)/vibes")}
+                >
+                  <View
+                    style={[
+                      styles.avatarImg,
+                      {
+                        backgroundColor: "#1E293B",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      },
+                    ]}
+                  >
+                    <Ionicons name="sparkles" size={18} color="#D4F72C" />
+                  </View>
+                  <Text style={styles.pullUpName}>Find Match</Text>
+                </Pressable>
+              )}
+
+              {/* More button */}
+              <Pressable
+                style={styles.pullUpItem}
+                onPress={() => router.push("/invite-friends")}
+              >
+                <View style={styles.moreCircle}>
+                  <Ionicons name="ellipsis-horizontal" size={20} color="#8E9CAE" />
+                </View>
+                <Text style={styles.pullUpName}>More</Text>
+              </Pressable>
+            </ScrollView>
           </View>
         </Animated.View>
 
-        {/* Office Gang is buzzing Card */}
+        {/* 7. Office Gang is buzzing Card */}
         <Animated.View entering={FadeInDown.delay(240).duration(450)}>
           <Pressable
             style={styles.buzzingCard}
@@ -621,125 +480,39 @@ export default function EventsMapScreen() {
           </Pressable>
         </Animated.View>
 
-        {/* Kabir Social Post Card with Interactive Live Poll */}
+        {/* 8. Kabir Social Status Update Card (Exact Clean Figma Layout) */}
         <Animated.View entering={FadeInDown.delay(300).duration(450)}>
-          <View style={styles.socialPostCard}>
-            {/* Post Header: Kabir Avatar + Info + Action */}
-            <View style={styles.postHeaderRow}>
-              <View style={styles.postAuthorGroup}>
-                <View style={styles.postAvatarRing}>
-                  <Image
-                    source={require("../assets/events-map/kabir-hd.jpg")}
-                    style={styles.circleImage}
-                  />
-                  <View style={styles.postOnlineBadge} />
-                </View>
+          <Pressable
+            style={styles.socialPostCard}
+            onPress={() => openMoveModal("Kabir", "@kabir.live", require("../assets/events-map/kabir-hd.jpg"))}
+          >
+            <Image
+              source={require("../assets/events-map/kabir-hd.jpg")}
+              style={styles.postAvatar}
+            />
 
-                <View style={styles.postInfo}>
-                  <View style={styles.postNameRow}>
-                    <Text style={styles.postName}>Kabir</Text>
-                    <Ionicons name="checkmark-circle" size={14} color="#38BDF8" style={{ marginLeft: 4 }} />
-                    <View style={styles.postTimePill}>
-                      <Text style={styles.postTimeText}>10m ago</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.postSubText}>@kabir.live • 📍 Terrace Lounge</Text>
+            <View style={styles.postInfo}>
+              <View style={styles.postNameRow}>
+                <Text style={styles.postName}>Kabir</Text>
+                <Ionicons name="checkmark-circle" size={14} color="#38BDF8" style={{ marginLeft: 4 }} />
+                <View style={styles.postTimePill}>
+                  <Text style={styles.postTimeText}>10m ago</Text>
                 </View>
               </View>
-
-              <Pressable
-                style={styles.postMenuBtn}
-                onPress={() => openMoveModal("Kabir", "@kabir.live", require("../assets/events-map/kabir-hd.jpg"))}
-                hitSlop={8}
-              >
-                <Ionicons name="ellipsis-vertical" size={16} color="#94A3B8" />
-              </Pressable>
-            </View>
-
-            {/* Poll Question & Prompt */}
-            <View style={styles.postQuestionContainer}>
               <Text style={styles.postMessage}>terrace in 10? ☕</Text>
-              <Text style={styles.postQuestionSub}>Quick breather & chai before standup. Who's pulling up?</Text>
             </View>
 
-            {/* Poll Status Bar */}
-            <View style={styles.pollMetaRow}>
-              <View style={styles.pollLiveTag}>
-                <View style={styles.pollLiveDot} />
-                <Text style={styles.pollLiveText}>LIVE POLL</Text>
-              </View>
-              <Text style={styles.pollStatsText}>
-                Expires in 8m • {totalPollVotes} votes
-              </Text>
-            </View>
-
-            {/* Poll Options */}
-            <View style={styles.pollOptionsList}>
-              {pollOptions.map((opt) => {
-                const isSelected = pollVotedId === opt.id;
-                const percent = totalPollVotes > 0 ? Math.round((opt.votes / totalPollVotes) * 100) : 0;
-
-                return (
-                  <Pressable
-                    key={opt.id}
-                    style={[styles.pollOptionItem, isSelected && styles.pollOptionItemActive]}
-                    onPress={() => handlePollVote(opt.id)}
-                  >
-                    {/* Fill Progress Bar */}
-                    <View
-                      style={[
-                        styles.pollProgressBar,
-                        { width: `${percent}%` },
-                        isSelected && styles.pollProgressBarActive,
-                      ]}
-                    />
-
-                    {/* Option Details */}
-                    <View style={styles.pollOptionContent}>
-                      <View style={styles.pollOptionLeft}>
-                        {isSelected ? (
-                          <View style={styles.pollRadioSelected}>
-                            <Ionicons name="checkmark-circle" size={18} color="#D4F72C" />
-                          </View>
-                        ) : (
-                          <View style={styles.pollRadioCircle} />
-                        )}
-                        <Text style={[styles.pollOptionLabel, isSelected && styles.pollOptionLabelActive]}>
-                          {opt.label}
-                        </Text>
-                      </View>
-
-                      <View style={styles.pollOptionRight}>
-                        <Text style={[styles.pollPercentText, isSelected && styles.pollPercentTextActive]}>
-                          {percent}%
-                        </Text>
-                      </View>
-                    </View>
-                  </Pressable>
-                );
-              })}
-            </View>
-
-            {/* Poll Footer with Feedback & Quick Reply */}
-            <View style={styles.pollFooterRow}>
-              <Text style={styles.pollStatusHint}>
-                {pollVotedId
-                  ? "✓ Vote recorded • Tap to change"
-                  : "👉 Tap an option to cast vote"}
-              </Text>
-
-              <Pressable
-                style={styles.pollQuickReplyBtn}
-                onPress={() => openMoveModal("Kabir", "@kabir.live", require("../assets/events-map/kabir-hd.jpg"))}
-              >
-                <Ionicons name="chatbubble-ellipses" size={13} color="#D4F72C" />
-                <Text style={styles.pollQuickReplyText}>Join Kabir</Text>
-              </Pressable>
-            </View>
-          </View>
+            <Pressable
+              style={styles.postMenuBtn}
+              onPress={() => openMoveModal("Kabir", "@kabir.live", require("../assets/events-map/kabir-hd.jpg"))}
+              hitSlop={8}
+            >
+              <Ionicons name="ellipsis-vertical" size={18} color="#64748B" />
+            </Pressable>
+          </Pressable>
         </Animated.View>
 
-        {/* Nearby Hangouts Section */}
+        {/* 9. Nearby Hangouts Section */}
         <Animated.View entering={FadeInDown.delay(360).duration(450)} style={{ marginTop: 22 }}>
           <View style={styles.nearbyHeaderRow}>
             <View style={styles.nearbyTitleGroup}>
@@ -749,7 +522,7 @@ export default function EventsMapScreen() {
             <Pressable onPress={() => router.push("/(tabs)")}>
               <View style={styles.seeAllGroup}>
                 <Text style={styles.seeAllText}>See All</Text>
-                <Ionicons name="chevron-forward" size={13} color="#94A3B8" />
+                <Ionicons name="chevron-forward" size={13} color="#8E9CAE" />
               </View>
             </Pressable>
           </View>
@@ -765,21 +538,30 @@ export default function EventsMapScreen() {
                 />
                 {/* Distance Badge */}
                 <View style={styles.cardDistanceBadge}>
-                  <Text style={{ fontSize: 10 }}>📍</Text>
+                  <Text style={{ fontSize: 10, marginRight: 2 }}>📍</Text>
                   <Text style={styles.cardDistanceText}>2.5 km</Text>
                 </View>
 
-                {/* Heart Button (Perfect Circle) */}
+                {/* Heart Button */}
                 <Pressable
                   style={styles.cardHeartBtn}
                   onPress={() => toggleLike("coffee")}
+                  hitSlop={6}
                 >
                   <Ionicons
                     name={likedCards["coffee"] ? "heart" : "heart-outline"}
                     size={15}
-                    color={likedCards["coffee"] ? "#F43F5E" : "#FFFFFF"}
+                    color={likedCards["coffee"] ? "#FF136A" : "#FFFFFF"}
                   />
                 </Pressable>
+
+                {/* Attendee Avatar Stack */}
+                <View style={styles.attendeeStack}>
+                  <Image source={require("../assets/events-map/figma_aanya_avatar.png")} style={styles.attendeeAvatar} />
+                  <Image source={require("../assets/events-map/figma_rohan_avatar.png")} style={[styles.attendeeAvatar, styles.attendeeAvatarOverlap]} />
+                  <Image source={require("../assets/events-map/figma_sneha_avatar.png")} style={[styles.attendeeAvatar, styles.attendeeAvatarOverlap]} />
+                  <Text style={styles.attendeeCountText}>+3</Text>
+                </View>
               </View>
 
               <View style={styles.cardBody}>
@@ -791,11 +573,11 @@ export default function EventsMapScreen() {
                 </Text>
 
                 <View style={styles.tagChipsRow}>
-                  <View style={[styles.tagChip, { backgroundColor: "rgba(234, 179, 8, 0.12)" }]}>
+                  <View style={[styles.tagChip, { backgroundColor: "rgba(245, 158, 11, 0.12)" }]}>
                     <Text style={[styles.tagChipText, { color: "#FACC15" }]}>☕ Coffee</Text>
                   </View>
-                  <View style={[styles.tagChip, { backgroundColor: "rgba(20, 184, 166, 0.12)", marginLeft: 6 }]}>
-                    <Text style={[styles.tagChipText, { color: "#2DD4BF" }]}>🎯 Chill Vibes</Text>
+                  <View style={[styles.tagChip, { backgroundColor: "rgba(34, 211, 238, 0.12)", borderColor: "rgba(34, 211, 238, 0.4)", borderWidth: 1, marginLeft: 5 }]}>
+                    <Text style={[styles.tagChipText, { color: "#22D3EE" }]}>🎯 Chill Vibes</Text>
                   </View>
                 </View>
               </View>
@@ -810,21 +592,30 @@ export default function EventsMapScreen() {
                 />
                 {/* Distance Badge */}
                 <View style={styles.cardDistanceBadge}>
-                  <Text style={{ fontSize: 10 }}>📍</Text>
+                  <Text style={{ fontSize: 10, marginRight: 2 }}>📍</Text>
                   <Text style={styles.cardDistanceText}>1.8 km</Text>
                 </View>
 
-                {/* Heart Button (Perfect Circle) */}
+                {/* Heart Button */}
                 <Pressable
                   style={styles.cardHeartBtn}
                   onPress={() => toggleLike("beer")}
+                  hitSlop={6}
                 >
                   <Ionicons
                     name={likedCards["beer"] ? "heart" : "heart-outline"}
                     size={15}
-                    color={likedCards["beer"] ? "#F43F5E" : "#FFFFFF"}
+                    color={likedCards["beer"] ? "#FF136A" : "#FFFFFF"}
                   />
                 </Pressable>
+
+                {/* Attendee Avatar Stack */}
+                <View style={styles.attendeeStack}>
+                  <Image source={require("../assets/events-map/figma_rohan_avatar.png")} style={styles.attendeeAvatar} />
+                  <Image source={require("../assets/events-map/figma_sneha_avatar.png")} style={[styles.attendeeAvatar, styles.attendeeAvatarOverlap]} />
+                  <Image source={require("../assets/events-map/kabir-hd.jpg")} style={[styles.attendeeAvatar, styles.attendeeAvatarOverlap]} />
+                  <Text style={styles.attendeeCountText}>+5</Text>
+                </View>
               </View>
 
               <View style={styles.cardBody}>
@@ -837,7 +628,7 @@ export default function EventsMapScreen() {
 
                 <View style={styles.tagChipsRow}>
                   <View style={[styles.tagChip, { backgroundColor: "rgba(245, 158, 11, 0.12)" }]}>
-                    <Text style={[styles.tagChipText, { color: "#F59E0B" }]}>🍺 Beer</Text>
+                    <Text style={[styles.tagChipText, { color: "#FACC15" }]}>🍺 Beer</Text>
                   </View>
 
                   <Pressable
@@ -862,10 +653,104 @@ export default function EventsMapScreen() {
         </Animated.View>
       </ScrollView>
 
-      {/* Floating Bottom TabBar with Glowing Center 'Events Map' Button */}
+      {/* Floating Bottom TabBar with Elevated Center 'Events Map' */}
       <TabBar dark={true} />
 
-      {/* 'What’s the move?' Bottom Sheet Modal (Exact Figma Replica) */}
+      {/* ===================== MODALS ===================== */}
+
+      {/* City Picker Modal */}
+      <Modal
+        visible={showCityPicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowCityPicker(false)}
+      >
+        <View style={styles.cityModalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowCityPicker(false)} />
+          <View style={styles.cityPickerCard}>
+            <View style={styles.cityPickerHeader}>
+              <Text style={styles.cityPickerTitle}>Select City</Text>
+              <Pressable onPress={() => setShowCityPicker(false)} hitSlop={8}>
+                <Ionicons name="close" size={20} color="#8E9CAE" />
+              </Pressable>
+            </View>
+
+            <View style={styles.citySearchBox}>
+              <Ionicons name="search" size={16} color="#8E9CAE" style={{ marginRight: 8 }} />
+              <TextInput
+                style={styles.citySearchInput}
+                placeholder="Search city or state..."
+                placeholderTextColor="#64748B"
+                value={citySearch}
+                onChangeText={setCitySearch}
+              />
+            </View>
+
+            <ScrollView style={{ maxHeight: 300 }}>
+              {filteredCities.map((c) => {
+                const isSelected = c.id === cityId;
+                return (
+                  <Pressable
+                    key={c.id}
+                    style={[styles.cityRow, isSelected && styles.cityRowActive]}
+                    onPress={() => handleSelectCity(c.id)}
+                  >
+                    <Text style={{ fontSize: 18, marginRight: 10 }}>{c.emoji}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.cityName, isSelected && { color: T.lime }]}>{c.name}</Text>
+                      <Text style={styles.cityState}>{c.state}</Text>
+                    </View>
+                    {isSelected && (
+                      <Ionicons name="checkmark-circle" size={18} color={T.lime} />
+                    )}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Surprise Gift Unlock Modal */}
+      <Modal
+        visible={showSurpriseModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSurpriseModal(false)}
+      >
+        <View style={styles.eventModalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowSurpriseModal(false)} />
+          <Animated.View entering={ZoomIn.duration(300)} style={styles.surpriseModalCard}>
+            <Image
+              source={require("../assets/events-map/figma_giftBox.png")}
+              style={{ width: 120, height: 100, marginBottom: 12 }}
+              resizeMode="contain"
+            />
+            <Text style={styles.surpriseModalHeading}>You Unlocked a Surprise!</Text>
+            <Text style={styles.surpriseModalSub}>
+              Congratulations! Your hangout jar is full. You've earned free VIP access to the next exclusive rooftop hangout!
+            </Text>
+            <Pressable
+              style={styles.surpriseClaimBtn}
+              onPress={() => {
+                setShowSurpriseModal(false);
+                router.push("/hangout");
+              }}
+            >
+              <LinearGradient
+                colors={["#D2FD38", "#00F0FF"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.surpriseClaimGrad}
+              >
+                <Text style={styles.surpriseClaimText}>Claim VIP Pass</Text>
+              </LinearGradient>
+            </Pressable>
+          </Animated.View>
+        </View>
+      </Modal>
+
+      {/* 'What’s the move?' Bottom Sheet Modal */}
       <Modal
         visible={showMoveModal}
         transparent
@@ -884,15 +769,12 @@ export default function EventsMapScreen() {
               { paddingBottom: Math.max(insets.bottom, 16) + 12 },
             ]}
           >
-            {/* Top Sheet Drag Handle */}
             <View style={styles.sheetHandle} />
 
             {/* Header: 'hang with [Name]' & Close Button */}
             <View style={styles.moveHeaderRow}>
               <View style={styles.moveUserGroup}>
-                <View style={styles.moveAvatarRing}>
-                  <Image source={selectedFriend.avatar} style={styles.circleImage} />
-                </View>
+                <Image source={selectedFriend.avatar} style={styles.moveAvatarCircle} />
                 <View style={{ marginLeft: 12 }}>
                   <Text style={styles.moveHangWith}>
                     hang with <Text style={{ color: T.lime }}>{selectedFriend.name}</Text>
@@ -905,7 +787,7 @@ export default function EventsMapScreen() {
                 style={styles.moveCloseBtn}
                 onPress={() => setShowMoveModal(false)}
               >
-                <Ionicons name="close" size={18} color="#94A3B8" />
+                <Ionicons name="close" size={18} color="#8E9CAE" />
               </Pressable>
             </View>
 
@@ -924,7 +806,6 @@ export default function EventsMapScreen() {
               <View style={{ flex: 1 }} />
               <Text style={styles.stepLink}>Slide for more →</Text>
             </View>
-            <Text style={styles.stepSubtitle}>Choose a vibe for your hangout.</Text>
 
             {/* 2x5 Vibe Grid */}
             <View style={styles.vibeGrid}>
@@ -977,7 +858,6 @@ export default function EventsMapScreen() {
               <View style={{ flex: 1 }} />
               <Text style={styles.stepLink}>Instant or Scheduled</Text>
             </View>
-            <Text style={styles.stepSubtitle}>Set the date and time.</Text>
 
             {/* 4 Time Cards */}
             <View style={styles.timeCardsRow}>
@@ -989,11 +869,6 @@ export default function EventsMapScreen() {
                     style={[styles.timeCard, isSelected && styles.timeCardSelected]}
                     onPress={() => setSelectedTime(t.id)}
                   >
-                    {isSelected ? (
-                      <View style={styles.timeCheckBadge}>
-                        <Ionicons name="checkmark" size={10} color="#0A0F1D" />
-                      </View>
-                    ) : null}
                     <MaterialCommunityIcons
                       name={t.icon as any}
                       size={20}
@@ -1017,14 +892,12 @@ export default function EventsMapScreen() {
                 <Text style={styles.stepNumText}>3</Text>
               </View>
               <Text style={styles.stepTitle}>
-                Invite <Text style={{ color: T.muted, fontSize: 13, fontFamily: VibeFonts.regular }}>(Optional)</Text>
+                Invite Matches <Text style={{ color: T.muted, fontSize: 13, fontFamily: VibeFonts.regular }}>(Optional)</Text>
               </Text>
             </View>
-            <Text style={styles.stepSubtitle}>Bring people along.</Text>
 
-            {/* Invite Friends Row */}
-            <View style={styles.inviteRow}>
-              {/* + Add People */}
+            {/* Invite Friends Row - ONLY REAL MATCHES */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.inviteRow}>
               <Pressable style={styles.inviteItem} onPress={() => router.push("/invite-friends")}>
                 <View style={styles.addPeopleCircle}>
                   <Ionicons name="add" size={20} color="#FFFFFF" />
@@ -1032,93 +905,85 @@ export default function EventsMapScreen() {
                 <Text style={styles.inviteName}>Add People</Text>
               </Pressable>
 
-              {/* Aanya */}
-              <Pressable
-                style={styles.inviteItem}
-                onPress={() => {
-                  setInvitedFriends((prev) =>
-                    prev.includes("aanya") ? prev.filter((x) => x !== "aanya") : [...prev, "aanya"]
-                  );
-                }}
-              >
-                <View style={styles.avatarWrapper}>
-                  <View
-                    style={[
-                      styles.avatarRing,
-                      { borderColor: invitedFriends.includes("aanya") ? T.cyan : "rgba(255,255,255,0.2)" },
-                    ]}
+              {matches.map((m) => {
+                const isInvited = invitedFriends.includes(m.id);
+                const avatarSource = m.avatarUrl
+                  ? { uri: m.avatarUrl }
+                  : require("../assets/events-map/figma_aanya_avatar.png");
+                return (
+                  <Pressable
+                    key={m.id}
+                    style={styles.inviteItem}
+                    onPress={() => {
+                      setInvitedFriends((prev) =>
+                        prev.includes(m.id) ? prev.filter((x) => x !== m.id) : [...prev, m.id]
+                      );
+                    }}
                   >
-                    <Image source={require("../assets/events-map/aanya-hd.jpg")} style={styles.circleImage} />
-                  </View>
-                  <View style={styles.onlineStatusDot} />
-                </View>
-                <Text style={styles.inviteName}>Aanya</Text>
-              </Pressable>
+                    <Image
+                      source={avatarSource}
+                      style={[
+                        styles.inviteAvatarImg,
+                        isInvited && { borderWidth: 2, borderColor: T.cyan },
+                      ]}
+                    />
+                    <Text style={styles.inviteName} numberOfLines={1}>
+                      {m.name.split(" ")[0]}
+                    </Text>
+                  </Pressable>
+                );
+              })}
 
-              {/* Rohan */}
-              <Pressable
-                style={styles.inviteItem}
-                onPress={() => {
-                  setInvitedFriends((prev) =>
-                    prev.includes("rohan") ? prev.filter((x) => x !== "rohan") : [...prev, "rohan"]
-                  );
-                }}
-              >
-                <View style={styles.avatarWrapper}>
-                  <View
-                    style={[
-                      styles.avatarRing,
-                      { borderColor: invitedFriends.includes("rohan") ? T.lime : "rgba(255,255,255,0.2)" },
-                    ]}
-                  >
-                    <Image source={require("../assets/events-map/rohan-hd.jpg")} style={styles.circleImage} />
-                  </View>
-                  <View style={styles.onlineStatusDot} />
+              {matches.length === 0 && (
+                <View style={{ justifyContent: "center", paddingHorizontal: 12 }}>
+                  <Text style={{ color: T.muted, fontSize: 12, fontFamily: VibeFonts.medium }}>
+                    No matches yet to invite
+                  </Text>
                 </View>
-                <Text style={styles.inviteName}>Rohan</Text>
-              </Pressable>
-
-              {/* Sneha */}
-              <Pressable
-                style={styles.inviteItem}
-                onPress={() => {
-                  setInvitedFriends((prev) =>
-                    prev.includes("sneha") ? prev.filter((x) => x !== "sneha") : [...prev, "sneha"]
-                  );
-                }}
-              >
-                <View style={styles.avatarWrapper}>
-                  <View
-                    style={[
-                      styles.avatarRing,
-                      { borderColor: invitedFriends.includes("sneha") ? T.pink : "rgba(255,255,255,0.2)" },
-                    ]}
-                  >
-                    <Image source={require("../assets/events-map/sneha-hd.jpg")} style={styles.circleImage} />
-                  </View>
-                  <View style={styles.onlineStatusDot} />
-                </View>
-                <Text style={styles.inviteName}>Sneha</Text>
-              </Pressable>
-
-              {/* More */}
-              <Pressable style={styles.inviteItem} onPress={() => router.push("/invite-friends")}>
-                <View style={styles.moreCircle}>
-                  <Ionicons name="ellipsis-horizontal" size={18} color="#94A3B8" />
-                </View>
-                <Text style={styles.inviteName}>More</Text>
-              </Pressable>
-            </View>
+              )}
+            </ScrollView>
 
             {/* Big Action CTA Button: ask [Name] for [vibe] */}
             <Pressable
               style={styles.moveCtaBtnWrap}
-              onPress={() => {
+              onPress={async () => {
                 setShowMoveModal(false);
-                setTimeout(() => {
-                  setShowEventCreateModal(true);
-                  setEventBroadcasted(false);
-                }, 280);
+                const timeText =
+                  selectedTime === "now"
+                    ? "NOW ⚡"
+                    : selectedTime === "30min"
+                    ? "In 30 mins"
+                    : "6 PM Today";
+
+                if (selectedFriend?.id) {
+                  try {
+                    await api.sendInvite({
+                      receiverId: selectedFriend.id,
+                      activityName: currentVibe.label,
+                      activityEmoji: currentVibe.emoji,
+                      timeLabel: timeText,
+                    });
+                  } catch (err) {
+                    console.warn("[events-map] failed to send invite to selected:", err);
+                  }
+                }
+
+                for (const friendId of invitedFriends) {
+                  if (friendId && friendId !== selectedFriend?.id) {
+                    try {
+                      await api.sendInvite({
+                        receiverId: friendId,
+                        activityName: currentVibe.label,
+                        activityEmoji: currentVibe.emoji,
+                        timeLabel: timeText,
+                      });
+                    } catch (err) {
+                      console.warn("[events-map] failed to send invite to friend:", err);
+                    }
+                  }
+                }
+
+                setTimeout(() => setShowEventCreateModal(true), 280);
               }}
             >
               <LinearGradient
@@ -1138,7 +1003,7 @@ export default function EventsMapScreen() {
         </View>
       </Modal>
 
-      {/* Animated Event Creation & Community Motivation Modal */}
+      {/* Event Broadcast Confirmation Modal */}
       <Modal
         visible={showEventCreateModal}
         transparent
@@ -1146,38 +1011,16 @@ export default function EventsMapScreen() {
         onRequestClose={() => setShowEventCreateModal(false)}
       >
         <View style={styles.eventModalOverlay}>
-          <Pressable
-            style={styles.eventModalDismissArea}
-            onPress={() => setShowEventCreateModal(false)}
-          />
-
-          <Animated.View
-            entering={ZoomIn.springify().damping(12).stiffness(120)}
-            style={styles.eventCreateCard}
-          >
-            {/* Top Close Button */}
-            <Pressable
-              style={styles.eventModalCloseBtn}
-              onPress={() => setShowEventCreateModal(false)}
-            >
-              <Ionicons name="close" size={18} color="#94A3B8" />
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowEventCreateModal(false)} />
+          <Animated.View entering={ZoomIn.duration(280)} style={styles.eventCreateCard}>
+            <Pressable style={styles.eventModalCloseBtn} onPress={() => setShowEventCreateModal(false)}>
+              <Ionicons name="close" size={18} color="#8E9CAE" />
             </Pressable>
 
-            {/* Glowing Pulse Rings & Fire/Rocket Icon */}
-            <View style={styles.eventHeroAuraWrap}>
-              <Animated.View style={[styles.eventPulseRingOuter, pulseStyle]} />
-              <View style={styles.eventPulseRingInner} />
-              <LinearGradient
-                colors={["#FFF04B", "#D4F72C", "#2EFA9E"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.eventHeroBadge}
-              >
-                <Text style={{ fontSize: 32 }}>🔥</Text>
-              </LinearGradient>
+            <View style={styles.eventHeroBadge}>
+              <Text style={{ fontSize: 36 }}>🔥</Text>
             </View>
 
-            {/* Tag Pill */}
             <View style={styles.eventTagPill}>
               <View style={styles.liveGreenDot} />
               <Text style={styles.eventTagPillText}>
@@ -1185,270 +1028,37 @@ export default function EventsMapScreen() {
               </Text>
             </View>
 
-            {/* Headline */}
             <Text style={styles.eventModalTitle}>
-              Turn this vibe into a{" "}
-              <Text style={{ color: T.lime }}>Live Event!</Text> 🔥
+              Turn this vibe into a <Text style={{ color: T.lime }}>Live Event!</Text>
             </Text>
 
-            {/* Subtitle */}
             <Text style={styles.eventModalSubtitle}>
               {selectedFriend.name} just got your ping for{" "}
               <Text style={{ color: "#FFFFFF", fontFamily: VibeFonts.bold }}>
                 {currentVibe.label} {currentVibe.emoji}
               </Text>
-              . There are{" "}
-              <Text style={{ color: T.cyan, fontFamily: VibeFonts.bold }}>
-                18 people nearby
-              </Text>{" "}
-              looking for the same vibe right now!
+              . There are 18 people nearby looking for the same vibe right now!
             </Text>
 
-            {/* Live Radar Signal & Community FOMO Card */}
-            <View style={styles.radarSignalBox}>
-              <View style={styles.radarSignalHeader}>
-                <View style={styles.signalDotGroup}>
-                  <View style={styles.buzzingGreenDot} />
-                  <Text style={styles.signalHeaderText}>KOLKATA RADAR ACTIVE</Text>
-                </View>
-                <Text style={styles.signalPeopleCount}>18 Nearby</Text>
-              </View>
-
-              {/* Overlapping Avatars Row */}
-              <View style={styles.signalAvatarsRow}>
-                <View style={styles.avatarPile}>
-                  <View style={[styles.miniAvatarWrap, { borderColor: T.pink, zIndex: 4 }]}>
-                    <Image source={require("../assets/events-map/aanya-hd.jpg")} style={styles.circleImage} />
-                  </View>
-                  <View style={[styles.miniAvatarWrap, { borderColor: T.mint, marginLeft: -12, zIndex: 3 }]}>
-                    <Image source={require("../assets/events-map/rohan-hd.jpg")} style={styles.circleImage} />
-                  </View>
-                  <View style={[styles.miniAvatarWrap, { borderColor: T.cyan, marginLeft: -12, zIndex: 2 }]}>
-                    <Image source={require("../assets/events-map/sneha-hd.jpg")} style={styles.circleImage} />
-                  </View>
-                  <View style={[styles.miniAvatarWrap, styles.miniAvatarPlus, { marginLeft: -12, zIndex: 1 }]}>
-                    <Text style={styles.miniAvatarPlusText}>+15</Text>
-                  </View>
-                </View>
-
-                <View style={styles.signalVibeChip}>
-                  <Text style={styles.signalVibeText}>
-                    {currentVibe.emoji} {currentVibe.label} Vibe
-                  </Text>
-                </View>
-              </View>
-
-              {/* 3 Core Perks */}
-              <View style={styles.perksRow}>
-                <View style={styles.perkItem}>
-                  <Text style={{ fontSize: 13 }}>📍</Text>
-                  <Text style={styles.perkText}>Drops Map Pin</Text>
-                </View>
-                <View style={styles.perkDivider} />
-                <View style={styles.perkItem}>
-                  <Text style={{ fontSize: 13 }}>⚡</Text>
-                  <Text style={styles.perkText}>1-Tap Pull Up</Text>
-                </View>
-                <View style={styles.perkDivider} />
-                <View style={styles.perkItem}>
-                  <Text style={{ fontSize: 13 }}>⭐</Text>
-                  <Text style={styles.perkText}>+100 Karma</Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Quick Event Draft Card */}
-            <View style={styles.eventDraftCard}>
-              <View style={styles.eventDraftIconWrap}>
-                {currentVibe.image ? (
-                  <Image source={currentVibe.image} style={{ width: 22, height: 22 }} resizeMode="contain" />
-                ) : currentVibe.ionIcon ? (
-                  <Ionicons name={currentVibe.ionIcon as any} size={22} color={T.lime} />
-                ) : (
-                  <MaterialCommunityIcons name={currentVibe.icon as any} size={22} color={T.lime} />
-                )}
-              </View>
-              <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={styles.eventDraftTitle} numberOfLines={1}>
-                  {currentVibe.label} & Chill with {selectedFriend.name}
-                </Text>
-                <Text style={styles.eventDraftSub}>
-                  Park Street • Starting in 30 mins • Open Spot
-                </Text>
-              </View>
-              <View style={styles.draftLivePill}>
-                <Text style={styles.draftLiveText}>READY</Text>
-              </View>
-            </View>
-
-            {/* Primary Action Button: Broadcast as Public Event */}
             <Pressable
               style={styles.broadcastActionBtn}
-              onPress={async () => {
-                setEventBroadcasted(true);
-                try {
-                  await createPlan({
-                    activityId: currentVibe.id,
-                    activityName: currentVibe.label,
-                    emoji: currentVibe.emoji,
-                    location: selectedHotspot ? `${selectedHotspot}, ${city.name}` : `${city.name} City Center`,
-                    description: `Hangout with ${selectedFriend.name} for ${currentVibe.label}!`,
-                    kind: "EVENT",
-                    visibility: "PUBLIC",
-                    customTime: selectedTime === "now" ? "Now" : selectedTime === "30min" ? "+30 Mins" : selectedTime === "1hr" ? "+1 Hour" : "6 PM",
-                  });
-                  if (selectedFriend.id && !selectedFriend.id.startsWith("sample-")) {
-                    api.sendVibe({ receiverId: selectedFriend.id, vibeType: currentVibe.id }).catch(() => {});
-                  }
-                  refreshPlans().catch(() => {});
-                } catch {}
-                setTimeout(() => {
-                  setShowEventCreateModal(false);
-                  setSelectedHotspot(selectedHotspot || "Park Street");
-                  setMapZoom(1.1);
-                }, 1300);
+              onPress={() => {
+                setShowEventCreateModal(false);
+                incrementHangoutProgress();
               }}
             >
               <LinearGradient
-                colors={
-                  eventBroadcasted
-                    ? ["#10B981", "#059669"]
-                    : ["#FFF04B", "#D4F72C", "#2EFA9E"]
-                }
+                colors={["#D2FD38", "#00F0FF"]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.broadcastActionGrad}
               >
-                <Ionicons
-                  name={eventBroadcasted ? "checkmark-circle" : "flame"}
-                  size={20}
-                  color={eventBroadcasted ? "#FFFFFF" : "#0A0F1D"}
-                />
-                <Text
-                  style={[
-                    styles.broadcastActionText,
-                    eventBroadcasted && { color: "#FFFFFF" },
-                  ]}
-                >
-                  {eventBroadcasted
-                    ? "✓ Spot Live on Kolkata Map!"
-                    : "🚀 Broadcast as Public Event"}
-                </Text>
-                <Ionicons
-                  name="arrow-forward"
-                  size={18}
-                  color={eventBroadcasted ? "#FFFFFF" : "#0A0F1D"}
-                />
+                <Text style={styles.broadcastActionText}>Broadcast to Radar</Text>
+                <Ionicons name="radio" size={18} color="#000000" />
               </LinearGradient>
-            </Pressable>
-
-            {/* Secondary Option: Chat or Customize */}
-            <View style={styles.secondaryActionsRow}>
-              <Pressable
-                style={styles.secondaryActionBtn}
-                onPress={() => {
-                  setShowEventCreateModal(false);
-                  router.push("/chat/1");
-                }}
-              >
-                <Ionicons name="chatbubble-ellipses-outline" size={15} color={T.cyan} />
-                <Text style={styles.secondaryActionText}>
-                  Chat with {selectedFriend.name}
-                </Text>
-              </Pressable>
-
-              <Pressable
-                style={styles.secondaryActionBtn}
-                onPress={() => {
-                  setShowEventCreateModal(false);
-                  router.push("/create-plan");
-                }}
-              >
-                <Ionicons name="options-outline" size={15} color={T.lime} />
-                <Text style={[styles.secondaryActionText, { color: T.lime }]}>
-                  Studio Details
-                </Text>
-              </Pressable>
-            </View>
-
-            {/* Soft Dismiss */}
-            <Pressable
-              style={styles.dismissPillBtn}
-              onPress={() => setShowEventCreateModal(false)}
-            >
-              <Text style={styles.dismissPillText}>Keep it 1-on-1 for now</Text>
             </Pressable>
           </Animated.View>
         </View>
-      </Modal>
-
-      {/* City Picker Modal */}
-      <Modal
-        visible={showCityPicker}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowCityPicker(false)}
-      >
-        <Pressable
-          style={styles.modalBackdrop}
-          onPress={() => setShowCityPicker(false)}
-        >
-          <Animated.View
-            entering={FadeInUp.duration(200)}
-            style={styles.cityModalCard}
-            onStartShouldSetResponder={() => true}
-          >
-            <View style={styles.modalHeaderRow}>
-              <View>
-                <Text style={styles.modalTitle}>Choose City</Text>
-                <Text style={styles.modalSubtitle}>Switch live radar & active hangouts</Text>
-              </View>
-              <Pressable
-                style={styles.modalCloseBtn}
-                onPress={() => setShowCityPicker(false)}
-              >
-                <Ionicons name="close" size={20} color="#FFFFFF" />
-              </Pressable>
-            </View>
-
-            <View style={styles.modalSearchRow}>
-              <Ionicons name="search" size={16} color={T.muted} />
-              <TextInput
-                style={styles.modalSearchInput}
-                placeholder="Search city or state..."
-                placeholderTextColor={T.faint}
-                value={citySearch}
-                onChangeText={setCitySearch}
-              />
-            </View>
-
-            <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
-              {filteredCities.map((c) => {
-                const isSelected = c.id === cityId;
-                return (
-                  <Pressable
-                    key={c.id}
-                    style={[styles.cityItemRow, isSelected && styles.cityItemRowActive]}
-                    onPress={() => selectCity(c.id)}
-                  >
-                    <Text style={styles.cityEmojiBig}>{c.emoji}</Text>
-                    <View style={{ flex: 1, marginLeft: 12 }}>
-                      <Text style={[styles.cityItemName, isSelected && { color: T.lime }]}>
-                        {c.name}
-                      </Text>
-                      <Text style={styles.cityItemState}>{c.state} · Live radar available</Text>
-                    </View>
-                    {isSelected ? (
-                      <Ionicons name="checkmark-circle" size={20} color={T.lime} />
-                    ) : (
-                      <Ionicons name="chevron-forward" size={16} color={T.faint} />
-                    )}
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </Animated.View>
-        </Pressable>
       </Modal>
     </View>
   );
@@ -1457,31 +1067,24 @@ export default function EventsMapScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: T.bg,
+    backgroundColor: "#020408",
   },
   scrollContent: {
     paddingHorizontal: 16,
   },
 
-  // General reusable circular image style
-  circleImage: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 999,
-  },
-
-  // Top App Bar
+  // 1. Top App Bar Header
   topHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 12,
+    marginBottom: 14,
   },
   circleBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#0D1424",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.12)",
     alignItems: "center",
@@ -1491,46 +1094,41 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   headerTitle: {
-    fontSize: 18,
-    fontFamily: VibeFonts.bold,
     color: "#FFFFFF",
-    letterSpacing: -0.2,
+    fontSize: 18,
+    fontFamily: VibeFonts.extraBold,
   },
   cityPill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#0D1424",
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
-    paddingHorizontal: 10,
-    paddingVertical: 3,
+    borderColor: "rgba(255, 255, 255, 0.1)",
     borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 3.5,
     marginTop: 4,
   },
-  pinEmoji: {
-    fontSize: 11,
-    marginRight: 4,
-  },
   cityNameText: {
-    color: "#FFFFFF",
+    color: "#E2E8F0",
     fontSize: 12,
-    fontFamily: VibeFonts.medium,
+    fontFamily: VibeFonts.semiBold,
   },
 
-  // Kolkata Hangout Live Banner Card
+  // 2. Kolkata Hangout Live Banner Card
   liveBannerCard: {
-    backgroundColor: T.card,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.06)",
-    borderRadius: 18,
-    padding: 12,
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
+    backgroundColor: "#0C1322",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    borderRadius: 18,
+    padding: 12,
+    marginBottom: 14,
   },
   bannerThumb: {
-    width: 44,
-    height: 44,
+    width: 46,
+    height: 46,
     borderRadius: 12,
   },
   bannerInfo: {
@@ -1543,369 +1141,178 @@ const styles = StyleSheet.create({
   },
   bannerTitle: {
     color: "#FFFFFF",
-    fontSize: 13.5,
+    fontSize: 14.5,
     fontFamily: VibeFonts.bold,
   },
   liveTag: {
-    backgroundColor: T.hotPink,
-    paddingHorizontal: 6,
-    paddingVertical: 1.5,
-    borderRadius: 6,
-    marginLeft: 6,
+    backgroundColor: "#FF136A",
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginLeft: 8,
   },
   liveTagText: {
     color: "#FFFFFF",
-    fontSize: 8.5,
-    fontFamily: VibeFonts.bold,
+    fontSize: 9.5,
+    fontFamily: VibeFonts.extraBold,
     letterSpacing: 0.5,
   },
   bannerSubRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 3,
+    marginTop: 4,
   },
   pulsingDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: T.mint,
+    backgroundColor: "#10B981",
     marginRight: 6,
   },
   bannerSubText: {
-    color: T.muted,
-    fontSize: 11,
-    fontFamily: VibeFonts.regular,
+    color: "#8E9CAE",
+    fontSize: 11.5,
+    fontFamily: VibeFonts.medium,
   },
   originalVibeBtn: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "rgba(34, 211, 238, 0.08)",
     borderWidth: 1,
-    borderColor: "rgba(34, 211, 238, 0.28)",
+    borderColor: "rgba(34, 211, 238, 0.35)",
+    borderRadius: 14,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 14,
   },
   originalVibeText: {
-    color: T.cyan,
+    color: "#22D3EE",
     fontSize: 11,
-    fontFamily: VibeFonts.bold,
+    fontFamily: VibeFonts.semiBold,
   },
 
-  // Radar Map Card Area
-  mapCard: {
-    height: 380,
-    borderRadius: 24,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
-    backgroundColor: "#060914",
-    position: "relative",
-    marginBottom: 14,
+  // 3. Centerpiece: Neon Blue Water Jar & Glossy Thermometer
+  jarSectionCard: {
+    marginBottom: 8,
   },
-  radarCenterAnchor: {
-    position: "absolute",
-    top: "50%",
-    left: "50%",
-    width: 0,
-    height: 0,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  radarWaveOuter: {
-    position: "absolute",
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    borderWidth: 1.5,
-    borderColor: "rgba(34, 211, 238, 0.4)",
-    backgroundColor: "rgba(34, 211, 238, 0.08)",
-  },
-  radarRing1: {
-    position: "absolute",
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    borderWidth: 1,
-    borderColor: "rgba(34, 211, 238, 0.16)",
-  },
-  radarRing2: {
-    position: "absolute",
-    width: 240,
-    height: 240,
-    borderRadius: 120,
-    borderWidth: 1,
-    borderColor: "rgba(34, 211, 238, 0.09)",
-  },
-  radarRing3: {
-    position: "absolute",
-    width: 360,
-    height: 360,
-    borderRadius: 180,
-    borderWidth: 1,
-    borderColor: "rgba(34, 211, 238, 0.04)",
-  },
-  radarCrossH: {
-    position: "absolute",
-    width: 380,
-    height: 1,
-    backgroundColor: "rgba(34, 211, 238, 0.06)",
-  },
-  radarCrossV: {
-    position: "absolute",
-    height: 380,
-    width: 1,
-    backgroundColor: "rgba(34, 211, 238, 0.06)",
-  },
-
-  // Map Controls (Toggle & Compass)
-  mapModeToggle: {
-    position: "absolute",
-    top: 14,
-    left: 14,
-    flexDirection: "row",
-    backgroundColor: "#0A101F",
-    borderRadius: 20,
-    padding: 3,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
-    zIndex: 20,
-  },
-  modeTab: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  modeTabActive: {
-    backgroundColor: T.lime,
-  },
-  modeTabRow: {
+  jarRowContainer: {
     flexDirection: "row",
     alignItems: "center",
-  },
-  modeTabText: {
-    color: T.muted,
-    fontSize: 12,
-    fontFamily: VibeFonts.bold,
-  },
-  modeTabTextActive: {
-    color: "#0A0F1D",
-  },
-  compassBtn: {
-    position: "absolute",
-    top: 14,
-    right: 14,
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "#0D1424",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.12)",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 20,
-  },
-  zoomControls: {
-    position: "absolute",
-    top: 68,
-    left: 14,
-    width: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(13, 20, 36, 0.85)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
-    alignItems: "center",
-    paddingVertical: 5,
-    zIndex: 20,
-  },
-  zoomBtn: {
-    padding: 4,
-  },
-  zoomDivider: {
-    width: 16,
-    height: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    marginVertical: 3,
-  },
-
-  // Hotspots (Perfect Circular Rings + Photos + Count Badges)
-  hotspotAnchor: {
-    position: "absolute",
-    alignItems: "center",
-    zIndex: 10,
-  },
-  hotspotParkStreet: {
-    top: "18%",
-    left: "44%",
-  },
-  hotspotSaltLake: {
-    top: "23%",
-    right: "12%",
-  },
-  hotspotNewTown: {
-    top: "54%",
-    left: "14%",
-  },
-  hotspotWrapper: {
-    width: 46,
-    height: 46,
-    position: "relative",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  hotspotRing: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 2.5,
-    borderColor: T.lime,
-    overflow: "hidden",
-    backgroundColor: "#060914",
-    shadowColor: T.lime,
-    shadowOpacity: 0.8,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  countBadge: {
-    position: "absolute",
-    top: -4,
-    right: -5,
-    backgroundColor: T.lime,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: T.lime,
-    shadowOpacity: 0.8,
-    shadowRadius: 6,
-    elevation: 6,
-    zIndex: 10,
-  },
-  countBadgeText: {
-    color: "#0A0F1D",
-    fontSize: 10.5,
-    fontFamily: VibeFonts.bold,
-  },
-  hotspotLabel: {
-    color: "#FFFFFF",
-    fontSize: 11.5,
-    fontFamily: VibeFonts.bold,
-    marginTop: 4,
-    textShadowColor: "rgba(0,0,0,0.8)",
-    textShadowRadius: 4,
-  },
-
-  // Center User Location (Perfect Circles)
-  userLocationWrap: {
-    position: "absolute",
-    top: "44%",
-    left: "37%",
-    alignItems: "center",
-    zIndex: 15,
-  },
-  youAreHerePill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginBottom: 6,
-    shadowColor: T.lime,
-    shadowOpacity: 0.6,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  youAreHereText: {
-    color: "#0A0F1D",
-    fontSize: 10.5,
-    fontFamily: VibeFonts.bold,
-  },
-  userRadarAura: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: "rgba(34, 211, 238, 0.12)",
-    borderWidth: 1,
-    borderColor: "rgba(34, 211, 238, 0.35)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  userCoffeeCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#061A28",
-    borderWidth: 2,
-    borderColor: "#22D3EE",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#22D3EE",
-    shadowOpacity: 0.8,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-
-  // Scattered live dots (Perfect Circles)
-  dotLive: {
-    position: "absolute",
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    shadowColor: "#2EFA9E",
-    shadowOpacity: 0.8,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-
-  // Bottom Map Bar Controls
-  mapBottomBar: {
-    position: "absolute",
-    bottom: 14,
-    left: 14,
-    right: 14,
-    flexDirection: "row",
     justifyContent: "space-between",
-    zIndex: 20,
+    paddingHorizontal: 2,
   },
-  mapBottomBtn: {
-    flexDirection: "row",
+  jarWrap: {
+    width: SCREEN_W * 0.51,
     alignItems: "center",
-    backgroundColor: "rgba(11, 18, 32, 0.9)",
-    borderWidth: 1.5,
-    borderColor: "rgba(34, 211, 238, 0.35)",
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
   },
-  mapBottomBtnText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontFamily: VibeFonts.bold,
+  jarInner: {
+    width: "100%",
+    alignItems: "center",
+  },
+  jarImage: {
+    width: SCREEN_W * 0.51,
+    height: (SCREEN_W * 0.51) * (350 / 234),
+  },
+  jarGlowPuddle: {
+    width: SCREEN_W * 0.42,
+    height: 14,
+    borderRadius: 10,
+    backgroundColor: "#0090EC",
+    opacity: 0.45,
+    marginTop: -8,
+  },
+  thermometerWrap: {
+    width: SCREEN_W * 0.42,
+    alignItems: "center",
+  },
+  thermometerImage: {
+    width: SCREEN_W * 0.42,
+    height: (SCREEN_W * 0.42) * (284 / 189),
   },
 
-  // 'Pull up ✨' Section (Perfect Circles)
-  sectionWrap: {
-    backgroundColor: T.card,
+  // 4. Reward / Surprise Card
+  surpriseCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#0C1322",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.06)",
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 12,
+    borderColor: "rgba(34, 211, 238, 0.25)",
+    borderRadius: 18,
+    padding: 14,
+    marginTop: 14,
+  },
+  surpriseBoxImg: {
+    width: 82,
+    height: 72,
+  },
+  surpriseInfoGroup: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  surprisePreLabel: {
+    color: "#38BDF8",
+    fontSize: 10.5,
+    fontFamily: VibeFonts.extraBold,
+    letterSpacing: 0.8,
+  },
+  surpriseTitle: {
+    color: "#D2FD38",
+    fontSize: 24,
+    fontFamily: VibeFonts.extraBold,
+    marginTop: 2,
+  },
+  surpriseDescription: {
+    color: "#8E9CAE",
+    fontSize: 12,
+    fontFamily: VibeFonts.regular,
+    marginTop: 3,
+    lineHeight: 16,
+  },
+
+  // 5. Full-width 'Create a Hangout ➔' Button
+  createHangoutBtn: {
+    height: 56,
+    borderRadius: 28,
+    marginTop: 14,
+    overflow: "hidden",
+  },
+  createHangoutGrad: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  createHangoutBtnText: {
+    color: "#000000",
+    fontSize: 15.5,
+    fontFamily: VibeFonts.extraBold,
+  },
+
+  // 6. 'Pull up ✨' Section
+  sectionWrap: {
+    marginTop: 20,
   },
   sectionHeaderRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 14,
+    marginBottom: 10,
   },
   sectionTitle: {
     color: "#FFFFFF",
-    fontSize: 16.5,
+    fontSize: 16,
     fontFamily: VibeFonts.bold,
   },
   sectionLink: {
-    color: T.faint,
-    fontSize: 12,
+    color: "#8E9CAE",
+    fontSize: 12.5,
     fontFamily: VibeFonts.medium,
+  },
+  pullUpCard: {
+    backgroundColor: "#0C1322",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    borderRadius: 18,
+    padding: 14,
   },
   pullUpRow: {
     flexDirection: "row",
@@ -1916,91 +1323,52 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   pickCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: "rgba(255, 255, 255, 0.3)",
     borderStyle: "dashed",
-    borderWidth: 1.5,
-    borderColor: "rgba(255, 255, 255, 0.35)",
-    backgroundColor: "rgba(255, 255, 255, 0.03)",
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarWrapper: {
-    width: 44,
-    height: 44,
-    position: "relative",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarRing: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 2,
-    overflow: "hidden",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#0B101D",
-  },
-  onlineStatusDot: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: T.mint,
-    borderWidth: 1.5,
-    borderColor: T.card,
-    zIndex: 10,
-  },
-  officeCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 2,
-    borderColor: "#22D3EE",
-    backgroundColor: "#061A28",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#22D3EE",
-    shadowOpacity: 0.5,
-    shadowRadius: 8,
-    elevation: 4,
+  avatarImg: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
   moreCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 1.5,
-    borderColor: "rgba(255, 255, 255, 0.18)",
-    backgroundColor: "rgba(255, 255, 255, 0.04)",
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
     alignItems: "center",
     justifyContent: "center",
   },
   pullUpName: {
-    color: T.muted,
+    color: "#FFFFFF",
     fontSize: 11,
     fontFamily: VibeFonts.medium,
-    marginTop: 5,
+    marginTop: 6,
   },
 
-  // Office Gang is buzzing Card
+  // 7. Office Gang is buzzing Card
   buzzingCard: {
-    backgroundColor: T.card,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.06)",
-    borderRadius: 18,
-    padding: 12,
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
+    backgroundColor: "#0C1322",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    borderRadius: 16,
+    padding: 12,
+    marginTop: 12,
   },
   buzzingThumb: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
+    width: 46,
+    height: 46,
+    borderRadius: 12,
   },
   buzzingInfo: {
     flex: 1,
@@ -2008,84 +1376,57 @@ const styles = StyleSheet.create({
   },
   buzzingTitle: {
     color: "#FFFFFF",
-    fontSize: 14,
+    fontSize: 14.5,
     fontFamily: VibeFonts.bold,
   },
   buzzingSub: {
-    color: T.muted,
-    fontSize: 11,
+    color: "#8E9CAE",
+    fontSize: 11.5,
     fontFamily: VibeFonts.regular,
     marginTop: 2,
   },
   buzzingLivePill: {
     flexDirection: "row",
     alignItems: "center",
+    backgroundColor: "rgba(16, 185, 129, 0.12)",
     borderWidth: 1,
-    borderColor: "rgba(46, 250, 158, 0.4)",
-    backgroundColor: "rgba(46, 250, 158, 0.06)",
-    paddingHorizontal: 9,
-    paddingVertical: 4.5,
-    borderRadius: 14,
+    borderColor: "rgba(16, 185, 129, 0.35)",
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   buzzingGreenDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: T.mint,
+    backgroundColor: "#10B981",
     marginRight: 5,
   },
   buzzingLiveText: {
-    color: T.mint,
+    color: "#10B981",
     fontSize: 10.5,
     fontFamily: VibeFonts.bold,
-    letterSpacing: 0.5,
   },
 
-  // Kabir Social Post Card with Interactive Live Poll
+  // 8. Kabir Social Status Update Card (Exact Figma Layout)
   socialPostCard: {
-    backgroundColor: "#0D1424",
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#0C1322",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.08)",
-    borderRadius: 20,
-    padding: 14,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
+    borderRadius: 16,
+    padding: 12,
+    marginTop: 12,
   },
-  postHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 10,
-  },
-  postAuthorGroup: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-  postAvatarRing: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    position: "relative",
-  },
-  postOnlineBadge: {
-    position: "absolute",
-    bottom: -1,
-    right: -1,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "#10B981",
-    borderWidth: 2,
-    borderColor: "#0D1424",
+  postAvatar: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
   },
   postInfo: {
-    marginLeft: 10,
     flex: 1,
+    marginLeft: 12,
   },
   postNameRow: {
     flexDirection: "row",
@@ -2093,193 +1434,37 @@ const styles = StyleSheet.create({
   },
   postName: {
     color: "#FFFFFF",
-    fontSize: 15,
+    fontSize: 14.5,
     fontFamily: VibeFonts.bold,
   },
   postTimePill: {
     backgroundColor: "rgba(255, 255, 255, 0.06)",
-    paddingHorizontal: 6,
-    paddingVertical: 1.5,
-    borderRadius: 6,
-    marginLeft: 6,
-  },
-  postTimeText: {
-    color: T.muted,
-    fontSize: 9.5,
-    fontFamily: VibeFonts.regular,
-  },
-  postSubText: {
-    color: "#64748B",
-    fontSize: 11,
-    fontFamily: VibeFonts.medium,
-    marginTop: 1,
-  },
-  postMenuBtn: {
-    padding: 6,
-    borderRadius: 10,
-    backgroundColor: "rgba(255, 255, 255, 0.04)",
-  },
-  postQuestionContainer: {
-    marginBottom: 12,
-  },
-  postMessage: {
-    color: "#FFFFFF",
-    fontSize: 17,
-    fontFamily: VibeFonts.bold,
-    letterSpacing: -0.2,
-  },
-  postQuestionSub: {
-    color: "#94A3B8",
-    fontSize: 12,
-    fontFamily: VibeFonts.regular,
-    marginTop: 3,
-  },
-  pollMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 10,
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.05)",
-  },
-  pollLiveTag: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(34, 211, 238, 0.12)",
     paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  pollLiveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#22D3EE",
-    marginRight: 5,
-  },
-  pollLiveText: {
-    color: "#22D3EE",
-    fontSize: 10,
-    fontFamily: VibeFonts.bold,
-    letterSpacing: 0.5,
-  },
-  pollStatsText: {
-    color: "#64748B",
-    fontSize: 11,
-    fontFamily: VibeFonts.medium,
-  },
-  pollOptionsList: {
-    gap: 8,
-  },
-  pollOptionItem: {
-    position: "relative",
-    height: 44,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: "rgba(255, 255, 255, 0.08)",
-    backgroundColor: "#0B101D",
-    overflow: "hidden",
-    justifyContent: "center",
-  },
-  pollOptionItemActive: {
-    borderColor: "#D4F72C",
-    backgroundColor: "#0E1825",
-  },
-  pollProgressBar: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    bottom: 0,
-    backgroundColor: "rgba(255, 255, 255, 0.06)",
-    borderRadius: 10,
-  },
-  pollProgressBarActive: {
-    backgroundColor: "rgba(212, 247, 44, 0.22)",
-  },
-  pollOptionContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 12,
-    zIndex: 1,
-  },
-  pollOptionLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-  pollRadioCircle: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 1.5,
-    borderColor: "rgba(255, 255, 255, 0.25)",
-    marginRight: 10,
-  },
-  pollRadioSelected: {
-    marginRight: 10,
-  },
-  pollOptionLabel: {
-    color: "#CBD5E1",
-    fontSize: 13,
-    fontFamily: VibeFonts.medium,
-    flex: 1,
-  },
-  pollOptionLabelActive: {
-    color: "#FFFFFF",
-    fontFamily: VibeFonts.bold,
-  },
-  pollOptionRight: {
-    flexDirection: "row",
-    alignItems: "center",
+    paddingVertical: 2,
+    borderRadius: 8,
     marginLeft: 8,
   },
-  pollPercentText: {
-    color: "#94A3B8",
-    fontSize: 12,
-    fontFamily: VibeFonts.bold,
-    minWidth: 32,
-    textAlign: "right",
-  },
-  pollPercentTextActive: {
-    color: "#D4F72C",
-  },
-  pollFooterRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 10,
-    paddingTop: 8,
-  },
-  pollStatusHint: {
-    color: "#64748B",
-    fontSize: 11,
+  postTimeText: {
+    color: "#8E9CAE",
+    fontSize: 10.5,
     fontFamily: VibeFonts.regular,
   },
-  pollQuickReplyBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(212, 247, 44, 0.12)",
-    borderWidth: 1,
-    borderColor: "rgba(212, 247, 44, 0.3)",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
+  postMessage: {
+    color: "#CBD5E1",
+    fontSize: 13.5,
+    fontFamily: VibeFonts.medium,
+    marginTop: 3,
   },
-  pollQuickReplyText: {
-    color: "#D4F72C",
-    fontSize: 11,
-    fontFamily: VibeFonts.bold,
-    marginLeft: 4,
+  postMenuBtn: {
+    padding: 4,
   },
 
-  // Nearby Hangouts Section
+  // 9. Nearby Hangouts Section
   nearbyHeaderRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 10,
   },
   nearbyTitleGroup: {
     flexDirection: "row",
@@ -2289,12 +1474,12 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: T.hotPink,
-    marginRight: 8,
+    backgroundColor: "#F43F5E",
+    marginRight: 6,
   },
   nearbyTitle: {
     color: "#FFFFFF",
-    fontSize: 16.5,
+    fontSize: 16,
     fontFamily: VibeFonts.bold,
   },
   seeAllGroup: {
@@ -2302,8 +1487,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   seeAllText: {
-    color: T.muted,
-    fontSize: 12,
+    color: "#8E9CAE",
+    fontSize: 12.5,
     fontFamily: VibeFonts.medium,
     marginRight: 2,
   },
@@ -2312,10 +1497,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   hangoutCard: {
-    width: (SCREEN_W - 40) / 2,
-    backgroundColor: T.card,
+    width: "48.5%",
+    backgroundColor: "#0C1322",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.06)",
+    borderColor: "rgba(255, 255, 255, 0.08)",
     borderRadius: 18,
     overflow: "hidden",
   },
@@ -2340,154 +1525,264 @@ const styles = StyleSheet.create({
   },
   cardDistanceText: {
     color: "#FFFFFF",
-    fontSize: 9.5,
+    fontSize: 10.5,
     fontFamily: VibeFonts.bold,
-    marginLeft: 3,
   },
   cardHeartBtn: {
     position: "absolute",
     top: 8,
     right: 8,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: "rgba(0, 0, 0, 0.55)",
     alignItems: "center",
     justifyContent: "center",
+  },
+  attendeeStack: {
+    position: "absolute",
+    bottom: 8,
+    left: 8,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  attendeeAvatar: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderColor: "#0C1322",
+  },
+  attendeeAvatarOverlap: {
+    marginLeft: -7,
+  },
+  attendeeCountText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontFamily: VibeFonts.bold,
+    marginLeft: 6,
+    textShadowColor: "rgba(0,0,0,0.8)",
+    textShadowRadius: 3,
   },
   cardBody: {
     padding: 10,
   },
   cardTitle: {
     color: "#FFFFFF",
-    fontSize: 12.5,
+    fontSize: 13,
     fontFamily: VibeFonts.bold,
   },
   cardSubtitle: {
-    color: T.muted,
+    color: "#8E9CAE",
     fontSize: 10,
     fontFamily: VibeFonts.regular,
     marginTop: 2,
+    marginBottom: 8,
   },
   tagChipsRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 8,
   },
   tagChip: {
-    paddingHorizontal: 6,
+    paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 8,
   },
   tagChipText: {
-    fontSize: 9,
+    fontSize: 10,
     fontFamily: VibeFonts.bold,
   },
   joinBtnWrap: {
-    marginLeft: 6,
-    flex: 1,
+    marginLeft: 5,
+    borderRadius: 10,
+    overflow: "hidden",
   },
   joinBtnGrad: {
+    paddingHorizontal: 8,
     paddingVertical: 3.5,
-    paddingHorizontal: 7,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
+    borderRadius: 10,
   },
   joinBtnText: {
     color: "#FFFFFF",
-    fontSize: 9,
+    fontSize: 10,
     fontFamily: VibeFonts.bold,
   },
 
-  // 'What’s the move?' Bottom Sheet Modal Styles
+  // City Picker Modal
+  cityModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.75)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  cityPickerCard: {
+    width: "100%",
+    backgroundColor: "#0C1322",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.12)",
+    padding: 18,
+  },
+  cityPickerHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 14,
+  },
+  cityPickerTitle: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontFamily: VibeFonts.bold,
+  },
+  citySearchBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 12,
+  },
+  citySearchInput: {
+    flex: 1,
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontFamily: VibeFonts.regular,
+  },
+  cityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.06)",
+  },
+  cityRowActive: {
+    backgroundColor: "rgba(210, 253, 56, 0.08)",
+  },
+  cityName: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontFamily: VibeFonts.semiBold,
+  },
+  cityState: {
+    color: "#64748B",
+    fontSize: 11,
+    fontFamily: VibeFonts.regular,
+  },
+
+  // Surprise Unlock Modal
+  surpriseModalCard: {
+    width: "88%",
+    backgroundColor: "#0C1322",
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(34, 211, 238, 0.3)",
+    padding: 24,
+    alignItems: "center",
+  },
+  surpriseModalHeading: {
+    color: "#D2FD38",
+    fontSize: 20,
+    fontFamily: VibeFonts.extraBold,
+    textAlign: "center",
+  },
+  surpriseModalSub: {
+    color: "#8E9CAE",
+    fontSize: 13,
+    fontFamily: VibeFonts.regular,
+    textAlign: "center",
+    marginTop: 8,
+    lineHeight: 18,
+  },
+  surpriseClaimBtn: {
+    width: "100%",
+    height: 48,
+    borderRadius: 24,
+    overflow: "hidden",
+    marginTop: 18,
+  },
+  surpriseClaimGrad: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  surpriseClaimText: {
+    color: "#000000",
+    fontSize: 14.5,
+    fontFamily: VibeFonts.extraBold,
+  },
+
+  // 'What’s the move?' Bottom Sheet Modal
   moveModalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.65)",
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
     justifyContent: "flex-end",
   },
   moveModalDismissArea: {
     flex: 1,
   },
   moveSheetCard: {
-    backgroundColor: "#070C18",
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    borderWidth: 1.5,
-    borderBottomWidth: 0,
-    borderColor: "rgba(34, 211, 238, 0.22)",
+    backgroundColor: "#0C1322",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
     paddingHorizontal: 20,
     paddingTop: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -6 },
-    shadowOpacity: 0.6,
-    shadowRadius: 20,
-    elevation: 24,
   },
   sheetHandle: {
-    width: 44,
+    width: 38,
     height: 4,
     borderRadius: 2,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    backgroundColor: "rgba(255, 255, 255, 0.25)",
     alignSelf: "center",
-    marginBottom: 16,
+    marginBottom: 14,
   },
   moveHeaderRow: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 16,
+    alignItems: "center",
   },
   moveUserGroup: {
     flexDirection: "row",
     alignItems: "center",
   },
-  moveAvatarRing: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 2,
-    borderColor: T.lime,
-    overflow: "hidden",
-    backgroundColor: "#0B101D",
+  moveAvatarCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
   },
   moveHangWith: {
     color: "#FFFFFF",
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: VibeFonts.bold,
   },
   moveHandle: {
-    color: T.muted,
-    fontSize: 12,
-    fontFamily: VibeFonts.medium,
-    marginTop: 2,
+    color: "#8E9CAE",
+    fontSize: 11,
+    fontFamily: VibeFonts.regular,
   },
   moveCloseBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(255, 255, 255, 0.06)",
-    alignItems: "center",
-    justifyContent: "center",
+    padding: 6,
   },
   moveTitle: {
     color: "#FFFFFF",
-    fontSize: 24,
+    fontSize: 22,
     fontFamily: VibeFonts.extraBold,
-    letterSpacing: -0.4,
+    marginTop: 14,
   },
   moveSubtitle: {
-    color: T.muted,
-    fontSize: 13,
+    color: "#8E9CAE",
+    fontSize: 12,
     fontFamily: VibeFonts.regular,
-    marginTop: 3,
-    marginBottom: 16,
+    marginTop: 2,
   },
-
-  // Steps
   stepHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
+    marginTop: 14,
+    marginBottom: 8,
   },
   stepNumBadge: {
     width: 20,
@@ -2499,58 +1794,47 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   stepNumText: {
-    color: "#0A0F1D",
+    color: "#000000",
     fontSize: 11,
     fontFamily: VibeFonts.extraBold,
   },
   stepTitle: {
     color: "#FFFFFF",
-    fontSize: 14.5,
+    fontSize: 13.5,
     fontFamily: VibeFonts.bold,
   },
   stepLink: {
-    color: T.faint,
-    fontSize: 12,
+    color: "#38BDF8",
+    fontSize: 11,
     fontFamily: VibeFonts.medium,
   },
-  stepSubtitle: {
-    color: T.muted,
-    fontSize: 11.5,
-    fontFamily: VibeFonts.regular,
-    marginLeft: 28,
-    marginTop: 2,
-    marginBottom: 10,
-  },
-
-  // Vibe Grid (2 rows x 5 items)
   vibeGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
   },
   vibeCard: {
-    width: (SCREEN_W - 40 - 24) / 5,
-    height: 60,
-    borderRadius: 14,
-    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    width: "18.5%",
+    aspectRatio: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.04)",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.06)",
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 8,
   },
+  vibeCardSelected: {
+    borderColor: T.cyan,
+    backgroundColor: "rgba(34, 211, 238, 0.12)",
+  },
   vibeCardCustomIcon: {
-    width: 25,
-    height: 25,
+    width: 24,
+    height: 24,
     marginBottom: 4,
   },
-  vibeCardSelected: {
-    backgroundColor: "rgba(34, 211, 238, 0.12)",
-    borderWidth: 1.5,
-    borderColor: T.cyan,
-  },
   vibeCardText: {
-    color: T.muted,
+    color: "#8E9CAE",
     fontSize: 10,
     fontFamily: VibeFonts.medium,
   },
@@ -2558,96 +1842,74 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontFamily: VibeFonts.bold,
   },
-
-  // Time Cards
   timeCardsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
   },
   timeCard: {
-    width: (SCREEN_W - 40 - 24) / 4,
-    height: 72,
-    borderRadius: 16,
-    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    width: "23%",
+    backgroundColor: "rgba(255, 255, 255, 0.04)",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.06)",
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    borderRadius: 12,
+    paddingVertical: 10,
     alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
   },
   timeCardSelected: {
-    backgroundColor: "rgba(34, 211, 238, 0.12)",
-    borderWidth: 1.5,
     borderColor: T.cyan,
-  },
-  timeCheckBadge: {
-    position: "absolute",
-    top: -5,
-    right: -5,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: T.cyan,
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 10,
+    backgroundColor: "rgba(34, 211, 238, 0.12)",
   },
   timeCardTitle: {
     color: "#FFFFFF",
-    fontSize: 12.5,
+    fontSize: 11.5,
     fontFamily: VibeFonts.bold,
   },
   timeCardTitleSelected: {
     color: T.cyan,
   },
   timeCardSub: {
-    color: T.faint,
+    color: "#64748B",
     fontSize: 9.5,
-    fontFamily: VibeFonts.medium,
+    fontFamily: VibeFonts.regular,
     marginTop: 2,
   },
-
-  // Invite Row
   inviteRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 20,
   },
   inviteItem: {
     alignItems: "center",
+    marginRight: 16,
   },
   addPeopleCircle: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    borderStyle: "dashed",
     borderWidth: 1.5,
-    borderColor: "rgba(255, 255, 255, 0.35)",
-    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    borderColor: "rgba(255, 255, 255, 0.3)",
+    borderStyle: "dashed",
     alignItems: "center",
     justifyContent: "center",
   },
-  inviteName: {
-    color: T.muted,
-    fontSize: 11,
-    fontFamily: VibeFonts.medium,
-    marginTop: 5,
+  inviteAvatarImg: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
   },
-
-  // Bottom CTA
+  inviteName: {
+    color: "#8E9CAE",
+    fontSize: 10.5,
+    fontFamily: VibeFonts.medium,
+    marginTop: 4,
+  },
   moveCtaBtnWrap: {
-    width: "100%",
-    borderRadius: 27,
+    height: 52,
+    borderRadius: 26,
     overflow: "hidden",
-    shadowColor: T.mint,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 14,
-    elevation: 8,
+    marginTop: 18,
   },
   moveCtaGrad: {
-    height: 52,
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -2655,402 +1917,98 @@ const styles = StyleSheet.create({
   },
   moveCtaText: {
     color: "#0A0F1D",
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: VibeFonts.extraBold,
   },
 
-  // City Picker Modal
-  modalBackdrop: {
+  // Event Broadcast Confirmation Modal
+  eventModalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.75)",
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 20,
-  },
-  cityModalCard: {
-    width: "100%",
-    backgroundColor: "#0D1322",
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.12)",
-    padding: 18,
-  },
-  modalHeaderRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 14,
-  },
-  modalTitle: {
-    color: "#FFFFFF",
-    fontSize: 17,
-    fontFamily: VibeFonts.bold,
-  },
-  modalSubtitle: {
-    color: T.muted,
-    fontSize: 11.5,
-    fontFamily: VibeFonts.regular,
-    marginTop: 2,
-  },
-  modalCloseBtn: {
-    padding: 4,
-  },
-  modalSearchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#060A14",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    height: 40,
-    marginBottom: 12,
-  },
-  modalSearchInput: {
-    flex: 1,
-    marginLeft: 8,
-    color: "#FFFFFF",
-    fontSize: 13,
-  },
-  cityItemRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    borderRadius: 14,
-    marginBottom: 6,
-    backgroundColor: "rgba(255, 255, 255, 0.02)",
-  },
-  cityItemRowActive: {
-    backgroundColor: "rgba(212, 247, 44, 0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(212, 247, 44, 0.3)",
-  },
-  cityEmojiBig: {
-    fontSize: 22,
-  },
-  cityItemName: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontFamily: VibeFonts.bold,
-  },
-  cityItemState: {
-    color: T.muted,
-    fontSize: 11,
-    fontFamily: VibeFonts.regular,
-    marginTop: 2,
-  },
-
-  // Animated Event Creation Modal Styles
-  eventModalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(3, 7, 18, 0.85)",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 20,
-  },
-  eventModalDismissArea: {
-    ...StyleSheet.absoluteFillObject,
+    padding: 20,
   },
   eventCreateCard: {
     width: "100%",
-    maxWidth: 390,
-    backgroundColor: "#0A1020",
-    borderRadius: 28,
-    borderWidth: 1.5,
-    borderColor: "rgba(212, 247, 44, 0.35)",
-    padding: 20,
+    backgroundColor: "#0C1322",
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.12)",
+    padding: 22,
     alignItems: "center",
-    shadowColor: T.lime,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 24,
-    elevation: 20,
-    position: "relative",
   },
   eventModalCloseBtn: {
     position: "absolute",
     top: 14,
     right: 14,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 10,
-  },
-  eventHeroAuraWrap: {
-    width: 80,
-    height: 80,
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
-    marginVertical: 6,
-  },
-  eventPulseRingOuter: {
-    position: "absolute",
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 1.5,
-    borderColor: "rgba(212, 247, 44, 0.4)",
-    backgroundColor: "rgba(212, 247, 44, 0.08)",
-  },
-  eventPulseRingInner: {
-    position: "absolute",
-    width: 66,
-    height: 66,
-    borderRadius: 33,
-    borderWidth: 1,
-    borderColor: "rgba(34, 211, 238, 0.3)",
+    padding: 6,
   },
   eventHeroBadge: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "rgba(210, 253, 56, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(210, 253, 56, 0.4)",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: T.lime,
-    shadowOpacity: 0.6,
-    shadowRadius: 10,
-    elevation: 6,
+    marginBottom: 12,
   },
   eventTagPill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(212, 247, 44, 0.1)",
+    backgroundColor: "rgba(16, 185, 129, 0.12)",
     borderWidth: 1,
-    borderColor: "rgba(212, 247, 44, 0.35)",
+    borderColor: "rgba(16, 185, 129, 0.35)",
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
-    marginTop: 10,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   liveGreenDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: T.mint,
+    backgroundColor: "#10B981",
     marginRight: 6,
   },
   eventTagPillText: {
-    color: T.lime,
+    color: "#10B981",
     fontSize: 10.5,
     fontFamily: VibeFonts.bold,
-    letterSpacing: 0.6,
   },
   eventModalTitle: {
     color: "#FFFFFF",
-    fontSize: 21,
-    fontFamily: VibeFonts.extraBold,
+    fontSize: 18,
+    fontFamily: VibeFonts.bold,
     textAlign: "center",
-    letterSpacing: -0.3,
   },
   eventModalSubtitle: {
-    color: T.muted,
+    color: "#8E9CAE",
     fontSize: 12.5,
     fontFamily: VibeFonts.regular,
     textAlign: "center",
-    lineHeight: 18,
     marginTop: 6,
-    marginBottom: 14,
-    paddingHorizontal: 6,
-  },
-  radarSignalBox: {
-    width: "100%",
-    backgroundColor: "#0E162B",
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
-    padding: 12,
-    marginBottom: 12,
-  },
-  radarSignalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  signalDotGroup: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  signalHeaderText: {
-    color: T.muted,
-    fontSize: 10,
-    fontFamily: VibeFonts.bold,
-    letterSpacing: 0.5,
-  },
-  signalPeopleCount: {
-    color: T.cyan,
-    fontSize: 11,
-    fontFamily: VibeFonts.bold,
-  },
-  signalAvatarsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  avatarPile: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  miniAvatarWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    overflow: "hidden",
-    backgroundColor: "#0B101D",
-  },
-  miniAvatarPlus: {
-    backgroundColor: "#182236",
-    borderColor: "rgba(255, 255, 255, 0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  miniAvatarPlusText: {
-    color: "#FFFFFF",
-    fontSize: 10,
-    fontFamily: VibeFonts.bold,
-  },
-  signalVibeChip: {
-    backgroundColor: "rgba(34, 211, 238, 0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(34, 211, 238, 0.3)",
-    paddingHorizontal: 8,
-    paddingVertical: 3.5,
-    borderRadius: 10,
-  },
-  signalVibeText: {
-    color: T.cyan,
-    fontSize: 10.5,
-    fontFamily: VibeFonts.bold,
-  },
-  perksRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.06)",
-  },
-  perkItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-    justifyContent: "center",
-  },
-  perkText: {
-    color: T.ink,
-    fontSize: 10,
-    fontFamily: VibeFonts.medium,
-    marginLeft: 4,
-  },
-  perkDivider: {
-    width: 1,
-    height: 12,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-  },
-  eventDraftCard: {
-    width: "100%",
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.03)",
-    borderWidth: 1,
-    borderColor: "rgba(212, 247, 44, 0.25)",
-    borderRadius: 14,
-    padding: 10,
-    marginBottom: 14,
-  },
-  eventDraftIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(212, 247, 44, 0.1)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  eventDraftTitle: {
-    color: "#FFFFFF",
-    fontSize: 12.5,
-    fontFamily: VibeFonts.bold,
-  },
-  eventDraftSub: {
-    color: T.faint,
-    fontSize: 10,
-    fontFamily: VibeFonts.regular,
-    marginTop: 2,
-  },
-  draftLivePill: {
-    backgroundColor: "rgba(46, 250, 158, 0.15)",
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  draftLiveText: {
-    color: T.mint,
-    fontSize: 9,
-    fontFamily: VibeFonts.bold,
-    letterSpacing: 0.5,
+    lineHeight: 18,
+    marginBottom: 18,
   },
   broadcastActionBtn: {
     width: "100%",
-    borderRadius: 24,
+    height: 50,
+    borderRadius: 25,
     overflow: "hidden",
-    shadowColor: T.lime,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 14,
-    elevation: 8,
-    marginBottom: 10,
   },
   broadcastActionGrad: {
-    height: 50,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 18,
-  },
-  broadcastActionText: {
-    color: "#0A0F1D",
-    fontSize: 14.5,
-    fontFamily: VibeFonts.extraBold,
-  },
-  secondaryActionsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    width: "100%",
-    marginBottom: 8,
-  },
-  secondaryActionBtn: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.04)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
-    borderRadius: 14,
-    paddingVertical: 9,
-    paddingHorizontal: 12,
-    flex: 0.485,
   },
-  secondaryActionText: {
-    color: T.muted,
-    fontSize: 11,
-    fontFamily: VibeFonts.bold,
-    marginLeft: 5,
-  },
-  dismissPillBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  dismissPillText: {
-    color: T.faint,
-    fontSize: 11,
-    fontFamily: VibeFonts.medium,
+  broadcastActionText: {
+    color: "#000000",
+    fontSize: 14.5,
+    fontFamily: VibeFonts.extraBold,
+    marginRight: 8,
   },
 });

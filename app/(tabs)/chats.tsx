@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeInDown, FadeInRight } from "react-native-reanimated";
 import MatchStrip from "../../components/chats/MatchStrip";
 import ChatLogItem from "../../components/chats/ChatLogItem";
+import CreateGroupModal from "../../components/chats/CreateGroupModal";
 import { useMatches } from "../../context/MatchesContext";
 import { MatchProfile } from "../../constants/matches";
 import { VibeFonts } from "../../constants/vibeTheme";
@@ -26,14 +27,34 @@ export default function ChatsScreen() {
   const { matches, conversations } = useMatches();
   const [activeTab, setActiveTab] = useState<"chats" | "hangouts">("chats");
   const [query, setQuery] = useState("");
+  const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
 
   const openChat = (matchId: string) => router.push(`/chat/${matchId}`);
   const openMatch = (m: MatchProfile) => openChat(m.id);
 
+  // New Matches: Matches with whom no messages have been exchanged yet
+  const newMatches = useMemo(() => {
+    return matches.filter((m) => {
+      const thread = conversations.find((t) => t.matchId === m.id);
+      return !thread || !thread.messages || thread.messages.length === 0;
+    });
+  }, [matches, conversations]);
+
+  const filteredNewMatches = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return newMatches;
+    return newMatches.filter((m) => m.name.toLowerCase().includes(q));
+  }, [newMatches, query]);
+
   const filteredThreads = useMemo(() => {
-    const base = conversations.filter((thread) =>
-      activeTab === "chats" ? !thread.isGroup : thread.isGroup === true
-    );
+    const base = conversations.filter((thread) => {
+      if (activeTab === "chats") {
+        if (thread.isGroup) return false;
+        // Direct messages: only show chats where messaging has occurred
+        return Boolean(thread.messages && thread.messages.length > 0);
+      }
+      return thread.isGroup === true;
+    });
     const q = query.trim().toLowerCase();
     if (!q) return base;
     return base.filter(
@@ -44,13 +65,12 @@ export default function ChatsScreen() {
   }, [conversations, activeTab, query]);
 
   const directUnread = conversations
-    .filter((t) => !t.isGroup)
+    .filter((t) => !t.isGroup && t.messages && t.messages.length > 0)
     .reduce((sum, t) => sum + t.unread, 0);
   const hangoutUnread = conversations
     .filter((t) => t.isGroup)
     .reduce((sum, t) => sum + t.unread, 0);
 
-  const emptyAll = matches.length === 0 && conversations.length === 0;
 
   return (
     <View style={styles.root}>
@@ -138,7 +158,7 @@ export default function ChatsScreen() {
             )}
           </Pressable>
 
-          {/* Hangout Groups Tab */}
+          {/* Groups Tab */}
           <Pressable
             onPress={() => setActiveTab("hangouts")}
             style={[styles.modeSwitcherBtn]}
@@ -151,7 +171,7 @@ export default function ChatsScreen() {
                 style={styles.activeTabGrad}
               >
                 <Ionicons name="people" size={16} color="#070A14" />
-                <Text style={styles.modeSwitcherTextActive}>Hangout Groups</Text>
+                <Text style={styles.modeSwitcherTextActive}>Groups 👥</Text>
                 {hangoutUnread > 0 ? (
                   <View style={styles.segBadgeDark}>
                     <Text style={styles.segBadgeDarkText}>{hangoutUnread}</Text>
@@ -161,7 +181,7 @@ export default function ChatsScreen() {
             ) : (
               <View style={styles.inactiveTabContent}>
                 <Ionicons name="people" size={16} color="#94A3B8" />
-                <Text style={styles.modeSwitcherText}>Hangout Groups</Text>
+                <Text style={styles.modeSwitcherText}>Groups 👥</Text>
                 {hangoutUnread > 0 ? (
                   <View style={styles.segBadge}>
                     <Text style={styles.segBadgeText}>{hangoutUnread}</Text>
@@ -172,42 +192,11 @@ export default function ChatsScreen() {
           </Pressable>
         </Animated.View>
 
-        {emptyAll ? (
-          <Animated.View
-            entering={FadeInDown.delay(100).duration(400)}
-            style={styles.emptyCard}
-          >
-            <LinearGradient
-              colors={["#D4F72C", "#22D3EE"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.emptyIcon}
-            >
-              <Ionicons name="chatbubble-ellipses" size={28} color="#070A14" />
-            </LinearGradient>
-            <Text style={styles.emptyTitle}>No chats yet</Text>
-            <Text style={styles.emptySub}>
-              Swipe on Discover for a match, or join a hangout — then your conversations show up here.
-            </Text>
-            <Pressable onPress={() => router.push("/(tabs)/discover")}>
-              <LinearGradient
-                colors={["#D4F72C", "#22D3EE"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.ctaBtn}
-              >
-                <Ionicons name="compass" size={19} color="#070A14" />
-                <Text style={styles.ctaText}>Go to Discover</Text>
-              </LinearGradient>
-            </Pressable>
-          </Animated.View>
-        ) : (
-          <>
-            {/* Matches Strip */}
-            {matches.length > 0 && activeTab === "chats" ? (
+            {/* Matches Strip - only shown when there are new matches */}
+            {activeTab === "chats" && filteredNewMatches.length > 0 ? (
               <Animated.View entering={FadeInRight.delay(100).duration(400)}>
                 <MatchStrip
-                  matches={matches}
+                  matches={filteredNewMatches}
                   onPressMatch={openMatch}
                   onDiscover={() => router.push("/(tabs)/discover")}
                 />
@@ -218,12 +207,28 @@ export default function ChatsScreen() {
             <View style={styles.sectionHeaderRow}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                 <Text style={styles.sectionTitle}>
-                  {activeTab === "chats" ? "Direct Messages 💬" : "Hangout Groups 👥"}
+                  {activeTab === "chats" ? "Direct Messages 💬" : "Groups 👥"}
                 </Text>
                 <View style={styles.countPill}>
                   <Text style={styles.countText}>{filteredThreads.length}</Text>
                 </View>
               </View>
+              {activeTab === "hangouts" && (
+                <Pressable
+                  style={styles.newGroupBtn}
+                  onPress={() => setShowCreateGroupModal(true)}
+                >
+                  <LinearGradient
+                    colors={["#D4F72C", "#22D3EE"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.newGroupBtnGrad}
+                  >
+                    <Ionicons name="add" size={16} color="#070A14" />
+                    <Text style={styles.newGroupBtnText}>New Group</Text>
+                  </LinearGradient>
+                </Pressable>
+              )}
             </View>
 
             {/* Threads List */}
@@ -259,8 +264,24 @@ export default function ChatsScreen() {
                       ? "No chats match your search"
                       : activeTab === "chats"
                       ? "No DMs yet — open a match above to say hello"
-                      : "Join a hangout plan to unlock group chat"}
+                      : "No groups yet — tap '+ New Group' to create your crew"}
                   </Text>
+                  {activeTab === "hangouts" && !query ? (
+                    <Pressable
+                      style={styles.emptyCreateGroupBtn}
+                      onPress={() => setShowCreateGroupModal(true)}
+                    >
+                      <LinearGradient
+                        colors={["#D4F72C", "#22D3EE"]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={styles.emptyCreateGroupBtnGrad}
+                      >
+                        <Ionicons name="add-circle" size={16} color="#070A14" />
+                        <Text style={styles.emptyCreateGroupBtnText}>Create a Group</Text>
+                      </LinearGradient>
+                    </Pressable>
+                  ) : null}
                 </View>
               )}
             </View>
@@ -286,9 +307,14 @@ export default function ChatsScreen() {
                 </View>
               </View>
             </Animated.View>
-          </>
-        )}
       </ScrollView>
+
+      {/* Create Group Modal */}
+      <CreateGroupModal
+        visible={showCreateGroupModal}
+        onClose={() => setShowCreateGroupModal(false)}
+        onGroupCreated={(groupId) => openChat(groupId)}
+      />
     </View>
   );
 }
@@ -608,5 +634,38 @@ const styles = StyleSheet.create({
     color: "#94A3B8",
     marginTop: 2,
     lineHeight: 17,
+  },
+  newGroupBtn: {
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  newGroupBtnGrad: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    gap: 4,
+  },
+  newGroupBtnText: {
+    fontSize: 12,
+    fontFamily: VibeFonts.bold,
+    color: "#070A14",
+  },
+  emptyCreateGroupBtn: {
+    marginTop: 14,
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  emptyCreateGroupBtnGrad: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 6,
+  },
+  emptyCreateGroupBtnText: {
+    fontSize: 13,
+    fontFamily: VibeFonts.bold,
+    color: "#070A14",
   },
 });

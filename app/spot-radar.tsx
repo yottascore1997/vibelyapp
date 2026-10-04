@@ -257,8 +257,8 @@ export default function SpotRadarScreen() {
         (nearbyRes && Array.isArray(nearbyRes) && nearbyRes.length > 0
           ? nearbyRes
           : profilesRes && Array.isArray(profilesRes) && profilesRes.length > 0
-          ? profilesRes
-          : []) as any[];
+            ? profilesRes
+            : []) as any[];
 
       if (rawList && rawList.length > 0) {
         const mapped = rawList.map((u: any, idx: number) => {
@@ -401,9 +401,8 @@ export default function SpotRadarScreen() {
         ...(hangoutId ? { hangoutId } : {}),
       });
       await Share.share({
-        message: `Hey! Live Spot at ${venue} (${emoji} ${vibe}). Join: ${
-          res?.inviteUrl || "https://www.hangora.app"
-        }`,
+        message: `Hey! Live Spot at ${venue} (${emoji} ${vibe}). Join: ${res?.inviteUrl || "https://www.hangora.app"
+          }`,
       });
     } catch {
       await Share.share({

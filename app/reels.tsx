@@ -747,7 +747,7 @@ export function ReelsContent({
                       </View>
                       <Text style={styles.sectionTitle}>Active invites</Text>
                     </View>
-                    <Pressable onPress={() => router.push("/invites")}>
+                    <Pressable onPress={() => router.push("/hangout")}>
                       <Text style={styles.seeAllText}>View all ›</Text>
                     </Pressable>
                   </View>

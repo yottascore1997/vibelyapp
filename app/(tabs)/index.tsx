@@ -25,7 +25,6 @@ import { useAuth } from "../../context/AuthContext";
 import { useNotifications } from "../../context/NotificationContext";
 import { VibeFonts } from "../../constants/vibeTheme";
 import { formatFriendlyPlanWhen } from "../../constants/plans";
-import ChaiToggleWidget from "../../components/home/ChaiToggleWidget";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 
@@ -33,36 +32,29 @@ const { width: SCREEN_W } = Dimensions.get("window");
 const hangoraLogo = require("../../assets/home/hangora-logo.png");
 const userAvatar = require("../../assets/home/user-avatar.png");
 const heroCardImg = require("../../assets/home/hero-card.png");
-const homeGif = require("../../assets/icons/home.gif");
 const createHangoutBannerImg = require("../../assets/home/create-hangout-banner.png");
-const nearbyCoffeeImg = require("../../assets/home/nearby-coffee.png");
-const nearbyBeerImg = require("../../assets/home/nearby-beer.png");
-const chaiIcon = require("../../assets/icons/chai.png");
-const coffeeIcon = require("../../assets/icons/coffee.png");
-const beerIcon = require("../../assets/icons/beer.png");
-const movieIcon = require("../../assets/icons/movie.png");
-const walkIcon = require("../../assets/icons/walk.png");
-const cokeIcon = require("../../assets/icons/dietcoke.png");
+const nearbyCoffeeBakchodiImg = require("../../assets/home/nearby-coffee-bakchodi.png");
+const nearbyBeerLogImg = require("../../assets/home/nearby-beer-log.png");
+
+import ChaiToggleWidget from "../../components/home/ChaiToggleWidget";
 
 interface VibeItem {
   id: string;
   label: string;
-  icon?: keyof typeof Ionicons.glyphMap;
-  image?: any;
+  icon: keyof typeof Ionicons.glyphMap;
   color: string;
 }
 
 const VIBES: VibeItem[] = [
-  { id: "tea", label: "Tea", image: chaiIcon, color: "#22D3EE" },
-  { id: "coffee", label: "Coffee", image: coffeeIcon, color: "#F59E0B" },
-  { id: "beer", label: "Beer", image: beerIcon, color: "#FBBF24" },
-  { id: "movie", label: "Movie", image: movieIcon, color: "#EF4444" },
-  { id: "walk", label: "Walk", image: walkIcon, color: "#38BDF8" },
-  { id: "coke", label: "Diet Coke", image: cokeIcon, color: "#FB7185" },
-  { id: "drinks", label: "Drinks", icon: "wine", color: "#F43F5E" },
+  { id: "tea", label: "Tea", icon: "cafe", color: "#10E5C9" },
+  { id: "coffee", label: "Coffee", icon: "cafe-outline", color: "#E0996D" },
+  { id: "beer", label: "Beer", icon: "beer", color: "#FBBF24" },
+  { id: "drinks", label: "Drinks", icon: "wine", color: "#EC4899" },
   { id: "smoke", label: "Smoke", icon: "leaf", color: "#22C55E" },
   { id: "food", label: "Food", icon: "restaurant", color: "#FB923C" },
+  { id: "movie", label: "Movie", icon: "film", color: "#EF4444" },
   { id: "biryani", label: "Biryani", icon: "fast-food", color: "#F43F5E" },
+  { id: "walk", label: "Walk", icon: "walk", color: "#38BDF8" },
   { id: "party", label: "Party", icon: "sparkles", color: "#EC4899" },
   { id: "music", label: "Music", icon: "musical-notes", color: "#A855F7" },
 ];
@@ -95,7 +87,7 @@ const STATIC_HANGOUTS: HangoutCardData[] = [
     joinColor: "#2EFA9E",
     joinBorder: "rgba(46,250,158,0.3)",
     joinBg: "rgba(46,250,158,0.12)",
-    image: nearbyCoffeeImg,
+    image: nearbyCoffeeBakchodiImg,
     distance: "2.5 km",
     attendeesCount: "+3",
   },
@@ -110,7 +102,7 @@ const STATIC_HANGOUTS: HangoutCardData[] = [
     joinColor: "#C084FC",
     joinBorder: "rgba(192,132,252,0.3)",
     joinBg: "rgba(192,132,252,0.12)",
-    image: nearbyBeerImg,
+    image: nearbyBeerLogImg,
     distance: "1.8 km",
     attendeesCount: "+5",
   },
@@ -175,6 +167,47 @@ export default function HomeScreen() {
     return filtered.length > 0 ? filtered : all;
   }, [nearbyPlans, myPlans, selectedVibe]);
 
+  const displayedHangouts = useMemo(() => {
+    // 1. Exact Figma Showcase Cards — guaranteed always visible with their official photos!
+    const figmaCards = STATIC_HANGOUTS;
+
+    // 2. Any additional real plans from backend/user
+    const realPlans = (dynamicHangouts || [])
+      .filter((p) => !p.id.startsWith("figma-"))
+      .map((p) => {
+        const isBeer = (p.activity || "").toLowerCase().includes("beer");
+        return {
+          id: p.id,
+          title: p.title,
+          timeLocation: `${formatFriendlyPlanWhen(p)} • ${p.location || "Nearby"}`,
+          tagEmoji: isBeer
+            ? "🍺"
+            : (p.activity || "").toLowerCase().includes("movie")
+              ? "🎬"
+              : "☕",
+          tagLabel: p.activity || "Hangout",
+          tagColor: isBeer ? "#FBBF24" : "#F59E0B",
+          tagBg: isBeer ? "#261E0A" : "#24190E",
+          joinColor: isBeer ? "#C084FC" : "#2EFA9E",
+          joinBorder: isBeer ? "rgba(192,132,252,0.3)" : "rgba(46,250,158,0.3)",
+          joinBg: isBeer ? "rgba(192,132,252,0.12)" : "rgba(46,250,158,0.12)",
+          image:
+            p.imageUrl && typeof p.imageUrl === "string" && p.imageUrl.startsWith("http")
+              ? { uri: p.imageUrl }
+              : isBeer
+                ? nearbyBeerLogImg
+                : nearbyCoffeeBakchodiImg,
+          distance:
+            typeof p.distance === "number"
+              ? `${p.distance.toFixed(1)} km`
+              : "2.1 km",
+          attendeesCount: `+${p.going || p.participants?.length || 2}`,
+        };
+      });
+
+    return [...figmaCards, ...realPlans];
+  }, [dynamicHangouts]);
+
   const handleJoin = async (hangout: HangoutCardData) => {
     const isJoined = joinedMap[hangout.id] || hasJoined(hangout.id);
     setJoinedMap((prev) => ({ ...prev, [hangout.id]: !isJoined }));
@@ -182,7 +215,7 @@ export default function HomeScreen() {
       if (!hangout.id.startsWith("figma-")) {
         try {
           await joinPlan(hangout.id);
-        } catch {}
+        } catch { }
       }
       Alert.alert(
         "Hangout Joined! 🎉",
@@ -212,7 +245,9 @@ export default function HomeScreen() {
       {/* ── TOP HEADER ── */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 6 }]}>
         <View style={styles.headerLeft}>
-          <Image source={hangoraLogo} style={styles.logoImage} resizeMode="contain" />
+          <View style={styles.logoWrap}>
+            <Image source={hangoraLogo} style={styles.logoImage} resizeMode="contain" />
+          </View>
           <View style={styles.headerTextCol}>
             <Text style={styles.headerTitle}>Hangout</Text>
             <Text style={styles.headerSubtitle}>Meet. Vibe. Make it Real.</Text>
@@ -296,19 +331,11 @@ export default function HomeScreen() {
                   ]}
                 >
                   <View style={styles.vibeIconWrap}>
-                    {vibe.image ? (
-                      <Image
-                        source={vibe.image}
-                        style={styles.vibeCustomIcon}
-                        resizeMode="contain"
-                      />
-                    ) : (
-                      <Ionicons
-                        name={vibe.icon!}
-                        size={26}
-                        color={active ? "#22D3EE" : vibe.color}
-                      />
-                    )}
+                    <Ionicons
+                      name={vibe.icon}
+                      size={25}
+                      color={active ? "#10E5C9" : vibe.color}
+                    />
                   </View>
                   <Text
                     style={[
@@ -358,35 +385,7 @@ export default function HomeScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.hangoutsScroll}
           >
-            {(dynamicHangouts && dynamicHangouts.length > 0
-              ? dynamicHangouts.map((p) => ({
-                  id: p.id,
-                  title: p.title,
-                  timeLocation: `${formatFriendlyPlanWhen(p)} • ${p.location || "Nearby"}`,
-                  tagEmoji: p.activity?.toLowerCase().includes("beer")
-                    ? "🍺"
-                    : p.activity?.toLowerCase().includes("movie")
-                    ? "🎬"
-                    : "☕",
-                  tagLabel: p.activity || "Hangout",
-                  tagColor: "#F59E0B",
-                  tagBg: "#24190E",
-                  joinColor: "#2EFA9E",
-                  joinBorder: "rgba(46,250,158,0.3)",
-                  joinBg: "rgba(46,250,158,0.12)",
-                  image: p.imageUrl
-                    ? { uri: p.imageUrl }
-                    : p.activity?.toLowerCase().includes("beer")
-                    ? nearbyBeerImg
-                    : nearbyCoffeeImg,
-                  distance:
-                    typeof p.distance === "number"
-                      ? `${p.distance.toFixed(1)} km`
-                      : "Near you",
-                  attendeesCount: `+${p.going || p.participants?.length || 1}`,
-                }))
-              : STATIC_HANGOUTS
-            ).map((hangout, index) => {
+            {displayedHangouts.map((hangout, index) => {
               const isFav = !!favorites[hangout.id];
               const isJoined = !!joinedMap[hangout.id] || hasJoined(hangout.id);
 
@@ -406,10 +405,22 @@ export default function HomeScreen() {
                     {/* Top Photo & Badges */}
                     <View style={styles.cardImageContainer}>
                       <Image
-                        source={hangout.image}
+                        source={
+                          typeof hangout.image === "string"
+                            ? { uri: hangout.image }
+                            : hangout.image
+                        }
                         style={styles.hangoutCardImage}
                         resizeMode="cover"
                       />
+
+                      {/* Dynamic Distance Badge (for user/backend plans) */}
+                      {!hangout.id.startsWith("figma-") && (
+                        <View style={styles.dynamicDistanceBadge}>
+                          <Ionicons name="location-sharp" size={10} color="#FF3B5C" />
+                          <Text style={styles.dynamicDistanceText}>{hangout.distance}</Text>
+                        </View>
+                      )}
 
                       {/* Favorite Button */}
                       <Pressable
@@ -417,11 +428,11 @@ export default function HomeScreen() {
                         hitSlop={8}
                         style={styles.cardHeartBtn}
                       >
-                        <Ionicons
-                          name={isFav ? "heart" : "heart-outline"}
-                          size={19}
-                          color={isFav ? "#FF3B5C" : "#FFFFFF"}
-                        />
+                        {isFav ? (
+                          <Ionicons name="heart" size={19} color="#FF3B5C" />
+                        ) : !hangout.id.startsWith("figma-") ? (
+                          <Ionicons name="heart-outline" size={19} color="#FFFFFF" />
+                        ) : null}
                       </Pressable>
                     </View>
 
@@ -488,17 +499,8 @@ export default function HomeScreen() {
           </ScrollView>
         </Animated.View>
 
-        {/* ── 5. STRESS OFF / CHAI ON TOGGLE WIDGET ── */}
+        {/* ── 5. CHAI MOOD / STRESS OFF -> CHAI ON TOGGLE WIDGET ── */}
         <ChaiToggleWidget />
-
-        {/* ── 6. BOTTOM HOME GIF ── */}
-        <View style={styles.bottomGifWrap}>
-          <Image
-            source={homeGif}
-            style={styles.bottomGifImage}
-            resizeMode="contain"
-          />
-        </View>
       </ScrollView>
     </View>
   );
@@ -526,6 +528,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+  },
+  logoWrap: {
+    shadowColor: "#D4F72C",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 4,
   },
   logoImage: {
     width: 44,
@@ -557,6 +566,8 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
     alignItems: "center",
     justifyContent: "center",
     position: "relative",
@@ -598,7 +609,7 @@ const styles = StyleSheet.create({
   heroWrap: {
     paddingHorizontal: 20,
     marginTop: 6,
-    marginBottom: 20,
+    marginBottom: 22,
   },
   heroCard: {
     width: "100%",
@@ -655,43 +666,39 @@ const styles = StyleSheet.create({
   },
   vibeCard: {
     width: 70,
-    height: 80,
-    borderRadius: 16,
+    height: 78,
+    borderRadius: 18,
     backgroundColor: "#111625",
     borderWidth: 1.5,
     borderColor: "rgba(255,255,255,0.07)",
     alignItems: "center",
     justifyContent: "center",
-    gap: 2,
+    gap: 3,
   },
   vibeCardActive: {
-    backgroundColor: "rgba(34,211,238,0.1)",
-    borderColor: "#22D3EE",
+    backgroundColor: "rgba(16,229,201,0.08)",
+    borderColor: "#10E5C9",
   },
   vibeIconWrap: {
-    width: 46,
-    height: 46,
+    width: 36,
+    height: 36,
     alignItems: "center",
     justifyContent: "center",
   },
-  vibeCustomIcon: {
-    width: 44,
-    height: 44,
-  },
   vibeLabel: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontFamily: VibeFonts.semiBold,
     color: "#94A3B8",
   },
   vibeLabelActive: {
-    color: "#22D3EE",
+    color: "#10E5C9",
     fontFamily: VibeFonts.bold,
   },
 
   // ── Create Hangout Banner ──
   bannerWrap: {
     paddingHorizontal: 20,
-    marginBottom: 22,
+    marginBottom: 24,
   },
   createBannerCard: {
     width: "100%",
@@ -716,38 +723,43 @@ const styles = StyleSheet.create({
     width: 9,
     height: 9,
     borderRadius: 4.5,
-    backgroundColor: "#FF3B5C",
+    backgroundColor: "#10E5C9",
+    shadowColor: "#10E5C9",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 6,
+    elevation: 4,
   },
   hangoutsScroll: {
     paddingHorizontal: 20,
     gap: 14,
   },
   hangoutCard: {
-    width: 205,
-    borderRadius: 20,
+    width: 220,
+    borderRadius: 22,
     backgroundColor: "#0D1322",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.08)",
     overflow: "hidden",
   },
   cardImageContainer: {
-    width: "100%",
-    height: 142,
+    width: 220,
+    height: 146,
     position: "relative",
     backgroundColor: "#13192B",
+    overflow: "hidden",
   },
   hangoutCardImage: {
-    width: "100%",
-    height: "100%",
+    width: 220,
+    height: 146,
   },
   cardHeartBtn: {
     position: "absolute",
-    top: 10,
-    right: 10,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(0,0,0,0.35)",
+    top: 8,
+    right: 8,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -769,62 +781,53 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   cardBody: {
-    padding: 12,
+    padding: 13,
   },
   cardTitle: {
-    fontSize: 14,
+    fontSize: 14.5,
     fontFamily: VibeFonts.bold,
     color: "#FFFFFF",
+    letterSpacing: -0.2,
   },
   cardMeta: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontFamily: VibeFonts.medium,
     color: "#94A3B8",
-    marginTop: 2,
+    marginTop: 3,
   },
   cardActionsRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 6,
-    marginTop: 10,
+    marginTop: 11,
   },
   cardTagPill: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4.5,
+    gap: 4.5,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
     borderRadius: 999,
   },
   cardTagEmoji: {
     fontSize: 11,
   },
   cardTagText: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontFamily: VibeFonts.bold,
   },
   cardJoinBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    paddingHorizontal: 9,
-    paddingVertical: 4.5,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
     borderRadius: 999,
     borderWidth: 1,
   },
   cardJoinText: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontFamily: VibeFonts.bold,
-  },
-  bottomGifWrap: {
-    paddingHorizontal: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 20,
-  },
-  bottomGifImage: {
-    width: SCREEN_W - 40,
-    height: (SCREEN_W - 40) * (450 / 800),
   },
 });

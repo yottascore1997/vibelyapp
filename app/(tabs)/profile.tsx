@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   StatusBar,
   Dimensions,
   Share,
+  Switch,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -27,171 +28,101 @@ import Animated, {
   withTiming,
   Easing,
 } from "react-native-reanimated";
+import * as ImagePicker from "expo-image-picker";
 import { useAuth } from "../../context/AuthContext";
-import { useMatches } from "../../context/MatchesContext";
-import { usePlans } from "../../context/PlansContext";
-import { api } from "../../services/api";
+import { useNotifications } from "../../context/NotificationContext";
 import { usePremium } from "../../context/PremiumContext";
+import { api } from "../../services/api";
 import { API_URL } from "../../constants/theme";
 import { VibeFonts } from "../../constants/vibeTheme";
-import HomeHeader from "../../components/HomeHeader";
 
 const { width: SCREEN_W } = Dimensions.get("window");
-const HERO_H = Math.min(SCREEN_W * 1.05, 420);
 
 const T = {
   bg: "#070A14",
   card: "#0D1424",
-  cardSoft: "#131C33",
+  cardElevated: "#121C33",
+  cardGlass: "rgba(18, 28, 51, 0.75)",
+  border: "rgba(255, 255, 255, 0.08)",
+  borderSubtle: "rgba(255, 255, 255, 0.05)",
+  borderActive: "rgba(212, 247, 44, 0.35)",
   ink: "#FFFFFF",
   muted: "#94A3B8",
   soft: "#64748B",
-  border: "rgba(255, 255, 255, 0.08)",
   gold: "#D4F72C",
   goldSoft: "rgba(212, 247, 44, 0.12)",
-  goldBorder: "rgba(212, 247, 44, 0.32)",
-  purple: "#22D3EE",
-  softPurple: "rgba(34, 211, 238, 0.12)",
+  cyan: "#22D3EE",
+  cyanSoft: "rgba(34, 211, 238, 0.12)",
   green: "#22C55E",
-  softGreen: "rgba(34, 197, 94, 0.14)",
+  greenSoft: "rgba(34, 197, 94, 0.14)",
   yellow: "#FACC15",
+  yellowSoft: "rgba(250, 204, 21, 0.14)",
   red: "#F87171",
-  cta: ["#D4F72C", "#22D3EE"] as [string, string],
-  goldGrad: ["#D4F72C", "#A3E635", "#84CC16"] as [string, string, string],
+  redSoft: "rgba(248, 113, 113, 0.12)",
+  purple: "#A855F7",
+  purpleSoft: "rgba(168, 85, 247, 0.12)",
+  ctaGrad: ["#D4F72C", "#22D3EE"] as [string, string],
+  vipGrad: ["#F59E0B", "#D97706", "#B45309"] as [string, string, string],
+  goldGrad: ["#8B5CF6", "#6D28D9", "#4C1D95"] as [string, string, string],
 };
 
-type Energy = "LESSGO" | "MAYBE" | "OFF_GRID";
-
-const MENU = [
-  {
-    icon: "person-outline" as const,
-    label: "Edit Profile",
-    sub: "Photos, bio, city & more",
-    color: T.gold,
-    soft: T.goldSoft,
-    route: "/edit-profile",
-  },
-  {
-    icon: "heart-outline" as const,
-    label: "My Matches",
-    sub: "People you connected with",
-    color: T.purple,
-    soft: T.softPurple,
-    route: "/my-matches",
-  },
-  {
-    icon: "calendar-outline" as const,
-    label: "My Hangouts",
-    sub: "Plans you created or joined",
-    color: T.green,
-    soft: T.softGreen,
-    route: "/hangout",
-  },
-  {
-    icon: "mail-outline" as const,
-    label: "Invites",
-    sub: "Sent & received invites",
-    color: T.purple,
-    soft: T.softPurple,
-    route: "/invites",
-  },
-  {
-    icon: "options-outline" as const,
-    label: "Preferences",
-    sub: "Age, distance & looking for",
-    color: T.muted,
-    soft: "rgba(160, 170, 200, 0.12)",
-    route: "/edit-profile",
-  },
-  {
-    icon: "shield-checkmark-outline" as const,
-    label: "Safety",
-    sub: "Block, report & meeting tips",
-    color: T.green,
-    soft: T.softGreen,
-    route: "/edit-profile",
-    action: "safety" as const,
-  },
-  {
-    icon: "eye-off-outline" as const,
-    label: "Pause discovery",
-    sub: "Hide your profile from the deck",
-    color: T.muted,
-    soft: "rgba(160, 170, 200, 0.12)",
-    route: "/edit-profile",
-    action: "pause" as const,
-  },
-];
-
-const ENERGY_OPTS: {
-  id: Energy;
-  label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  color: string;
-  soft: string;
-}[] = [
-  {
-    id: "LESSGO",
-    label: "Lessgo",
-    icon: "flash",
-    color: T.green,
-    soft: T.softGreen,
-  },
-  {
-    id: "MAYBE",
-    label: "Maybe",
-    icon: "ellipse",
-    color: T.yellow,
-    soft: "rgba(251, 191, 36, 0.14)",
-  },
-  {
-    id: "OFF_GRID",
-    label: "Off grid",
-    icon: "moon",
-    color: T.red,
-    soft: "rgba(248, 113, 113, 0.14)",
-  },
-];
-
-function GlowOrb() {
+function LiveBeacon() {
   const pulse = useSharedValue(0);
   useEffect(() => {
     pulse.value = withRepeat(
       withSequence(
-        withTiming(1, { duration: 2200, easing: Easing.inOut(Easing.quad) }),
-        withTiming(0, { duration: 2200, easing: Easing.inOut(Easing.quad) })
+        withTiming(1, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0, { duration: 1500, easing: Easing.inOut(Easing.ease) })
       ),
       -1,
       false
     );
-  }, []);
+  }, [pulse]);
+
   const style = useAnimatedStyle(() => ({
-    opacity: 0.35 + pulse.value * 0.35,
-    transform: [{ scale: 1 + pulse.value * 0.08 }],
+    opacity: 0.4 + pulse.value * 0.6,
+    transform: [{ scale: 1 + pulse.value * 0.3 }],
   }));
-  return <Animated.View style={[styles.glowOrb, style]} pointerEvents="none" />;
+
+  return (
+    <View style={styles.beaconWrap}>
+      <Animated.View style={[styles.beaconGlow, style]} />
+      <View style={styles.beaconDot} />
+    </View>
+  );
 }
 
 export default function ProfileScreen() {
   const { user, token, logout } = useAuth();
   const { openPaywall, tier, isPremium } = usePremium();
+  const { openNotifications, unreadCount } = useNotifications();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { matches, likesCount } = useMatches();
-  const { myPlans } = usePlans();
+
   const [profile, setProfile] = useState<any>(null);
+  const [gallery, setGallery] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [myEnergy, setMyEnergy] = useState<Energy>("LESSGO");
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const fetchProfile = useCallback(async () => {
     if (!token) return;
-    setLoading(true);
     try {
       const res = (await api.getProfile(token)) as any;
       if (res) {
         setProfile(res.profile);
-        if (res.socialStatus?.energy) setMyEnergy(res.socialStatus.energy);
+        setIsPaused(!!res.profile?.isPaused);
+      }
+      try {
+        const photosRes = await api.getMyPhotos();
+        if (photosRes?.photos?.length) {
+          setGallery(photosRes.photos.map((ph: any) => ph.url));
+        } else if (res?.profile?.avatarUrl) {
+          setGallery([res.profile.avatarUrl]);
+        }
+      } catch {
+        if (res?.profile?.avatarUrl) setGallery([res.profile.avatarUrl]);
       }
     } catch (err) {
       console.error("Error fetching user profile:", err);
@@ -206,8 +137,207 @@ export default function ProfileScreen() {
     }, [fetchProfile])
   );
 
+  const resolveAvatar = (url?: string | null) => {
+    if (!url) {
+      return "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&fit=crop";
+    }
+    if (url.startsWith("/")) {
+      return `${API_URL.replace("/api", "")}${url}`;
+    }
+    return url;
+  };
+
+  const displayName = profile?.firstName || user?.name || "You";
+  const age = profile?.age ? `, ${profile.age}` : "";
+  const city = profile?.city || "City not set";
+  const jobLine = [profile?.jobTitle, profile?.company].filter(Boolean).join(" @ ");
+  const college = profile?.college;
+  const avatarUri = resolveAvatar(profile?.avatarUrl);
+
+  const interests = useMemo(() => {
+    const raw = profile?.interests;
+    if (!Array.isArray(raw) || raw.length === 0) return [] as string[];
+    return raw
+      .map((i: any) => (typeof i === "string" ? i : i?.interest?.name || i?.name))
+      .filter(Boolean)
+      .slice(0, 8) as string[];
+  }, [profile?.interests]);
+
+  const lookingFor = useMemo(() => {
+    const raw = profile?.lookingFor;
+    if (!Array.isArray(raw) || raw.length === 0) return [] as string[];
+    return raw
+      .map((i: any) => (typeof i === "string" ? i : i?.name))
+      .filter(Boolean)
+      .slice(0, 4) as string[];
+  }, [profile?.lookingFor]);
+
+  const completeness = useMemo(() => {
+    let n = 0;
+    const checks = [
+      !!profile?.avatarUrl,
+      !!profile?.bio,
+      !!profile?.city,
+      !!profile?.age,
+      !!jobLine,
+      interests.length > 0,
+      gallery.length >= 2,
+    ];
+    checks.forEach((ok) => {
+      if (ok) n += 1;
+    });
+    return Math.round((n / checks.length) * 100);
+  }, [profile, jobLine, interests.length, gallery.length]);
+
+  const handlePickAvatar = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission Required",
+          "Please grant camera roll permissions to change your profile picture."
+        );
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.85,
+      });
+
+      if (!result.canceled && result.assets?.[0]?.uri) {
+        setUploadingAvatar(true);
+        if (!token) return;
+        const uploadRes = await api.uploadImage(result.assets[0].uri, token);
+        if (uploadRes?.url) {
+          const nextGallery = [uploadRes.url, ...gallery.filter((g) => g !== uploadRes.url)].slice(0, 6);
+          setGallery(nextGallery);
+          setProfile((prev: any) => ({ ...prev, avatarUrl: uploadRes.url }));
+          await api.updateProfile({ avatarUrl: uploadRes.url }, token);
+          await api.setMyPhotos(nextGallery);
+          Alert.alert("Success! 📸", "Profile photo updated successfully!");
+        } else {
+          Alert.alert("Upload Error", "Photo upload failed. Please try again.");
+        }
+      }
+    } catch (e) {
+      console.warn("Avatar upload error:", e);
+      Alert.alert("Error", "Could not pick image.");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const confirmDeleteGalleryPhoto = (index: number) => {
+    if (gallery.length <= 1) {
+      Alert.alert(
+        "Cannot Delete",
+        "You must keep at least one profile photo for your profile to remain active."
+      );
+      return;
+    }
+    Alert.alert(
+      "Delete Photo?",
+      "Are you sure you want to remove this photo from your profile?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            const next = gallery.filter((_, i) => i !== index);
+            setGallery(next);
+            try {
+              await api.setMyPhotos(next);
+              if (index === 0 && next[0]) {
+                setProfile((prev: any) => ({ ...prev, avatarUrl: next[0] }));
+                if (token) {
+                  await api.updateProfile({ avatarUrl: next[0] }, token);
+                }
+              }
+            } catch (e) {
+              Alert.alert("Error", e instanceof Error ? e.message : "Could not delete photo");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handlePhotoPress = (index: number) => {
+    if (index === 0) {
+      Alert.alert(
+        "Main Profile Photo",
+        "This is your primary avatar seen first by people nearby.",
+        [
+          {
+            text: "🗑️ Delete Photo",
+            style: "destructive",
+            onPress: () => confirmDeleteGalleryPhoto(index),
+          },
+          { text: "Done", style: "cancel" },
+        ]
+      );
+    } else {
+      Alert.alert("Manage Photo", "What would you like to do with this photo?", [
+        {
+          text: "⭐ Set as Main Photo",
+          onPress: async () => {
+            const chosen = gallery[index];
+            const next = [chosen, ...gallery.filter((_, i) => i !== index)];
+            setGallery(next);
+            setProfile((prev: any) => ({ ...prev, avatarUrl: next[0] }));
+            try {
+              await api.setMyPhotos(next);
+              if (token) {
+                await api.updateProfile({ avatarUrl: next[0] }, token);
+              }
+              Alert.alert("Updated! ✨", "This photo is now your main profile picture.");
+            } catch (e) {
+              Alert.alert("Error", "Could not set main photo");
+            }
+          },
+        },
+        {
+          text: "🗑️ Delete Photo",
+          style: "destructive",
+          onPress: () => confirmDeleteGalleryPhoto(index),
+        },
+        { text: "Cancel", style: "cancel" },
+      ]);
+    }
+  };
+
+  const handleToggleDiscovery = async (val: boolean) => {
+    setIsPaused(val);
+    if (!token) return;
+    try {
+      await api.updateProfile({ isPaused: val }, token);
+      Alert.alert(
+        val ? "Discovery Paused ⏸️" : "Discovery Active ⚡",
+        val
+          ? "Your profile is hidden from the deck. Existing matches can still message you."
+          : "You are visible to people nearby on Hangora!"
+      );
+    } catch {
+      setIsPaused(!val);
+      Alert.alert("Error", "Could not update discovery settings.");
+    }
+  };
+
+  const handleShareProfile = async () => {
+    try {
+      await Share.share({
+        message: `Connect with me on Hangora! Join my crew and let's vibe: https://hangora.app/user/${user?.id || ""}`,
+      });
+    } catch {
+      // dismissed
+    }
+  };
+
   const handleLogout = () => {
-    Alert.alert("Log Out", "Kya aap log out karna chahte ho?", [
+    Alert.alert("Log Out", "Are you sure you want to log out of Hangora?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Log Out",
@@ -223,7 +353,7 @@ export default function ProfileScreen() {
   const handleDeleteAccount = () => {
     Alert.alert(
       "Delete Account & Data",
-      "Kya aap apna profile aur saara data permanently delete karna chahte ho? Ye action undone nahi ho sakta.",
+      "Are you completely sure? This will permanently delete your account, matches, plans, and photos. This cannot be undone.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -233,14 +363,11 @@ export default function ProfileScreen() {
             setDeleting(true);
             try {
               await api.deleteAccount(token || undefined);
-              Alert.alert("Account Deleted", "Aapka profile aur data successfully delete ho gaya hai.");
+              Alert.alert("Account Deleted", "Your profile and data have been removed.");
               await logout();
               router.replace("/(auth)/welcome");
             } catch (err: any) {
-              Alert.alert(
-                "Error",
-                err?.message || "Account delete karne me dikkat aayi. Please dobara try karein."
-              );
+              Alert.alert("Error", err?.message || "Could not delete account. Try again.");
             } finally {
               setDeleting(false);
             }
@@ -250,481 +377,532 @@ export default function ProfileScreen() {
     );
   };
 
-  const getAvatarUri = () => {
-    if (profile?.avatarUrl) {
-      if (profile.avatarUrl.startsWith("/")) {
-        return `${API_URL.replace("/api", "")}${profile.avatarUrl}`;
-      }
-      return profile.avatarUrl;
-    }
-    return "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=800&h=800&fit=crop";
-  };
-
-  const displayName = profile?.firstName || user?.name || "You";
-  const age = profile?.age ? `, ${profile.age}` : "";
-  const city = profile?.city || "Add your city";
-  const jobLine = [profile?.jobTitle, profile?.company].filter(Boolean).join(" · ");
-
-  const interests = useMemo(() => {
-    const raw = profile?.interests;
-    if (!Array.isArray(raw) || raw.length === 0) return [] as string[];
-    return raw
-      .map((i: any) => (typeof i === "string" ? i : i?.interest?.name || i?.name))
-      .filter(Boolean)
-      .slice(0, 6) as string[];
-  }, [profile?.interests]);
-
-  const setEnergy = async (next: Energy) => {
-    setMyEnergy(next);
-    try {
-      await api.updateSocialStatus({
-        energy: next,
-        freeNow: next === "LESSGO",
-      });
-    } catch (err) {
-      console.error("Failed to update social status from profile:", err);
-    }
-  };
-
-  const handleShare = async () => {
-    try {
-      await Share.share({
-        message: `Hey, I'm on Hangora — find me nearby ✨`,
-      });
-    } catch {
-      /* ignore */
-    }
-  };
-
-  const avatarUri = getAvatarUri();
-  const completeness = useMemo(() => {
-    let n = 0;
-    const checks = [
-      !!profile?.avatarUrl,
-      !!profile?.bio,
-      !!profile?.city,
-      !!profile?.age,
-      !!jobLine,
-      interests.length > 0,
-    ];
-    checks.forEach((ok) => {
-      if (ok) n += 1;
-    });
-    return Math.round((n / checks.length) * 100);
-  }, [profile, jobLine, interests.length]);
-
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={T.bg} />
-      <View style={styles.foreground}>
-        {/* Home Header */}
-        <HomeHeader />
+      <StatusBar barStyle="light-content" backgroundColor="#070A14" />
 
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={[styles.scroll, { paddingBottom: 120 + insets.bottom }]}
-        >
-          {loading ? (
-            <View style={styles.loader}>
-              <ActivityIndicator color={T.gold} size="large" />
-              <Text style={styles.loaderText}>Loading your profile…</Text>
+      {/* ── TOP EXECUTIVE PROFILE HEADER ── */}
+      <View style={[styles.topHeader, { paddingTop: Math.max(insets.top, 12) + 6 }]}>
+        <View style={styles.headerLeftCol}>
+          <View style={styles.headerTitleRow}>
+            <Text style={styles.headerTitle}>My Profile</Text>
+            <View style={styles.liveChip}>
+              <LiveBeacon />
+              <Text style={styles.liveChipText}>LIVE</Text>
             </View>
-          ) : (
-            <>
-              {/* Full-bleed cinematic hero */}
-              <Animated.View entering={FadeIn.duration(480)} style={styles.hero}>
-                <Image source={{ uri: avatarUri }} style={styles.heroImage} />
-                <LinearGradient
-                  colors={[
-                    "rgba(7,10,20,0.15)",
-                    "rgba(7,10,20,0.35)",
-                    "rgba(7,10,20,0.92)",
-                    T.bg,
-                  ]}
-                  locations={[0, 0.35, 0.72, 1]}
-                  style={styles.heroGrad}
-                />
-                <GlowOrb />
+          </View>
+          <Text style={styles.headerSubtitle}>Public presence & personal vibe</Text>
+        </View>
 
-                <View style={styles.heroTopRow}>
-                  {isPremium ? (
-                    <View style={styles.memberBadge}>
-                      <Ionicons name="diamond" size={11} color={T.gold} />
-                      <Text style={styles.memberBadgeText}>
-                        {tier === "VIP" ? "VIP" : "GOLD"}
-                      </Text>
-                    </View>
-                  ) : (
-                    <View style={styles.memberBadgeMuted}>
-                      <Text style={styles.memberBadgeMutedText}>MEMBER</Text>
-                    </View>
-                  )}
-                  <View style={styles.heroTopActions}>
-                    <Pressable style={styles.heroIconBtn} onPress={handleShare}>
-                      <Ionicons name="share-outline" size={16} color="#FFF" />
-                    </Pressable>
-                    <Pressable
-                      style={styles.heroIconBtn}
-                      onPress={() => router.push("/edit-profile")}
-                    >
-                      <Ionicons name="create-outline" size={16} color="#FFF" />
-                    </Pressable>
-                  </View>
+        <View style={styles.headerRightActions}>
+          <Pressable
+            style={styles.headerIconBtn}
+            onPress={handleShareProfile}
+            hitSlop={8}
+          >
+            <Ionicons name="qr-code-outline" size={19} color="#FFFFFF" />
+          </Pressable>
+
+          <Pressable
+            style={styles.headerIconBtn}
+            onPress={openNotifications}
+            hitSlop={8}
+          >
+            <Ionicons name="notifications-outline" size={19} color="#FFFFFF" />
+            {unreadCount > 0 && (
+              <View style={styles.unreadBadge}>
+                <Text style={styles.unreadBadgeText}>
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </Text>
+              </View>
+            )}
+          </Pressable>
+
+          <Pressable
+            style={styles.headerIconBtn}
+            onPress={() => router.push("/edit-profile")}
+            hitSlop={8}
+          >
+            <Ionicons name="settings-outline" size={19} color="#FFFFFF" />
+          </Pressable>
+        </View>
+      </View>
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Math.max(insets.bottom, 20) + 110 },
+        ]}
+      >
+        {loading ? (
+          <View style={styles.loaderWrap}>
+            <ActivityIndicator size="large" color={T.gold} />
+            <Text style={styles.loaderText}>Loading your executive vibe…</Text>
+          </View>
+        ) : (
+          <>
+            {/* ── 1. LUXURY HERO PROFILE CARD ── */}
+            <Animated.View entering={FadeIn.duration(380)} style={styles.heroCard}>
+              <LinearGradient
+                colors={["rgba(34, 211, 238, 0.08)", "rgba(212, 247, 44, 0.04)", "rgba(13, 20, 36, 0.95)"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFillObject}
+              />
+
+              {/* Avatar + Main Details Row */}
+              <View style={styles.heroProfileRow}>
+                <View style={styles.avatarContainer}>
+                  <LinearGradient
+                    colors={["#D4F72C", "#22D3EE", "#A855F7"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.avatarBorderRing}
+                  >
+                    <Image source={{ uri: avatarUri }} style={styles.avatarImg} />
+                  </LinearGradient>
+
+                  {/* 1-Tap Quick Camera/Upload Overlay */}
+                  <Pressable
+                    style={styles.avatarUploadBtn}
+                    onPress={handlePickAvatar}
+                    disabled={uploadingAvatar}
+                  >
+                    {uploadingAvatar ? (
+                      <ActivityIndicator size="small" color="#070A14" />
+                    ) : (
+                      <Ionicons name="camera" size={14} color="#070A14" />
+                    )}
+                  </Pressable>
                 </View>
 
-                <View style={styles.heroBottom}>
-                  <View style={styles.nameRow}>
-                    <Text style={styles.name} numberOfLines={1}>
+                {/* Identity & Status */}
+                <View style={styles.heroIdentityCol}>
+                  <View style={styles.nameVerifiedRow}>
+                    <Text style={styles.heroName} numberOfLines={1}>
                       {displayName}
-                      {age}
+                      <Text style={styles.heroAge}>{age}</Text>
                     </Text>
-                    {profile?.isVerified ? (
-                      <View style={styles.verifiedMark}>
-                        <Ionicons name="checkmark" size={12} color="#070A14" />
+                    {profile?.isVerified !== false && (
+                      <View style={styles.verifiedShield}>
+                        <Ionicons name="shield-checkmark" size={14} color="#22D3EE" />
                       </View>
-                    ) : null}
+                    )}
                   </View>
 
-                  <View style={styles.metaRow}>
-                    <View style={styles.metaChip}>
-                      <Ionicons name="location" size={12} color={T.gold} />
-                      <Text style={styles.metaChipText}>{city}</Text>
-                    </View>
+                  {/* Tagline / City */}
+                  <View style={styles.heroLocationRow}>
+                    <Ionicons name="location-sharp" size={13} color={T.gold} />
+                    <Text style={styles.heroLocationText} numberOfLines={1}>
+                      {city}
+                    </Text>
                     {jobLine ? (
-                      <View style={styles.metaChip}>
-                        <Ionicons name="briefcase-outline" size={12} color={T.purple} />
-                        <Text style={styles.metaChipText} numberOfLines={1}>
+                      <>
+                        <Text style={styles.dotSep}>•</Text>
+                        <Ionicons name="briefcase" size={12} color={T.cyan} />
+                        <Text style={styles.heroJobText} numberOfLines={1}>
                           {jobLine}
                         </Text>
-                      </View>
+                      </>
                     ) : null}
                   </View>
 
-                  <Text style={styles.bio} numberOfLines={3}>
-                    {profile?.bio || "Add a bio so people know your vibe."}
-                  </Text>
+                  {/* Membership Pill */}
+                  <View style={styles.membershipRow}>
+                    {isPremium ? (
+                      <View style={styles.vipBadge}>
+                        <Ionicons name="diamond" size={11} color="#070A14" />
+                        <Text style={styles.vipBadgeText}>
+                          {tier === "VIP" ? "VIBE VIP" : "VIBE GOLD"}
+                        </Text>
+                      </View>
+                    ) : (
+                      <Pressable style={styles.freeMemberBadge} onPress={openPaywall}>
+                        <Ionicons name="sparkles" size={11} color={T.gold} />
+                        <Text style={styles.freeMemberBadgeText}>UPGRADE TO GOLD</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                </View>
+              </View>
 
-                  {interests.length > 0 ? (
-                    <View style={styles.interestRow}>
-                      {interests.map((tag) => (
-                        <View key={tag} style={styles.interestChip}>
-                          <Text style={styles.interestText}>{tag}</Text>
+              {/* Bio snippet */}
+              <View style={styles.bioBox}>
+                <Text style={styles.bioText} numberOfLines={3}>
+                  {profile?.bio ||
+                    "Add a captivating bio so people nearby understand your hangout vibe."}
+                </Text>
+              </View>
+
+              {/* Dual Action Buttons: Edit Profile & Public Preview */}
+              <View style={styles.heroActionsRow}>
+                <Pressable
+                  style={styles.primaryActionBtn}
+                  onPress={() => router.push("/edit-profile")}
+                >
+                  <LinearGradient
+                    colors={T.ctaGrad}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.primaryActionGrad}
+                  >
+                    <Ionicons name="sparkles" size={16} color="#070A14" />
+                    <Text style={styles.primaryActionText}>Edit Profile</Text>
+                  </LinearGradient>
+                </Pressable>
+
+                <Pressable
+                  style={styles.secondaryActionBtn}
+                  onPress={() => {
+                    if (user?.id) {
+                      router.push(`/user/${user.id}`);
+                    } else {
+                      router.push("/edit-profile");
+                    }
+                  }}
+                >
+                  <Ionicons name="eye-outline" size={16} color="#FFFFFF" />
+                  <Text style={styles.secondaryActionText}>Preview View</Text>
+                </Pressable>
+              </View>
+            </Animated.View>
+
+            {/* ── PROFILE STRENGTH & COMPLETION METER ── */}
+            <Animated.View
+              entering={FadeInDown.delay(70).duration(340)}
+              style={styles.strengthCard}
+            >
+              <View style={styles.strengthHeaderRow}>
+                <View style={styles.strengthTitleCol}>
+                  <View style={styles.strengthBadgeRow}>
+                    <Text style={styles.strengthHeading}>Profile Strength</Text>
+                    <View style={styles.allStarChip}>
+                      <Ionicons name="star" size={11} color="#070A14" />
+                      <Text style={styles.allStarText}>
+                        {completeness >= 80 ? "Vibe Master" : "Vibe Rookie"}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.strengthSub}>
+                    {completeness >= 80
+                      ? "Your profile stands out! You get 4x more hang invites."
+                      : "Complete bio & add 2 photos for higher match discovery."}
+                  </Text>
+                </View>
+                <Text style={styles.strengthPercentText}>{completeness}%</Text>
+              </View>
+
+              {/* Smooth Progress Track */}
+              <View style={styles.strengthProgressBarWrap}>
+                <LinearGradient
+                  colors={completeness >= 80 ? ["#22C55E", "#D4F72C"] : ["#D4F72C", "#22D3EE"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={[styles.strengthProgressFill, { width: `${completeness}%` }]}
+                />
+              </View>
+
+              {completeness < 100 && (
+                <Pressable
+                  style={styles.strengthActionRow}
+                  onPress={() => router.push("/edit-profile")}
+                >
+                  <Text style={styles.strengthActionText}>
+                    ✨ Complete remaining details (+{100 - completeness}%)
+                  </Text>
+                  <Ionicons name="arrow-forward" size={13} color={T.gold} />
+                </Pressable>
+              )}
+            </Animated.View>
+
+            {/* ── 5. MY PHOTOS & MOMENTS STRIP ── */}
+            <Animated.View
+              entering={FadeInDown.delay(170).duration(340)}
+              style={styles.sectionWrap}
+            >
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionHeaderTitle}>
+                  My Photos <Text style={{ color: T.muted }}>({gallery.length}/6)</Text>
+                </Text>
+                <Pressable onPress={() => router.push("/edit-profile")}>
+                  <Text style={styles.sectionLink}>Manage →</Text>
+                </Pressable>
+              </View>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.galleryScroll}
+              >
+                {/* Add Photo Button Tile */}
+                <Pressable style={styles.addPhotoTile} onPress={handlePickAvatar}>
+                  <LinearGradient
+                    colors={["rgba(34, 211, 238, 0.12)", "rgba(212, 247, 44, 0.05)"]}
+                    style={styles.addPhotoGrad}
+                  >
+                    <Ionicons name="add" size={24} color={T.cyan} />
+                    <Text style={styles.addPhotoText}>Add Photo</Text>
+                  </LinearGradient>
+                </Pressable>
+
+                {gallery.map((photoUrl, idx) => (
+                  <Pressable
+                    key={photoUrl + idx}
+                    style={styles.photoThumbWrap}
+                    onPress={() => handlePhotoPress(idx)}
+                  >
+                    <Image source={{ uri: resolveAvatar(photoUrl) }} style={styles.photoThumbImg} />
+                    {idx === 0 ? (
+                      <View style={styles.mainPhotoTag}>
+                        <Text style={styles.mainPhotoTagText}>MAIN</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.thumbHintTag}>
+                        <Text style={styles.thumbHintTagText}>Tap to set</Text>
+                      </View>
+                    )}
+                    <Pressable
+                      style={styles.photoDeleteBtn}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        confirmDeleteGalleryPhoto(idx);
+                      }}
+                      hitSlop={8}
+                    >
+                      <Ionicons name="trash" size={11} color="#FFFFFF" />
+                    </Pressable>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </Animated.View>
+
+            {/* ── 6. VIBE DNA & INTERESTS CHIPS ── */}
+            {(interests.length > 0 || lookingFor.length > 0) && (
+              <Animated.View
+                entering={FadeInDown.delay(200).duration(340)}
+                style={styles.sectionWrap}
+              >
+                <View style={styles.sectionHeaderRow}>
+                  <Text style={styles.sectionHeaderTitle}>Vibe DNA & Passions</Text>
+                  <Pressable onPress={() => router.push("/edit-profile")}>
+                    <Text style={styles.sectionLink}>Edit →</Text>
+                  </Pressable>
+                </View>
+
+                {lookingFor.length > 0 && (
+                  <View style={styles.tagGroupBlock}>
+                    <Text style={styles.tagGroupLabel}>LOOKING FOR</Text>
+                    <View style={styles.tagChipsWrap}>
+                      {lookingFor.map((item) => (
+                        <View key={item} style={styles.lookingForChip}>
+                          <Ionicons name="sparkles" size={11} color={T.gold} />
+                          <Text style={styles.lookingForText}>{item}</Text>
                         </View>
                       ))}
                     </View>
-                  ) : null}
-
-                  <Pressable
-                    style={styles.editBtn}
-                    onPress={() => router.push("/edit-profile")}
-                  >
-                    <LinearGradient
-                      colors={["#D4F72C", "#22D3EE"]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.editGrad}
-                    >
-                      <Ionicons name="sparkles" size={15} color="#070A14" />
-                      <Text style={[styles.editText, { color: "#070A14" }]}>Edit profile</Text>
-                    </LinearGradient>
-                  </Pressable>
-                </View>
-              </Animated.View>
-
-              {/* Profile strength */}
-              <Animated.View
-                entering={FadeInDown.delay(60).duration(360)}
-                style={styles.strengthCard}
-              >
-                <View style={styles.strengthTop}>
-                  <View>
-                    <Text style={styles.strengthTitle}>Profile strength</Text>
-                    <Text style={styles.strengthSub}>
-                      {completeness >= 80
-                        ? "Looking sharp — keep it fresh"
-                        : "Complete your profile to get more hangs"}
-                    </Text>
                   </View>
-                  <Text style={styles.strengthPct}>{completeness}%</Text>
-                </View>
-                <View style={styles.strengthTrack}>
-                  <LinearGradient
-                    colors={
-                      completeness >= 80
-                        ? (["#34D399", "#059669"] as [string, string])
-                        : T.cta
-                    }
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={[styles.strengthFill, { width: `${completeness}%` as any }]}
-                  />
-                </View>
-              </Animated.View>
+                )}
 
-              {/* Stats */}
-              <Animated.View
-                entering={FadeInDown.delay(100).duration(360)}
-                style={styles.statsRow}
-              >
-                <Pressable
-                  style={styles.statCard}
-                  onPress={() => router.push("/my-matches")}
-                >
-                  <Text style={styles.statValue}>{matches.length}</Text>
-                  <Text style={styles.statLabel}>Matches</Text>
-                </Pressable>
-                <Pressable
-                  style={styles.statCard}
-                  onPress={() => router.push("/my-matches")}
-                >
-                  <Text style={[styles.statValue, { color: T.purple }]}>{likesCount}</Text>
-                  <Text style={styles.statLabel}>Likes</Text>
-                </Pressable>
-                <Pressable
-                  style={styles.statCard}
-                  onPress={() => router.push("/hangout")}
-                >
-                  <Text style={[styles.statValue, { color: T.green }]}>{myPlans.length}</Text>
-                  <Text style={styles.statLabel}>Plans</Text>
-                </Pressable>
-              </Animated.View>
-
-              {/* Energy */}
-              <Animated.View
-                entering={FadeInDown.delay(130).duration(360)}
-                style={styles.section}
-              >
-                <Text style={styles.sectionTitle}>Social energy</Text>
-                <View style={styles.energyRow}>
-                  {ENERGY_OPTS.map((opt) => {
-                    const active = myEnergy === opt.id;
-                    return (
-                      <Pressable
-                        key={opt.id}
-                        onPress={() => setEnergy(opt.id)}
-                        style={[
-                          styles.energyCard,
-                          active && {
-                            borderColor: opt.color,
-                            backgroundColor: opt.soft,
-                          },
-                        ]}
-                      >
-                        <View
-                          style={[
-                            styles.energyIcon,
-                            { backgroundColor: active ? opt.soft : "rgba(255,255,255,0.04)" },
-                          ]}
-                        >
-                          <Ionicons
-                            name={opt.icon}
-                            size={16}
-                            color={active ? opt.color : T.soft}
-                          />
+                {interests.length > 0 && (
+                  <View style={[styles.tagGroupBlock, { marginTop: 10 }]}>
+                    <Text style={styles.tagGroupLabel}>PASSIONS & HOBBIES</Text>
+                    <View style={styles.tagChipsWrap}>
+                      {interests.map((tag) => (
+                        <View key={tag} style={styles.interestChip}>
+                          <Text style={styles.interestChipText}>{tag}</Text>
                         </View>
-                        <Text
-                          style={[
-                            styles.energyLabel,
-                            active && { color: opt.color },
-                          ]}
-                        >
-                          {opt.label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
+                      ))}
+                    </View>
+                  </View>
+                )}
               </Animated.View>
+            )}
 
-              {/* Membership */}
-              <Animated.View entering={FadeInDown.delay(160).duration(360)}>
-                <Pressable onPress={openPaywall} style={styles.premiumWrap}>
-                  <LinearGradient
-                    colors={
-                      tier === "VIP"
-                        ? T.goldGrad
-                        : tier === "GOLD"
-                          ? (["#7C3AED", "#A78BFA", "#C4B5FD"] as [
-                              string,
-                              string,
-                              string,
-                            ])
-                          : (["#1A1530", "#2A1F4A", "#1E1B4B"] as [
-                              string,
-                              string,
-                              string,
-                            ])
-                    }
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.premiumCard}
-                  >
-                    <View style={styles.premiumShine} />
-                    <View style={styles.premiumIcon}>
-                      <Ionicons name="diamond" size={20} color="#FFF" />
+            {/* ── 7. VIP / GOLD PRIVILEGE BANNER ── */}
+            <Animated.View entering={FadeInDown.delay(230).duration(340)}>
+              <Pressable onPress={openPaywall} style={styles.membershipCardWrap}>
+                <LinearGradient
+                  colors={
+                    tier === "VIP"
+                      ? T.vipGrad
+                      : isPremium
+                      ? T.goldGrad
+                      : (["#181438", "#251D4A", "#171438"] as [string, string, string])
+                  }
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.membershipCardGrad}
+                >
+                  <View style={styles.membershipLeft}>
+                    <View style={styles.diamondCircle}>
+                      <Ionicons name="diamond" size={20} color="#FFFFFF" />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.premiumEyebrow}>MEMBERSHIP</Text>
-                      <Text style={styles.premiumTitle}>
+                      <Text style={styles.membershipEyebrow}>EXCLUSIVE MEMBERSHIP</Text>
+                      <Text style={styles.membershipTitle}>
                         {tier === "VIP"
                           ? "VibeVIP Active"
                           : tier === "GOLD"
-                            ? "VibeGold Active"
-                            : "Unlock VibeGold"}
+                          ? "VibeGold Active"
+                          : "Unlock Hangora Gold"}
                       </Text>
-                      <Text style={styles.premiumSub}>
+                      <Text style={styles.membershipDesc}>
                         {isPremium
-                          ? "All premium perks unlocked"
-                          : "See who liked you · from ₹99/wk"}
+                          ? "All VIP radar perks, unlimited chats & badge active"
+                          : "See who liked you, unlimited pings & spot boosts"}
                       </Text>
                     </View>
-                    <View style={styles.premiumCta}>
-                      <Text style={styles.premiumCtaText}>
-                        {isPremium ? "Manage" : "Upgrade"}
-                      </Text>
-                      <Ionicons name="chevron-forward" size={14} color="#FFF" />
-                    </View>
-                  </LinearGradient>
+                  </View>
+
+                  <View style={styles.membershipCtaPill}>
+                    <Text style={styles.membershipCtaText}>
+                      {isPremium ? "Manage" : "Upgrade"}
+                    </Text>
+                    <Ionicons name="arrow-forward" size={13} color="#FFFFFF" />
+                  </View>
+                </LinearGradient>
+              </Pressable>
+            </Animated.View>
+
+            {/* ── 8. ACCOUNT, SAFETY & SETTINGS HUB ── */}
+            <Animated.View
+              entering={FadeInDown.delay(260).duration(340)}
+              style={styles.sectionWrap}
+            >
+              <Text style={styles.sectionHeaderTitle}>Account & Privacy Hub</Text>
+
+              <View style={styles.hubCard}>
+                {/* 1. Quick Discovery Toggle Row */}
+                <View style={styles.hubRow}>
+                  <View style={[styles.hubIconCircle, { backgroundColor: "rgba(34, 211, 238, 0.12)" }]}>
+                    <Ionicons name="eye-outline" size={17} color={T.cyan} />
+                  </View>
+                  <View style={styles.hubCopyCol}>
+                    <Text style={styles.hubLabel}>Discovery Mode</Text>
+                    <Text style={styles.hubSub}>
+                      {isPaused
+                        ? "Profile hidden from discover deck"
+                        : "Visible to active people nearby"}
+                    </Text>
+                  </View>
+                  <Switch
+                    value={!isPaused}
+                    onValueChange={(val) => handleToggleDiscovery(!val)}
+                    trackColor={{ false: "#1E293B", true: "#22D3EE" }}
+                    thumbColor={!isPaused ? "#070A14" : "#94A3B8"}
+                  />
+                </View>
+
+
+                {/* 3. My Hangouts */}
+                <Pressable
+                  style={styles.hubRow}
+                  onPress={() => router.push("/hangout")}
+                >
+                  <View style={[styles.hubIconCircle, { backgroundColor: "rgba(34, 197, 94, 0.12)" }]}>
+                    <Ionicons name="calendar-outline" size={17} color={T.green} />
+                  </View>
+                  <View style={styles.hubCopyCol}>
+                    <Text style={styles.hubLabel}>My Hangouts</Text>
+                    <Text style={styles.hubSub}>Scheduled plans, Chai & events</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={T.soft} />
                 </Pressable>
-              </Animated.View>
 
-              {/* Quick actions */}
-              <Animated.View
-                entering={FadeInDown.delay(190).duration(360)}
-                style={styles.section}
-              >
-                <Text style={styles.sectionTitle}>Quick actions</Text>
-                <View style={styles.quickRow}>
-                  <Pressable
-                    style={styles.quickCard}
-                    onPress={() => router.push("/create-plan")}
-                  >
-                    <LinearGradient
-                      colors={["rgba(52,211,153,0.2)", "rgba(52,211,153,0.05)"]}
-                      style={styles.quickIcon}
-                    >
-                      <Ionicons name="add" size={20} color={T.green} />
-                    </LinearGradient>
-                    <Text style={styles.quickLabel}>New Plan</Text>
-                  </Pressable>
-                  <Pressable
-                    style={styles.quickCard}
-                    onPress={() => router.push("/reels")}
-                  >
-                    <LinearGradient
-                      colors={["rgba(167,139,250,0.22)", "rgba(167,139,250,0.05)"]}
-                      style={styles.quickIcon}
-                    >
-                      <Ionicons name="people" size={18} color={T.purple} />
-                    </LinearGradient>
-                    <Text style={styles.quickLabel}>Friends</Text>
-                  </Pressable>
-                  <Pressable
-                    style={styles.quickCard}
-                    onPress={() => router.push("/spot-broadcast")}
-                  >
-                    <LinearGradient
-                      colors={["rgba(251,191,36,0.2)", "rgba(251,191,36,0.05)"]}
-                      style={styles.quickIcon}
-                    >
-                      <Ionicons name="flash" size={18} color={T.gold} />
-                    </LinearGradient>
-                    <Text style={styles.quickLabel}>Spot Hub</Text>
-                  </Pressable>
-                </View>
-              </Animated.View>
+                {/* 4. Match Preferences */}
+                <Pressable
+                  style={styles.hubRow}
+                  onPress={() => router.push("/edit-profile")}
+                >
+                  <View style={[styles.hubIconCircle, { backgroundColor: "rgba(168, 85, 247, 0.12)" }]}>
+                    <Ionicons name="options-outline" size={17} color={T.purple} />
+                  </View>
+                  <View style={styles.hubCopyCol}>
+                    <Text style={styles.hubLabel}>Matching Preferences</Text>
+                    <Text style={styles.hubSub}>Age range, distance & gender filter</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={T.soft} />
+                </Pressable>
 
-              {/* Account menu */}
-              <Animated.View
-                entering={FadeInUp.delay(220).duration(360)}
-                style={styles.section}
-              >
-                <Text style={styles.sectionTitle}>Account</Text>
-                <View style={styles.menuCard}>
-                  {MENU.map((item, i) => (
-                    <Pressable
-                      key={item.label}
-                      style={[styles.menuRow, i < MENU.length - 1 && styles.menuBorder]}
-                      onPress={async () => {
-                        const action = (item as any).action;
-                        if (action === "safety") {
-                          Alert.alert(
-                            "Safety",
-                            "From any chat or profile, tap ⋯ to Report or Block.\n\nTips: meet in public, tell a friend, trust your gut.",
-                            [{ text: "OK" }]
-                          );
-                          return;
-                        }
-                        if (action === "pause") {
-                          if (!token) return;
-                          try {
-                            const res = (await api.getProfile(token)) as any;
-                            const paused = !!res?.profile?.isPaused;
-                            await api.updateProfile({ isPaused: !paused }, token);
-                            Alert.alert(
-                              !paused ? "Discovery paused" : "You're visible again",
-                              !paused
-                                ? "Your profile is hidden from the swipe deck until you unpause."
-                                : "People can discover you again."
-                            );
-                          } catch (e) {
-                            Alert.alert(
-                              "Error",
-                              e instanceof Error ? e.message : "Could not update pause"
-                            );
-                          }
-                          return;
-                        }
-                        if (item.route) router.push(item.route as any);
-                        else Alert.alert(item.label, "Coming soon.");
-                      }}
-                    >
-                      <View style={[styles.menuIcon, { backgroundColor: item.soft }]}>
-                        <Ionicons name={item.icon} size={17} color={item.color} />
-                      </View>
-                      <View style={styles.menuCopy}>
-                        <Text style={styles.menuLabel}>{item.label}</Text>
-                        <Text style={styles.menuSub}>{item.sub}</Text>
-                      </View>
-                      <Ionicons name="chevron-forward" size={15} color={T.soft} />
-                    </Pressable>
-                  ))}
-                </View>
-              </Animated.View>
+                {/* 5. Safety & Trust */}
+                <Pressable
+                  style={styles.hubRow}
+                  onPress={() => {
+                    Alert.alert(
+                      "Safety & Trust Center 🛡️",
+                      "• Always meet in public places (cafes, malls, parks).\n• Tell a friend where you're going.\n• You can Block or Report anyone instantly from their chat.\n• Hangora uses verified phone authentication.",
+                      [{ text: "Got it" }]
+                    );
+                  }}
+                >
+                  <View style={[styles.hubIconCircle, { backgroundColor: "rgba(56, 189, 248, 0.12)" }]}>
+                    <Ionicons name="shield-checkmark-outline" size={17} color="#38BDF8" />
+                  </View>
+                  <View style={styles.hubCopyCol}>
+                    <Text style={styles.hubLabel}>Safety & Trust</Text>
+                    <Text style={styles.hubSub}>Guidelines, safety tips & reporting</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={T.soft} />
+                </Pressable>
+              </View>
+            </Animated.View>
 
-              <Pressable onPress={handleLogout} style={styles.logoutBtn}>
-                <Ionicons name="log-out-outline" size={17} color={T.red} />
-                <Text style={styles.logoutText}>Log Out</Text>
+            {/* ── 9. DANGER ACTIONS (LOGOUT & DELETE) ── */}
+            <View style={styles.dangerSection}>
+              <Pressable style={styles.logoutBtn} onPress={handleLogout}>
+                <Ionicons name="log-out-outline" size={18} color="#F87171" />
+                <Text style={styles.logoutBtnText}>Log Out</Text>
               </Pressable>
 
               <Pressable
+                style={styles.deleteBtn}
                 onPress={handleDeleteAccount}
                 disabled={deleting}
-                style={[styles.deleteBtn, deleting && { opacity: 0.6 }]}
               >
                 {deleting ? (
-                  <ActivityIndicator size="small" color={T.red} />
+                  <ActivityIndicator size="small" color="#94A3B8" />
                 ) : (
-                  <>
-                    <Ionicons name="trash-outline" size={17} color={T.red} />
-                    <Text style={styles.deleteText}>Delete Account</Text>
-                  </>
+                  <Text style={styles.deleteBtnText}>Delete Account & Data</Text>
                 )}
               </Pressable>
+            </View>
 
-              <Text style={styles.version}>Hangora · Profile</Text>
-            </>
-          )}
-        </ScrollView>
-      </View>
+            {/* ── FOOTER BRANDING ── */}
+            <View style={styles.brandFooter}>
+              <Text style={styles.brandFooterText}>HANGORA · VIBE ENGINE 2.0</Text>
+              <Text style={styles.brandFooterSub}>Real connections in real time ✨</Text>
+            </View>
+          </>
+        )}
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: T.bg },
-  foreground: { flex: 1, zIndex: 1, backgroundColor: "transparent" },
-  headerContainer: {
+  root: {
+    flex: 1,
+    backgroundColor: T.bg,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+  loaderWrap: {
+    height: 380,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+  },
+  loaderText: {
+    fontSize: 14,
+    fontFamily: VibeFonts.medium,
+    color: T.muted,
+  },
+
+  /* ── Header ── */
+  topHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -735,526 +913,677 @@ const styles = StyleSheet.create({
     borderBottomColor: "rgba(255, 255, 255, 0.06)",
     zIndex: 10,
   },
-  backButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: "rgba(255, 255, 255, 0.07)",
+  headerLeftCol: {
+    flex: 1,
+  },
+  headerTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  headerTitle: {
+    color: "#FFFFFF",
+    fontSize: 22,
+    fontFamily: VibeFonts.extraBold,
+    letterSpacing: -0.4,
+  },
+  liveChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "rgba(34, 197, 94, 0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(34, 197, 94, 0.3)",
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  beaconWrap: {
+    width: 8,
+    height: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  beaconGlow: {
+    position: "absolute",
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "rgba(34, 197, 94, 0.4)",
+  },
+  beaconDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#22C55E",
+  },
+  liveChipText: {
+    color: "#22C55E",
+    fontSize: 9,
+    fontFamily: VibeFonts.extraBold,
+    letterSpacing: 0.6,
+  },
+  headerSubtitle: {
+    color: T.muted,
+    fontSize: 12,
+    fontFamily: VibeFonts.medium,
+    marginTop: 2,
+  },
+  headerRightActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  headerIconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.1)",
     alignItems: "center",
     justifyContent: "center",
+    position: "relative",
   },
-  headerTitleCenter: {
+  unreadBadge: {
+    position: "absolute",
+    top: -3,
+    right: -3,
+    backgroundColor: "#EF4444",
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    minWidth: 16,
+    height: 16,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: "#070A14",
   },
-  titleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  headerTitleMy: {
+  unreadBadgeText: {
     color: "#FFFFFF",
-    fontSize: 20,
+    fontSize: 9,
     fontFamily: VibeFonts.extraBold,
-    letterSpacing: -0.4,
-  },
-  headerTitleCrew: {
-    color: "#D4F72C",
-    fontSize: 20,
-    fontFamily: VibeFonts.extraBold,
-    letterSpacing: -0.4,
-  },
-  headerSubtitle: {
-    color: "#94A3B8",
-    fontSize: 11,
-    fontFamily: VibeFonts.medium,
-    marginTop: 2,
-    letterSpacing: 0.2,
-  },
-  addButtonGlow: {
-    borderRadius: 21,
-    shadowColor: "#D4F72C",
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 6,
-  },
-  addBtnGrad: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  scroll: { paddingBottom: 120 },
-  loader: {
-    height: 280,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-  },
-  loaderText: {
-    fontSize: 13,
-    fontFamily: VibeFonts.medium,
-    color: T.muted,
   },
 
-  hero: {
-    width: SCREEN_W,
-    height: HERO_H,
-    marginBottom: 14,
-    overflow: "hidden",
-  },
-  heroImage: {
-    ...StyleSheet.absoluteFillObject,
-    width: "100%",
-    height: "100%",
-  },
-  heroGrad: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  glowOrb: {
-    position: "absolute",
-    right: -40,
-    top: 80,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: "rgba(251,191,36,0.18)",
-  },
-  heroTopRow: {
-    position: "absolute",
-    top: 14,
-    left: 16,
-    right: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    zIndex: 4,
-  },
-  memberBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    backgroundColor: "rgba(0,0,0,0.45)",
+  /* ── 1. Hero Card ── */
+  heroCard: {
+    backgroundColor: T.card,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: T.goldBorder,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    borderColor: "rgba(34, 211, 238, 0.2)",
+    padding: 18,
+    marginBottom: 16,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOpacity: 0.4,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
+  },
+  heroProfileRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+  avatarContainer: {
+    position: "relative",
+  },
+  avatarBorderRing: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    padding: 3,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarImg: {
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+    backgroundColor: "#131C33",
+  },
+  avatarUploadBtn: {
+    position: "absolute",
+    bottom: -2,
+    right: -2,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: T.gold,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#070A14",
+    elevation: 4,
+  },
+  heroIdentityCol: {
+    flex: 1,
+  },
+  nameVerifiedRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  heroName: {
+    color: "#FFFFFF",
+    fontSize: 21,
+    fontFamily: VibeFonts.extraBold,
+    letterSpacing: -0.4,
+    flexShrink: 1,
+  },
+  heroAge: {
+    color: T.muted,
+    fontSize: 18,
+    fontFamily: VibeFonts.bold,
+  },
+  verifiedShield: {
+    marginLeft: 2,
+  },
+  heroLocationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 4,
+  },
+  heroLocationText: {
+    color: T.muted,
+    fontSize: 12,
+    fontFamily: VibeFonts.medium,
+  },
+  dotSep: {
+    color: T.soft,
+    fontSize: 11,
+    marginHorizontal: 2,
+  },
+  heroJobText: {
+    color: T.muted,
+    fontSize: 12,
+    fontFamily: VibeFonts.medium,
+    flexShrink: 1,
+  },
+  membershipRow: {
+    marginTop: 8,
+    flexDirection: "row",
+  },
+  vipBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: T.gold,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 999,
   },
-  memberBadgeText: {
+  vipBadgeText: {
+    color: "#070A14",
+    fontSize: 10,
+    fontFamily: VibeFonts.extraBold,
+    letterSpacing: 0.6,
+  },
+  freeMemberBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(212, 247, 44, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(212, 247, 44, 0.3)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+  },
+  freeMemberBadgeText: {
     color: T.gold,
     fontSize: 10,
-    fontFamily: VibeFonts.extraBold,
-    letterSpacing: 1,
-  },
-  memberBadgeMuted: {
-    backgroundColor: "rgba(0,0,0,0.4)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-  },
-  memberBadgeMutedText: {
-    color: "rgba(255,255,255,0.7)",
-    fontSize: 10,
     fontFamily: VibeFonts.bold,
-    letterSpacing: 1,
+    letterSpacing: 0.4,
   },
-  heroTopActions: {
-    flexDirection: "row",
-    gap: 8,
+  bioBox: {
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255, 255, 255, 0.06)",
   },
-  heroIconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.16)",
-    alignItems: "center",
-    justifyContent: "center",
+  bioText: {
+    color: "#CBD5E1",
+    fontSize: 13,
+    fontFamily: VibeFonts.regular,
+    lineHeight: 18,
   },
-  heroBottom: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: 18,
-    paddingBottom: 18,
-    gap: 8,
-  },
-  nameRow: {
+  heroActionsRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
+    marginTop: 16,
   },
-  name: {
-    fontSize: 32,
-    fontFamily: VibeFonts.extraBold,
-    color: "#FFF",
-    letterSpacing: -0.8,
-    maxWidth: SCREEN_W - 80,
-  },
-  verifiedMark: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: "#22D3EE",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  metaRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  metaChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-    maxWidth: SCREEN_W - 48,
-  },
-  metaChipText: {
-    color: "rgba(255,255,255,0.92)",
-    fontSize: 12,
-    fontFamily: VibeFonts.semiBold,
-  },
-  bio: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontFamily: VibeFonts.medium,
-    color: "rgba(255,255,255,0.72)",
-    marginTop: 2,
-  },
-  interestRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-    marginTop: 2,
-  },
-  interestChip: {
-    backgroundColor: "rgba(167,139,250,0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(167,139,250,0.28)",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  interestText: {
-    color: "#E9D5FF",
-    fontSize: 11,
-    fontFamily: VibeFonts.semiBold,
-  },
-  editBtn: {
-    marginTop: 6,
-    borderRadius: 16,
+  primaryActionBtn: {
+    flex: 1.2,
+    borderRadius: 14,
     overflow: "hidden",
-    alignSelf: "stretch",
   },
-  editGrad: {
+  primaryActionGrad: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 7,
-    paddingVertical: 13,
+    paddingVertical: 11,
   },
-  editText: {
-    color: "#FFF",
+  primaryActionText: {
+    color: "#070A14",
     fontSize: 14,
     fontFamily: VibeFonts.extraBold,
   },
-
-  strengthCard: {
-    marginHorizontal: 16,
-    marginBottom: 12,
-    backgroundColor: T.card,
-    borderRadius: 18,
+  secondaryActionBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 11,
+    borderRadius: 14,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
     borderWidth: 1,
-    borderColor: T.border,
-    padding: 14,
-    gap: 10,
+    borderColor: "rgba(255, 255, 255, 0.12)",
   },
-  strengthTop: {
+  secondaryActionText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontFamily: VibeFonts.bold,
+  },
+
+  /* ── 2. Social Energy Controller ── */
+  sectionWrap: {
+    marginBottom: 16,
+  },
+  sectionHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
-  },
-  strengthTitle: {
-    fontSize: 14,
-    fontFamily: VibeFonts.extraBold,
-    color: T.ink,
-  },
-  strengthSub: {
-    marginTop: 2,
-    fontSize: 11,
-    fontFamily: VibeFonts.medium,
-    color: T.soft,
-    maxWidth: SCREEN_W - 140,
-  },
-  strengthPct: {
-    fontSize: 20,
-    fontFamily: VibeFonts.extraBold,
-    color: T.gold,
-    letterSpacing: -0.4,
-  },
-  strengthTrack: {
-    height: 7,
-    borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    overflow: "hidden",
-  },
-  strengthFill: {
-    height: "100%",
-    borderRadius: 999,
-  },
-
-  statsRow: {
-    flexDirection: "row",
-    gap: 10,
-    paddingHorizontal: 16,
-    marginBottom: 16,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: T.card,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: T.border,
-    paddingVertical: 14,
-    alignItems: "center",
-    gap: 4,
-  },
-  statValue: {
-    fontSize: 20,
-    fontFamily: VibeFonts.extraBold,
-    color: T.ink,
-    letterSpacing: -0.4,
-  },
-  statLabel: {
-    fontSize: 11,
-    fontFamily: VibeFonts.semiBold,
-    color: T.soft,
-  },
-
-  section: {
-    paddingHorizontal: 16,
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 15,
-    fontFamily: VibeFonts.extraBold,
-    color: T.ink,
-    letterSpacing: -0.3,
     marginBottom: 10,
+    paddingHorizontal: 2,
   },
-  energyRow: {
-    flexDirection: "row",
-    gap: 10,
+  sectionHeaderTitle: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontFamily: VibeFonts.bold,
   },
-  energyCard: {
-    flex: 1,
+  sectionLink: {
+    color: T.cyan,
+    fontSize: 13,
+    fontFamily: VibeFonts.bold,
+  },
+
+  /* ── Profile Strength ── */
+  strengthCard: {
     backgroundColor: T.card,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: T.border,
-    paddingVertical: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(212, 247, 44, 0.18)",
+    padding: 16,
+    marginBottom: 16,
+  },
+  strengthHeaderRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  strengthTitleCol: {
+    flex: 1,
+  },
+  strengthBadgeRow: {
+    flexDirection: "row",
     alignItems: "center",
     gap: 8,
+    marginBottom: 4,
   },
-  energyIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  energyLabel: {
-    fontSize: 12,
+  strengthHeading: {
+    color: "#FFFFFF",
+    fontSize: 15,
     fontFamily: VibeFonts.bold,
-    color: T.muted,
   },
-
-  premiumWrap: {
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 20,
+  allStarChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: T.gold,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  allStarText: {
+    color: "#070A14",
+    fontSize: 10,
+    fontFamily: VibeFonts.extraBold,
+  },
+  strengthSub: {
+    color: T.muted,
+    fontSize: 11,
+    fontFamily: VibeFonts.regular,
+    lineHeight: 16,
+  },
+  strengthPercentText: {
+    color: T.gold,
+    fontSize: 22,
+    fontFamily: VibeFonts.extraBold,
+    marginLeft: 12,
+  },
+  strengthProgressBarWrap: {
+    height: 7,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    borderRadius: 4,
     overflow: "hidden",
   },
-  premiumCard: {
+  strengthProgressFill: {
+    height: "100%",
+    borderRadius: 4,
+  },
+  strengthActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255, 255, 255, 0.06)",
+  },
+  strengthActionText: {
+    color: T.gold,
+    fontSize: 12,
+    fontFamily: VibeFonts.bold,
+  },
+
+  /* ── 5. Photos Strip ── */
+  galleryScroll: {
+    gap: 10,
+    paddingVertical: 4,
+  },
+  addPhotoTile: {
+    width: 96,
+    height: 124,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: "rgba(34, 211, 238, 0.35)",
+    borderStyle: "dashed",
+    overflow: "hidden",
+  },
+  addPhotoGrad: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  addPhotoText: {
+    color: T.cyan,
+    fontSize: 11,
+    fontFamily: VibeFonts.bold,
+  },
+  photoThumbWrap: {
+    width: 96,
+    height: 124,
+    borderRadius: 16,
+    overflow: "hidden",
+    position: "relative",
+    backgroundColor: "#131C33",
+  },
+  photoThumbImg: {
+    width: "100%",
+    height: "100%",
+  },
+  mainPhotoTag: {
+    position: "absolute",
+    top: 6,
+    left: 6,
+    backgroundColor: "rgba(7, 10, 20, 0.8)",
+    borderWidth: 1,
+    borderColor: T.gold,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  mainPhotoTagText: {
+    color: T.gold,
+    fontSize: 8,
+    fontFamily: VibeFonts.extraBold,
+    letterSpacing: 0.6,
+  },
+  photoDeleteBtn: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#EF4444",
+    borderWidth: 1.5,
+    borderColor: "rgba(255, 255, 255, 0.4)",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 3,
+    elevation: 4,
+    zIndex: 10,
+  },
+  thumbHintTag: {
+    position: "absolute",
+    left: 6,
+    bottom: 6,
+    backgroundColor: "rgba(7, 10, 20, 0.8)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.15)",
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 5,
+  },
+  thumbHintTagText: {
+    color: "#CBD5E1",
+    fontSize: 8,
+    fontFamily: VibeFonts.medium,
+  },
+
+  /* ── 6. Vibe DNA / Tags ── */
+  tagGroupBlock: {
+    backgroundColor: T.card,
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.05)",
+  },
+  tagGroupLabel: {
+    color: T.soft,
+    fontSize: 10,
+    fontFamily: VibeFonts.extraBold,
+    letterSpacing: 0.8,
+    marginBottom: 8,
+  },
+  tagChipsWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  lookingForChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "rgba(212, 247, 44, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(212, 247, 44, 0.3)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  lookingForText: {
+    color: T.gold,
+    fontSize: 12,
+    fontFamily: VibeFonts.bold,
+  },
+  interestChip: {
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  interestChipText: {
+    color: "#E2E8F0",
+    fontSize: 12,
+    fontFamily: VibeFonts.medium,
+  },
+
+  /* ── 7. Membership Privilege ── */
+  membershipCardWrap: {
+    borderRadius: 22,
+    overflow: "hidden",
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.12)",
+  },
+  membershipCardGrad: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+  },
+  membershipLeft: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 16,
-    overflow: "hidden",
+    flex: 1,
+    paddingRight: 10,
   },
-  premiumShine: {
-    position: "absolute",
-    top: -40,
-    right: -20,
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: "rgba(255,255,255,0.12)",
-  },
-  premiumIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 15,
-    backgroundColor: "rgba(255,255,255,0.18)",
+  diamondCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
     alignItems: "center",
     justifyContent: "center",
   },
-  premiumEyebrow: {
+  membershipEyebrow: {
+    color: "rgba(255, 255, 255, 0.75)",
     fontSize: 9,
     fontFamily: VibeFonts.extraBold,
-    color: "rgba(255,255,255,0.7)",
-    letterSpacing: 1.2,
+    letterSpacing: 0.8,
   },
-  premiumTitle: {
-    marginTop: 2,
-    fontSize: 15,
+  membershipTitle: {
+    color: "#FFFFFF",
+    fontSize: 16,
     fontFamily: VibeFonts.extraBold,
-    color: "#FFF",
-  },
-  premiumSub: {
     marginTop: 2,
-    fontSize: 11,
-    fontFamily: VibeFonts.medium,
-    color: "rgba(255,255,255,0.82)",
   },
-  premiumCta: {
+  membershipDesc: {
+    color: "rgba(255, 255, 255, 0.85)",
+    fontSize: 11,
+    fontFamily: VibeFonts.regular,
+    marginTop: 2,
+  },
+  membershipCtaPill: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 2,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    paddingHorizontal: 10,
+    gap: 4,
+    backgroundColor: "rgba(0, 0, 0, 0.35)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 999,
   },
-  premiumCtaText: {
+  membershipCtaText: {
+    color: "#FFFFFF",
     fontSize: 11,
     fontFamily: VibeFonts.bold,
-    color: "#FFF",
   },
 
-  quickRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  quickCard: {
-    flex: 1,
+  /* ── 8. Account & Privacy Hub ── */
+  hubCard: {
     backgroundColor: T.card,
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: T.border,
-    paddingVertical: 14,
-    alignItems: "center",
-    gap: 8,
-  },
-  quickIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 15,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  quickLabel: {
-    fontSize: 12,
-    fontFamily: VibeFonts.bold,
-    color: T.ink,
-  },
-
-  menuCard: {
-    backgroundColor: T.card,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: T.border,
+    borderColor: "rgba(255, 255, 255, 0.06)",
     overflow: "hidden",
   },
-  menuRow: {
+  hubRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 13,
-  },
-  menuBorder: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: T.border,
+    borderBottomColor: "rgba(255, 255, 255, 0.04)",
   },
-  menuIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+  hubIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
+    marginRight: 14,
   },
-  menuCopy: { flex: 1 },
-  menuLabel: {
+  hubCopyCol: {
+    flex: 1,
+  },
+  hubLabel: {
+    color: "#FFFFFF",
     fontSize: 14,
     fontFamily: VibeFonts.bold,
-    color: T.ink,
   },
-  menuSub: {
-    marginTop: 2,
+  hubSub: {
+    color: T.muted,
     fontSize: 11,
-    fontFamily: VibeFonts.medium,
-    color: T.soft,
+    fontFamily: VibeFonts.regular,
+    marginTop: 2,
   },
 
+  /* ── 9. Danger Section ── */
+  dangerSection: {
+    gap: 10,
+    marginTop: 8,
+    marginBottom: 20,
+  },
   logoutBtn: {
-    marginHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    paddingVertical: 13,
-    borderRadius: 14,
-    backgroundColor: "rgba(248, 113, 113, 0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(248, 113, 113, 0.28)",
-    marginBottom: 10,
-  },
-  logoutText: {
-    fontSize: 14,
-    fontFamily: VibeFonts.bold,
-    color: T.red,
-  },
-  deleteBtn: {
-    marginHorizontal: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 13,
-    borderRadius: 14,
     backgroundColor: "rgba(248, 113, 113, 0.08)",
     borderWidth: 1,
-    borderColor: "rgba(248, 113, 113, 0.22)",
-    marginBottom: 16,
+    borderColor: "rgba(248, 113, 113, 0.2)",
+    borderRadius: 16,
+    paddingVertical: 13,
   },
-  deleteText: {
+  logoutBtnText: {
+    color: "#F87171",
     fontSize: 14,
     fontFamily: VibeFonts.bold,
-    color: T.red,
   },
-  version: {
-    textAlign: "center",
-    fontSize: 11,
-    fontFamily: VibeFonts.medium,
+  deleteBtn: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+  },
+  deleteBtnText: {
     color: T.soft,
-    marginBottom: 8,
+    fontSize: 12,
+    fontFamily: VibeFonts.medium,
+    textDecorationLine: "underline",
+  },
+
+  /* ── Footer ── */
+  brandFooter: {
+    alignItems: "center",
+    paddingVertical: 12,
+  },
+  brandFooterText: {
+    color: T.soft,
+    fontSize: 10,
+    fontFamily: VibeFonts.extraBold,
+    letterSpacing: 1,
+  },
+  brandFooterSub: {
+    color: "rgba(255, 255, 255, 0.2)",
+    fontSize: 11,
+    fontFamily: VibeFonts.regular,
+    marginTop: 2,
   },
 });

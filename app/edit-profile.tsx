@@ -11,18 +11,20 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  StatusBar,
+  Dimensions,
+  Switch,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import GlassCard from "../components/vibe/GlassCard";
+import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../services/api";
 import { API_URL } from "../constants/theme";
-import { VibeColors, VibeFonts } from "../constants/vibeTheme";
-import { Radius, Spacing } from "../constants/theme";
+import { VibeFonts } from "../constants/vibeTheme";
 import {
   GENDER_OPTIONS,
   INTERESTED_IN_OPTIONS,
@@ -31,7 +33,29 @@ import {
   GENDER_PREF_OPTIONS,
   SMOKING_OPTIONS,
   DRINKING_OPTIONS,
+  WORKOUT_OPTIONS,
+  DIET_OPTIONS,
 } from "../constants/onboarding";
+
+const { width: SCREEN_W } = Dimensions.get("window");
+
+const T = {
+  bg: "#070A14",
+  card: "#0D1424",
+  cardElevated: "#121C33",
+  cardGlass: "rgba(18, 28, 51, 0.75)",
+  border: "rgba(255, 255, 255, 0.08)",
+  borderFocus: "rgba(34, 211, 238, 0.4)",
+  ink: "#FFFFFF",
+  muted: "#94A3B8",
+  soft: "#64748B",
+  gold: "#D4F72C",
+  goldSoft: "rgba(212, 247, 44, 0.12)",
+  cyan: "#22D3EE",
+  cyanSoft: "rgba(34, 211, 238, 0.12)",
+  green: "#22C55E",
+  ctaGrad: ["#D4F72C", "#22D3EE"] as [string, string],
+};
 
 function Chip({
   label,
@@ -50,12 +74,22 @@ function Chip({
       style={[
         styles.chip,
         active && {
-          backgroundColor: color ? `${color}33` : "rgba(138,86,255,0.28)",
-          borderColor: color || "#A78BFA",
+          backgroundColor: color ? `${color}25` : "rgba(212, 247, 44, 0.14)",
+          borderColor: color || T.gold,
         },
       ]}
     >
-      <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
+      <Text
+        style={[
+          styles.chipText,
+          active && {
+            color: color || T.gold,
+            fontFamily: VibeFonts.bold,
+          },
+        ]}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -67,7 +101,7 @@ function parseLookingFor(raw: unknown): string[] {
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) return parsed.map(String);
   } catch {
-    // comma-separated fallback
+    // fallback
   }
   return raw.split(",").map((s) => s.trim()).filter(Boolean);
 }
@@ -82,6 +116,7 @@ function parseInterests(raw: unknown): string[] {
 export default function EditProfileScreen() {
   const { token } = useAuth();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -141,7 +176,7 @@ export default function EditProfileScreen() {
         try {
           const photosRes = await api.getMyPhotos();
           if (photosRes?.photos?.length) {
-            setGallery(photosRes.photos.map((ph) => ph.url));
+            setGallery(photosRes.photos.map((ph: any) => ph.url));
             if (photosRes.avatarUrl) setAvatarUrl(photosRes.avatarUrl);
           } else if (res?.profile?.avatarUrl) {
             setGallery([res.profile.avatarUrl]);
@@ -162,7 +197,7 @@ export default function EditProfileScreen() {
     setInterests((prev) => {
       if (prev.includes(name)) return prev.filter((x) => x !== name);
       if (prev.length >= 8) {
-        Alert.alert("Limit", "Max 8 interests.");
+        Alert.alert("Limit Reached", "You can pick up to 8 interests.");
         return prev;
       }
       return [...prev, name];
@@ -190,7 +225,7 @@ export default function EditProfileScreen() {
       }
 
       if (gallery.length >= 6) {
-        Alert.alert("Limit", "You can add up to 6 photos.");
+        Alert.alert("Limit Reached", "You can add up to 6 photos.");
         return;
       }
 
@@ -198,7 +233,7 @@ export default function EditProfileScreen() {
         mediaTypes: ["images"],
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.8,
+        quality: 0.85,
       });
 
       if (!result.canceled && result.assets?.[0]) {
@@ -224,18 +259,81 @@ export default function EditProfileScreen() {
     }
   };
 
-  const removeGalleryPhoto = async (index: number) => {
-    const next = gallery.filter((_, i) => i !== index);
-    if (next.length === 0) {
-      Alert.alert("Keep one photo", "Dating profiles need at least one photo.");
+  const confirmDeletePhoto = (index: number) => {
+    if (gallery.length <= 1) {
+      Alert.alert(
+        "Cannot Delete",
+        "You must keep at least one profile photo for your profile to remain active."
+      );
       return;
     }
-    setGallery(next);
-    setAvatarUrl(next[0]);
-    try {
-      await api.setMyPhotos(next);
-    } catch (e) {
-      Alert.alert("Error", e instanceof Error ? e.message : "Could not update photos");
+    Alert.alert(
+      "Delete Photo?",
+      "Are you sure you want to remove this photo from your profile?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            const next = gallery.filter((_, i) => i !== index);
+            setGallery(next);
+            setAvatarUrl(next[0] || "");
+            try {
+              await api.setMyPhotos(next);
+              if (token && next[0]) {
+                await api.updateProfile({ avatarUrl: next[0] }, token);
+              }
+            } catch (e) {
+              Alert.alert("Error", e instanceof Error ? e.message : "Could not delete photo");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handlePhotoPress = (index: number) => {
+    if (index === 0) {
+      Alert.alert(
+        "Main Profile Photo",
+        "This is your primary avatar seen first by people nearby.",
+        [
+          {
+            text: "🗑️ Delete Photo",
+            style: "destructive",
+            onPress: () => confirmDeletePhoto(index),
+          },
+          { text: "Done", style: "cancel" },
+        ]
+      );
+    } else {
+      Alert.alert("Manage Photo", "What would you like to do?", [
+        {
+          text: "⭐ Set as Main Photo",
+          onPress: async () => {
+            const chosen = gallery[index];
+            const next = [chosen, ...gallery.filter((_, i) => i !== index)];
+            setGallery(next);
+            setAvatarUrl(next[0]);
+            try {
+              await api.setMyPhotos(next);
+              if (token) {
+                await api.updateProfile({ avatarUrl: next[0] }, token);
+              }
+              Alert.alert("Updated! ✨", "This photo is now your main profile picture.");
+            } catch (e) {
+              Alert.alert("Error", "Could not update main photo");
+            }
+          },
+        },
+        {
+          text: "🗑️ Delete Photo",
+          style: "destructive",
+          onPress: () => confirmDeletePhoto(index),
+        },
+        { text: "Cancel", style: "cancel" },
+      ]);
     }
   };
 
@@ -288,8 +386,8 @@ export default function EditProfileScreen() {
       );
 
       if (updateRes) {
-        Alert.alert("Saved", "Profile updated successfully!", [
-          { text: "OK", onPress: () => router.back() },
+        Alert.alert("Saved! ✨", "Profile updated successfully!", [
+          { text: "Awesome", onPress: () => router.back() },
         ]);
       } else {
         Alert.alert("Error", "Could not save profile changes.");
@@ -302,17 +400,6 @@ export default function EditProfileScreen() {
     }
   };
 
-  const getAvatarUri = () => {
-    if (previewUri) return previewUri;
-    if (avatarUrl) {
-      if (avatarUrl.startsWith("/")) {
-        return `${API_URL.replace("/api", "")}${avatarUrl}`;
-      }
-      return avatarUrl;
-    }
-    return "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop";
-  };
-
   const interestCountLabel = useMemo(
     () => `${interests.length}/8 selected`,
     [interests.length]
@@ -320,585 +407,827 @@ export default function EditProfileScreen() {
 
   return (
     <View style={styles.root}>
-      <View style={[styles.orb, styles.orb1]} />
-      <View style={[styles.orb, styles.orb2]} />
+      <StatusBar barStyle="light-content" backgroundColor="#070A14" />
 
-      <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.keyboardView}
+      {/* ── TOP EXECUTIVE HEADER ── */}
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 6 }]}>
+        <Pressable style={styles.backBtn} onPress={() => router.back()} hitSlop={10}>
+          <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
+        </Pressable>
+
+        <View style={styles.headerTitleCol}>
+          <Text style={styles.headerTitle}>Edit Profile</Text>
+          <Text style={styles.headerSubtitle}>Customize your vibe presence</Text>
+        </View>
+
+        <Pressable
+          style={styles.headerSavePill}
+          onPress={handleSave}
+          disabled={saving || uploading}
+          hitSlop={8}
         >
-          <View style={styles.header}>
-            <Pressable style={styles.backBtn} onPress={() => router.back()}>
-              <Ionicons name="arrow-back" size={24} color={VibeColors.text} />
-            </Pressable>
-            <Text style={styles.headerTitle}>Edit Profile</Text>
-            <Pressable onPress={handleSave} disabled={saving || uploading} hitSlop={8}>
-              <Text style={styles.headerSave}>{saving ? "…" : "Save"}</Text>
-            </Pressable>
-          </View>
+          <LinearGradient
+            colors={T.ctaGrad}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.headerSaveGrad}
+          >
+            {saving ? (
+              <ActivityIndicator size="small" color="#070A14" />
+            ) : (
+              <Text style={styles.headerSaveText}>Save</Text>
+            )}
+          </LinearGradient>
+        </Pressable>
+      </View>
 
-          {loading ? (
-            <View style={styles.center}>
-              <ActivityIndicator size="large" color="#C084FC" />
-              <Text style={styles.loadingText}>Loading profile…</Text>
-            </View>
-          ) : (
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.scroll}
-              keyboardShouldPersistTaps="handled"
-            >
-              <View style={styles.avatarSection}>
-                <Text style={styles.sectionTitle}>Photos (up to 6)</Text>
-                <Text style={styles.photoHint}>First photo is your main avatar</Text>
-                <View style={styles.galleryGrid}>
-                  {gallery.map((url, index) => (
-                    <View key={`${url}-${index}`} style={styles.gallerySlot}>
-                      <Image source={{ uri: resolvePhotoUri(url) }} style={styles.galleryImg} />
-                      {index === 0 ? (
-                        <View style={styles.mainBadge}>
-                          <Text style={styles.mainBadgeText}>Main</Text>
-                        </View>
-                      ) : null}
-                      <Pressable
-                        style={styles.galleryRemove}
-                        onPress={() => removeGalleryPhoto(index)}
-                      >
-                        <Ionicons name="close" size={12} color="#fff" />
-                      </Pressable>
-                    </View>
-                  ))}
-                  {gallery.length < 6 ? (
-                    <Pressable
-                      style={styles.galleryAdd}
-                      onPress={handlePickImage}
-                      disabled={uploading}
-                    >
-                      {uploading ? (
-                        <ActivityIndicator color="#C084FC" />
-                      ) : (
-                        <>
-                          <Ionicons name="add" size={22} color="#C084FC" />
-                          <Text style={styles.galleryAddText}>Add</Text>
-                        </>
-                      )}
-                    </Pressable>
-                  ) : null}
-                </View>
-                <Pressable
-                  style={[styles.pauseToggle, isPaused && styles.pauseToggleOn]}
-                  onPress={() => setIsPaused((v) => !v)}
-                >
-                  <Ionicons
-                    name={isPaused ? "eye-off" : "eye"}
-                    size={16}
-                    color={isPaused ? "#FBBF24" : "#fff"}
-                  />
-                  <Text style={styles.pauseToggleText}>
-                    {isPaused ? "Discovery paused (hidden)" : "Visible in discovery"}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.keyboardView}
+      >
+        {loading ? (
+          <View style={styles.centerLoader}>
+            <ActivityIndicator size="large" color={T.gold} />
+            <Text style={styles.loadingText}>Loading your profile data…</Text>
+          </View>
+        ) : (
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={[
+              styles.scroll,
+              { paddingBottom: Math.max(insets.bottom, 20) + 90 },
+            ]}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* ── 1. PHOTOS (UP TO 6) ── */}
+            <Animated.View entering={FadeIn.duration(320)} style={styles.sectionCard}>
+              <View style={styles.sectionHeaderRow}>
+                <View>
+                  <Text style={styles.sectionTitle}>
+                    Profile Photos <Text style={{ color: T.muted }}>({gallery.length}/6)</Text>
                   </Text>
-                </Pressable>
+                  <Text style={styles.sectionSubtitle}>
+                    Tap a photo to set as Main or tap 🗑️ to delete
+                  </Text>
+                </View>
               </View>
 
-              {/* Basics */}
-              <GlassCard style={styles.formCard}>
-                <Text style={styles.sectionTitle}>Basics</Text>
-
-                <Text style={styles.label}>First Name</Text>
-                <View style={styles.inputContainer}>
-                  <Ionicons name="person-outline" size={18} color={VibeColors.textMuted} style={styles.inputIcon} />
-                  <TextInput
-                    value={name}
-                    onChangeText={setName}
-                    placeholder="Your name"
-                    placeholderTextColor="rgba(255,255,255,0.4)"
-                    style={styles.input}
-                  />
-                </View>
-
-                <Text style={styles.label}>Age</Text>
-                <View style={styles.inputContainer}>
-                  <Ionicons name="calendar-outline" size={18} color={VibeColors.textMuted} style={styles.inputIcon} />
-                  <TextInput
-                    value={age}
-                    onChangeText={setAge}
-                    placeholder="18+"
-                    keyboardType="number-pad"
-                    maxLength={2}
-                    placeholderTextColor="rgba(255,255,255,0.4)"
-                    style={styles.input}
-                  />
-                </View>
-
-                <Text style={styles.label}>City</Text>
-                <View style={styles.inputContainer}>
-                  <Ionicons name="location-outline" size={18} color={VibeColors.textMuted} style={styles.inputIcon} />
-                  <TextInput
-                    value={city}
-                    onChangeText={setCity}
-                    placeholder="e.g. Nagpur"
-                    placeholderTextColor="rgba(255,255,255,0.4)"
-                    style={styles.input}
-                  />
-                </View>
-
-                <Text style={styles.label}>Bio</Text>
-                <View style={[styles.inputContainer, styles.bioContainer]}>
-                  <TextInput
-                    value={bio}
-                    onChangeText={setBio}
-                    placeholder="Tell others about yourself…"
-                    placeholderTextColor="rgba(255,255,255,0.4)"
-                    multiline
-                    maxLength={300}
-                    style={[styles.input, styles.bioInput]}
-                  />
-                </View>
-                <Text style={styles.hint}>{bio.length}/300</Text>
-              </GlassCard>
-
-              {/* Work & college */}
-              <GlassCard style={styles.formCard}>
-                <Text style={styles.sectionTitle}>Work & college</Text>
-
-                <Text style={styles.label}>Job title</Text>
-                <View style={styles.inputContainer}>
-                  <Ionicons name="briefcase-outline" size={18} color={VibeColors.textMuted} style={styles.inputIcon} />
-                  <TextInput
-                    value={jobTitle}
-                    onChangeText={setJobTitle}
-                    placeholder="e.g. Designer"
-                    placeholderTextColor="rgba(255,255,255,0.4)"
-                    style={styles.input}
-                  />
-                </View>
-
-                <Text style={styles.label}>Company</Text>
-                <View style={styles.inputContainer}>
-                  <Ionicons name="business-outline" size={18} color={VibeColors.textMuted} style={styles.inputIcon} />
-                  <TextInput
-                    value={company}
-                    onChangeText={setCompany}
-                    placeholder="Where you work"
-                    placeholderTextColor="rgba(255,255,255,0.4)"
-                    style={styles.input}
-                  />
-                </View>
-
-                <Text style={styles.label}>College</Text>
-                <View style={styles.inputContainer}>
-                  <Ionicons name="school-outline" size={18} color={VibeColors.textMuted} style={styles.inputIcon} />
-                  <TextInput
-                    value={college}
-                    onChangeText={setCollege}
-                    placeholder="e.g. VNIT"
-                    placeholderTextColor="rgba(255,255,255,0.4)"
-                    style={styles.input}
-                  />
-                </View>
-
-                <Text style={styles.label}>Height</Text>
-                <View style={styles.inputContainer}>
-                  <Ionicons name="resize-outline" size={18} color={VibeColors.textMuted} style={styles.inputIcon} />
-                  <TextInput
-                    value={height}
-                    onChangeText={setHeight}
-                    placeholder="e.g. 5'8&quot;"
-                    placeholderTextColor="rgba(255,255,255,0.4)"
-                    style={styles.input}
-                  />
-                </View>
-              </GlassCard>
-
-              {/* Gender */}
-              <GlassCard style={styles.formCard}>
-                <Text style={styles.sectionTitle}>I am</Text>
-                <View style={styles.chipRow}>
-                  {GENDER_OPTIONS.map((g) => (
-                    <Chip
-                      key={g.id}
-                      label={`${g.emoji} ${g.label}`}
-                      active={gender === g.id}
-                      onPress={() => setGender(g.id)}
-                    />
-                  ))}
-                </View>
-
-                <Text style={[styles.sectionTitle, { marginTop: 8 }]}>Interested in</Text>
-                <View style={styles.chipRow}>
-                  {INTERESTED_IN_OPTIONS.map((g) => (
-                    <Chip
-                      key={g.id}
-                      label={`${g.emoji} ${g.label}`}
-                      active={interestedIn === g.id}
-                      onPress={() => {
-                        setInterestedIn(g.id);
-                        setGenderPreference(g.id);
+              <View style={styles.galleryGrid}>
+                {gallery.map((url, index) => (
+                  <Pressable
+                    key={`${url}-${index}`}
+                    style={styles.gallerySlot}
+                    onPress={() => handlePhotoPress(index)}
+                  >
+                    <Image source={{ uri: resolvePhotoUri(url) }} style={styles.galleryImg} />
+                    {index === 0 ? (
+                      <View style={styles.mainBadge}>
+                        <Ionicons name="star" size={10} color="#070A14" />
+                        <Text style={styles.mainBadgeText}>MAIN</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.manageHintBadge}>
+                        <Text style={styles.manageHintText}>Tap to set</Text>
+                      </View>
+                    )}
+                    <Pressable
+                      style={styles.galleryRemove}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        confirmDeletePhoto(index);
                       }}
-                    />
-                  ))}
-                </View>
-              </GlassCard>
+                      hitSlop={8}
+                    >
+                      <Ionicons name="trash" size={13} color="#FFFFFF" />
+                    </Pressable>
+                  </Pressable>
+                ))}
 
-              {/* Looking for */}
-              <GlassCard style={styles.formCard}>
-                <Text style={styles.sectionTitle}>Looking for</Text>
-                <View style={styles.chipRow}>
-                  {LOOKING_FOR_OPTIONS.map((o) => (
-                    <Chip
-                      key={o.id}
-                      label={`${o.emoji} ${o.label}`}
-                      active={lookingFor.includes(o.id)}
-                      onPress={() => toggleLookingFor(o.id)}
-                      color={o.color}
-                    />
-                  ))}
-                </View>
-              </GlassCard>
+                {gallery.length < 6 && (
+                  <Pressable
+                    style={styles.galleryAdd}
+                    onPress={handlePickImage}
+                    disabled={uploading}
+                  >
+                    {uploading ? (
+                      <ActivityIndicator color={T.cyan} />
+                    ) : (
+                      <>
+                        <View style={styles.addIconCircle}>
+                          <Ionicons name="camera-outline" size={20} color={T.cyan} />
+                        </View>
+                        <Text style={styles.galleryAddText}>Add Photo</Text>
+                      </>
+                    )}
+                  </Pressable>
+                )}
+              </View>
+            </Animated.View>
 
-              {/* Interests */}
-              <GlassCard style={styles.formCard}>
-                <View style={styles.sectionHead}>
-                  <Text style={styles.sectionTitle}>Interests</Text>
-                  <Text style={styles.hint}>{interestCountLabel}</Text>
-                </View>
-                <View style={styles.chipRow}>
-                  {INTEREST_OPTIONS.map((o) => (
-                    <Chip
-                      key={o.name}
-                      label={o.name}
-                      active={interests.includes(o.name)}
-                      onPress={() => toggleInterest(o.name)}
-                      color={o.color}
-                    />
-                  ))}
-                </View>
-              </GlassCard>
-
-              {/* Preferences */}
-              <GlassCard style={styles.formCard}>
-                <Text style={styles.sectionTitle}>Discover preferences</Text>
-
-                <Text style={styles.label}>Show me</Text>
-                <View style={styles.chipRow}>
-                  {GENDER_PREF_OPTIONS.map((g) => (
-                    <Chip
-                      key={g.id}
-                      label={`${g.emoji} ${g.label}`}
-                      active={genderPreference === g.id}
-                      onPress={() => setGenderPreference(g.id)}
-                    />
-                  ))}
-                </View>
-
-                <View style={styles.row2}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.label}>Min age</Text>
-                    <View style={styles.inputContainer}>
-                      <TextInput
-                        value={minAge}
-                        onChangeText={setMinAge}
-                        keyboardType="number-pad"
-                        maxLength={2}
-                        style={styles.input}
-                        placeholderTextColor="rgba(255,255,255,0.4)"
-                      />
-                    </View>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.label}>Max age</Text>
-                    <View style={styles.inputContainer}>
-                      <TextInput
-                        value={maxAge}
-                        onChangeText={setMaxAge}
-                        keyboardType="number-pad"
-                        maxLength={2}
-                        style={styles.input}
-                        placeholderTextColor="rgba(255,255,255,0.4)"
-                      />
-                    </View>
-                  </View>
-                </View>
-
-                <Text style={styles.label}>Max distance (km)</Text>
-                <View style={styles.inputContainer}>
-                  <Ionicons name="navigate-outline" size={18} color={VibeColors.textMuted} style={styles.inputIcon} />
-                  <TextInput
-                    value={maxDistance}
-                    onChangeText={setMaxDistance}
-                    keyboardType="number-pad"
-                    maxLength={3}
-                    placeholder="25"
-                    placeholderTextColor="rgba(255,255,255,0.4)"
-                    style={styles.input}
+            {/* ── 2. DISCOVERY STATUS CARD ── */}
+            <Animated.View entering={FadeInDown.delay(60).duration(320)} style={styles.sectionCard}>
+              <View style={styles.discoveryRow}>
+                <View style={[styles.discIconBox, { backgroundColor: isPaused ? "rgba(250,204,21,0.12)" : "rgba(34,211,238,0.12)" }]}>
+                  <Ionicons
+                    name={isPaused ? "eye-off-outline" : "eye-outline"}
+                    size={20}
+                    color={isPaused ? T.gold : T.cyan}
                   />
                 </View>
-              </GlassCard>
-
-              {/* Lifestyle */}
-              <GlassCard style={styles.formCard}>
-                <Text style={styles.sectionTitle}>Lifestyle</Text>
-                <Text style={styles.label}>Smoking</Text>
-                <View style={styles.chipRow}>
-                  {SMOKING_OPTIONS.map((o) => (
-                    <Chip
-                      key={o.id}
-                      label={`${o.emoji} ${o.label}`}
-                      active={smoking === o.id}
-                      onPress={() => setSmoking(o.id)}
-                    />
-                  ))}
+                <View style={styles.discTextCol}>
+                  <Text style={styles.discTitle}>Discovery Visibility</Text>
+                  <Text style={styles.discDesc}>
+                    {isPaused
+                      ? "Profile hidden from the discover deck"
+                      : "Visible to active people nearby"}
+                  </Text>
                 </View>
-                <Text style={styles.label}>Drinking</Text>
-                <View style={styles.chipRow}>
-                  {DRINKING_OPTIONS.map((o) => (
-                    <Chip
-                      key={o.id}
-                      label={`${o.emoji} ${o.label}`}
-                      active={drinking === o.id}
-                      onPress={() => setDrinking(o.id)}
-                    />
-                  ))}
-                </View>
-              </GlassCard>
+                <Switch
+                  value={!isPaused}
+                  onValueChange={(val) => setIsPaused(!val)}
+                  trackColor={{ false: "#1E293B", true: "#22D3EE" }}
+                  thumbColor={!isPaused ? "#070A14" : "#94A3B8"}
+                />
+              </View>
+            </Animated.View>
 
-              <Pressable style={styles.saveWrap} onPress={handleSave} disabled={saving || uploading}>
-                <LinearGradient colors={["#8A56FF", "#FF4B81"]} style={styles.saveBtn}>
+            {/* ── 3. BASICS INFORMATION ── */}
+            <Animated.View entering={FadeInDown.delay(100).duration(320)} style={styles.sectionCard}>
+              <Text style={styles.cardHeaderTitle}>Basic Information</Text>
+
+              {/* First Name */}
+              <Text style={styles.fieldLabel}>First Name</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="person-outline" size={17} color={T.gold} style={styles.inputIcon} />
+                <TextInput
+                  value={name}
+                  onChangeText={setName}
+                  placeholder="Your display name"
+                  placeholderTextColor={T.soft}
+                  style={styles.input}
+                />
+              </View>
+
+              {/* Age & City Row */}
+              <View style={styles.row2}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.fieldLabel}>Age</Text>
+                  <View style={styles.inputContainer}>
+                    <Ionicons name="calendar-outline" size={17} color={T.cyan} style={styles.inputIcon} />
+                    <TextInput
+                      value={age}
+                      onChangeText={setAge}
+                      placeholder="18+"
+                      keyboardType="number-pad"
+                      maxLength={2}
+                      placeholderTextColor={T.soft}
+                      style={styles.input}
+                    />
+                  </View>
+                </View>
+
+                <View style={{ flex: 1.6 }}>
+                  <Text style={styles.fieldLabel}>City</Text>
+                  <View style={styles.inputContainer}>
+                    <Ionicons name="location-outline" size={17} color={T.gold} style={styles.inputIcon} />
+                    <TextInput
+                      value={city}
+                      onChangeText={setCity}
+                      placeholder="e.g. Mumbai"
+                      placeholderTextColor={T.soft}
+                      style={styles.input}
+                    />
+                  </View>
+                </View>
+              </View>
+
+              {/* Bio */}
+              <View style={styles.bioHeaderRow}>
+                <Text style={styles.fieldLabel}>Bio / Vibe Description</Text>
+                <Text style={styles.charCount}>{bio.length}/300</Text>
+              </View>
+              <View style={[styles.inputContainer, styles.bioContainer]}>
+                <TextInput
+                  value={bio}
+                  onChangeText={setBio}
+                  placeholder="Share what makes you tick, favorite hangout spots, chai preferences..."
+                  placeholderTextColor={T.soft}
+                  multiline
+                  maxLength={300}
+                  style={[styles.input, styles.bioInput]}
+                />
+              </View>
+            </Animated.View>
+
+            {/* ── 4. WORK & EDUCATION ── */}
+            <Animated.View entering={FadeInDown.delay(130).duration(320)} style={styles.sectionCard}>
+              <Text style={styles.cardHeaderTitle}>Work & Education</Text>
+
+              {/* Job Title */}
+              <Text style={styles.fieldLabel}>Job Title</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="briefcase-outline" size={17} color={T.cyan} style={styles.inputIcon} />
+                <TextInput
+                  value={jobTitle}
+                  onChangeText={setJobTitle}
+                  placeholder="e.g. Product Designer"
+                  placeholderTextColor={T.soft}
+                  style={styles.input}
+                />
+              </View>
+
+              {/* Company */}
+              <Text style={styles.fieldLabel}>Company / Workspace</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="business-outline" size={17} color={T.gold} style={styles.inputIcon} />
+                <TextInput
+                  value={company}
+                  onChangeText={setCompany}
+                  placeholder="e.g. Google / Freelancer"
+                  placeholderTextColor={T.soft}
+                  style={styles.input}
+                />
+              </View>
+
+              {/* College & Height Row */}
+              <View style={styles.row2}>
+                <View style={{ flex: 1.5 }}>
+                  <Text style={styles.fieldLabel}>College / University</Text>
+                  <View style={styles.inputContainer}>
+                    <Ionicons name="school-outline" size={17} color={T.cyan} style={styles.inputIcon} />
+                    <TextInput
+                      value={college}
+                      onChangeText={setCollege}
+                      placeholder="e.g. IIT / St. Xavier's"
+                      placeholderTextColor={T.soft}
+                      style={styles.input}
+                    />
+                  </View>
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.fieldLabel}>Height</Text>
+                  <View style={styles.inputContainer}>
+                    <Ionicons name="resize-outline" size={17} color={T.gold} style={styles.inputIcon} />
+                    <TextInput
+                      value={height}
+                      onChangeText={setHeight}
+                      placeholder={`e.g. 5'10"`}
+                      placeholderTextColor={T.soft}
+                      style={styles.input}
+                    />
+                  </View>
+                </View>
+              </View>
+            </Animated.View>
+
+            {/* ── 5. GENDER & ORIENTATION ── */}
+            <Animated.View entering={FadeInDown.delay(160).duration(320)} style={styles.sectionCard}>
+              <Text style={styles.cardHeaderTitle}>Identity & Orientation</Text>
+
+              <Text style={styles.fieldLabel}>I am</Text>
+              <View style={styles.chipRow}>
+                {GENDER_OPTIONS.map((g) => (
+                  <Chip
+                    key={g.id}
+                    label={`${g.emoji} ${g.label}`}
+                    active={gender === g.id}
+                    onPress={() => setGender(g.id)}
+                  />
+                ))}
+              </View>
+
+              <Text style={[styles.fieldLabel, { marginTop: 14 }]}>Interested in seeing</Text>
+              <View style={styles.chipRow}>
+                {INTERESTED_IN_OPTIONS.map((g) => (
+                  <Chip
+                    key={g.id}
+                    label={`${g.emoji} ${g.label}`}
+                    active={interestedIn === g.id}
+                    onPress={() => {
+                      setInterestedIn(g.id);
+                      setGenderPreference(g.id);
+                    }}
+                  />
+                ))}
+              </View>
+            </Animated.View>
+
+            {/* ── 6. LOOKING FOR ── */}
+            <Animated.View entering={FadeInDown.delay(190).duration(320)} style={styles.sectionCard}>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.cardHeaderTitle}>Looking For</Text>
+                <Text style={styles.charCount}>Tap to select</Text>
+              </View>
+
+              <View style={styles.chipRow}>
+                {LOOKING_FOR_OPTIONS.map((o) => (
+                  <Chip
+                    key={o.id}
+                    label={`${o.emoji} ${o.label}`}
+                    active={lookingFor.includes(o.id)}
+                    onPress={() => toggleLookingFor(o.id)}
+                    color={o.color}
+                  />
+                ))}
+              </View>
+            </Animated.View>
+
+            {/* ── 7. INTERESTS & PASSIONS ── */}
+            <Animated.View entering={FadeInDown.delay(220).duration(320)} style={styles.sectionCard}>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.cardHeaderTitle}>Passions & Hobbies</Text>
+                <View style={styles.counterBadge}>
+                  <Text style={styles.counterBadgeText}>{interestCountLabel}</Text>
+                </View>
+              </View>
+
+              <View style={styles.chipRow}>
+                {INTEREST_OPTIONS.map((o) => (
+                  <Chip
+                    key={o.name}
+                    label={o.name}
+                    active={interests.includes(o.name)}
+                    onPress={() => toggleInterest(o.name)}
+                    color={o.color}
+                  />
+                ))}
+              </View>
+            </Animated.View>
+
+            {/* ── 8. DISCOVERY PREFERENCES ── */}
+            <Animated.View entering={FadeInDown.delay(250).duration(320)} style={styles.sectionCard}>
+              <Text style={styles.cardHeaderTitle}>Matching Preferences</Text>
+
+              <Text style={styles.fieldLabel}>Show me</Text>
+              <View style={styles.chipRow}>
+                {GENDER_PREF_OPTIONS.map((g) => (
+                  <Chip
+                    key={g.id}
+                    label={`${g.emoji} ${g.label}`}
+                    active={genderPreference === g.id}
+                    onPress={() => setGenderPreference(g.id)}
+                  />
+                ))}
+              </View>
+
+              <View style={[styles.row2, { marginTop: 10 }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.fieldLabel}>Min Age</Text>
+                  <View style={styles.inputContainer}>
+                    <TextInput
+                      value={minAge}
+                      onChangeText={setMinAge}
+                      keyboardType="number-pad"
+                      maxLength={2}
+                      style={styles.input}
+                      placeholderTextColor={T.soft}
+                    />
+                  </View>
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.fieldLabel}>Max Age</Text>
+                  <View style={styles.inputContainer}>
+                    <TextInput
+                      value={maxAge}
+                      onChangeText={setMaxAge}
+                      keyboardType="number-pad"
+                      maxLength={2}
+                      style={styles.input}
+                      placeholderTextColor={T.soft}
+                    />
+                  </View>
+                </View>
+              </View>
+
+              <Text style={[styles.fieldLabel, { marginTop: 10 }]}>Max Distance (km)</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="navigate-outline" size={17} color={T.cyan} style={styles.inputIcon} />
+                <TextInput
+                  value={maxDistance}
+                  onChangeText={setMaxDistance}
+                  keyboardType="number-pad"
+                  maxLength={3}
+                  placeholder="25"
+                  placeholderTextColor={T.soft}
+                  style={styles.input}
+                />
+              </View>
+            </Animated.View>
+
+            {/* ── 9. LIFESTYLE HABITS ── */}
+            <Animated.View entering={FadeInDown.delay(280).duration(320)} style={styles.sectionCard}>
+              <Text style={styles.cardHeaderTitle}>Lifestyle Habits</Text>
+
+              <Text style={styles.fieldLabel}>Smoking</Text>
+              <View style={styles.chipRow}>
+                {SMOKING_OPTIONS.map((o) => (
+                  <Chip
+                    key={o.id}
+                    label={`${o.emoji} ${o.label}`}
+                    active={smoking === o.id}
+                    onPress={() => setSmoking(o.id)}
+                  />
+                ))}
+              </View>
+
+              <Text style={[styles.fieldLabel, { marginTop: 14 }]}>Drinking</Text>
+              <View style={styles.chipRow}>
+                {DRINKING_OPTIONS.map((o) => (
+                  <Chip
+                    key={o.id}
+                    label={`${o.emoji} ${o.label}`}
+                    active={drinking === o.id}
+                    onPress={() => setDrinking(o.id)}
+                  />
+                ))}
+              </View>
+            </Animated.View>
+
+            {/* ── 10. PRIMARY SAVE ACTION BUTTON ── */}
+            <View style={styles.bottomSaveWrap}>
+              <Pressable
+                style={styles.saveActionBtn}
+                onPress={handleSave}
+                disabled={saving || uploading}
+              >
+                <LinearGradient
+                  colors={T.ctaGrad}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.saveActionGrad}
+                >
                   {saving ? (
-                    <ActivityIndicator color="#fff" size="small" />
+                    <ActivityIndicator color="#070A14" size="small" />
                   ) : (
-                    <Text style={styles.saveText}>Save Changes</Text>
+                    <>
+                      <Ionicons name="checkmark-circle" size={19} color="#070A14" />
+                      <Text style={styles.saveActionText}>Save Changes</Text>
+                    </>
                   )}
                 </LinearGradient>
               </Pressable>
-            </ScrollView>
-          )}
-        </KeyboardAvoidingView>
-      </SafeAreaView>
+            </View>
+          </ScrollView>
+        )}
+      </KeyboardAvoidingView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: VibeColors.bg },
-  orb: { position: "absolute", borderRadius: 999 },
-  orb1: {
-    width: 220,
-    height: 220,
-    top: -70,
-    right: -80,
-    backgroundColor: "rgba(138,86,255,0.12)",
+  root: {
+    flex: 1,
+    backgroundColor: T.bg,
   },
-  orb2: {
-    width: 180,
-    height: 180,
-    bottom: 80,
-    left: -70,
-    backgroundColor: "rgba(255,75,129,0.08)",
+  keyboardView: {
+    flex: 1,
   },
-  safe: { flex: 1 },
-  keyboardView: { flex: 1 },
+  centerLoader: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 13,
+    fontFamily: VibeFonts.medium,
+    color: T.muted,
+  },
+
+  /* ── Header ── */
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingHorizontal: 16,
+    paddingBottom: 14,
+    backgroundColor: "#070A14",
     borderBottomWidth: 1,
-    borderBottomColor: VibeColors.bgGlassBorder,
+    borderBottomColor: "rgba(255, 255, 255, 0.06)",
+    zIndex: 10,
   },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+  },
+  headerTitleCol: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerTitle: {
     fontSize: 18,
-    fontFamily: VibeFonts.bold,
-    color: VibeColors.text,
+    fontFamily: VibeFonts.extraBold,
+    color: "#FFFFFF",
+    letterSpacing: -0.3,
   },
-  headerSave: {
-    fontSize: 15,
-    fontFamily: VibeFonts.bold,
-    color: "#C084FC",
-    minWidth: 40,
-    textAlign: "right",
-  },
-  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
-  loadingText: { fontSize: 13, fontFamily: VibeFonts.medium, color: VibeColors.textMuted },
-  scroll: { padding: Spacing.lg, paddingBottom: 40 },
-  avatarSection: { marginVertical: Spacing.md, gap: 8 },
-  photoHint: {
-    fontSize: 12,
+  headerSubtitle: {
+    fontSize: 11,
     fontFamily: VibeFonts.medium,
-    color: VibeColors.textMuted,
-    marginBottom: 4,
+    color: T.muted,
+    marginTop: 1,
   },
-  galleryGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  headerSavePill: {
+    borderRadius: 999,
+    overflow: "hidden",
+  },
+  headerSaveGrad: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerSaveText: {
+    fontSize: 13,
+    fontFamily: VibeFonts.extraBold,
+    color: "#070A14",
+  },
+
+  scroll: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+
+  /* ── Card Style ── */
+  sectionCard: {
+    backgroundColor: T.card,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: T.border,
+    padding: 16,
+    marginBottom: 16,
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  cardHeaderTitle: {
+    fontSize: 16,
+    fontFamily: VibeFonts.bold,
+    color: "#FFFFFF",
+    marginBottom: 10,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontFamily: VibeFonts.bold,
+    color: "#FFFFFF",
+  },
+  sectionSubtitle: {
+    fontSize: 11,
+    fontFamily: VibeFonts.regular,
+    color: T.muted,
+    marginTop: 2,
+  },
+
+  /* ── Photos Grid ── */
+  galleryGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginTop: 12,
+  },
   gallerySlot: {
-    width: 100,
-    height: 100,
+    width: (SCREEN_W - 32 - 32 - 20) / 3,
+    height: (SCREEN_W - 32 - 32 - 20) / 3 * 1.25,
     borderRadius: 16,
     overflow: "hidden",
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "#131C33",
+    position: "relative",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
   },
-  galleryImg: { width: "100%", height: "100%" },
+  galleryImg: {
+    width: "100%",
+    height: "100%",
+  },
   galleryRemove: {
     position: "absolute",
     top: 6,
     right: 6,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: "rgba(0,0,0,0.55)",
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#EF4444",
+    borderWidth: 1.5,
+    borderColor: "rgba(255, 255, 255, 0.4)",
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 3,
+    elevation: 4,
+    zIndex: 10,
+  },
+  manageHintBadge: {
+    position: "absolute",
+    left: 6,
+    bottom: 6,
+    backgroundColor: "rgba(7, 10, 20, 0.8)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.15)",
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  manageHintText: {
+    fontSize: 8,
+    fontFamily: VibeFonts.medium,
+    color: "#CBD5E1",
   },
   mainBadge: {
     position: "absolute",
     left: 6,
     bottom: 6,
-    backgroundColor: "rgba(124,58,237,0.9)",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: T.gold,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
   },
-  mainBadgeText: { fontSize: 9, fontFamily: VibeFonts.bold, color: "#fff" },
+  mainBadgeText: {
+    fontSize: 9,
+    fontFamily: VibeFonts.extraBold,
+    color: "#070A14",
+    letterSpacing: 0.6,
+  },
   galleryAdd: {
-    width: 100,
-    height: 100,
+    width: (SCREEN_W - 32 - 32 - 20) / 3,
+    height: (SCREEN_W - 32 - 32 - 20) / 3 * 1.25,
     borderRadius: 16,
     borderWidth: 1.5,
-    borderColor: "rgba(192,132,252,0.45)",
+    borderColor: "rgba(34, 211, 238, 0.35)",
     borderStyle: "dashed",
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
-  },
-  galleryAddText: { fontSize: 12, fontFamily: VibeFonts.bold, color: "#C084FC" },
-  pauseToggle: {
-    marginTop: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-  },
-  pauseToggleOn: {
-    borderColor: "rgba(251,191,36,0.45)",
-    backgroundColor: "rgba(251,191,36,0.1)",
-  },
-  pauseToggleText: { fontSize: 13, fontFamily: VibeFonts.semiBold, color: "#fff" },
-  avatarWrap: { position: "relative" },
-  avatarBorder: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    padding: 3,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatar: { width: 102, height: 102, borderRadius: 51 },
-  avatarOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    borderRadius: 55,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  changePhotoBtn: {
-    flexDirection: "row",
-    alignItems: "center",
+    backgroundColor: "rgba(34, 211, 238, 0.04)",
     gap: 6,
-    backgroundColor: "#8A56FF",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: Radius.full,
-    marginTop: Spacing.md,
   },
-  changePhotoText: { color: "#fff", fontSize: 12, fontFamily: VibeFonts.bold },
-  formCard: { padding: Spacing.lg, gap: 10, marginBottom: Spacing.md },
-  sectionTitle: {
-    fontSize: 15,
-    fontFamily: VibeFonts.extraBold,
-    color: VibeColors.text,
-    marginBottom: 4,
+  addIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(34, 211, 238, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  sectionHead: {
+  galleryAddText: {
+    fontSize: 11,
+    fontFamily: VibeFonts.bold,
+    color: T.cyan,
+  },
+
+  /* ── Discovery Card ── */
+  discoveryRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 12,
   },
-  label: {
+  discIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  discTextCol: {
+    flex: 1,
+  },
+  discTitle: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontFamily: VibeFonts.bold,
+  },
+  discDesc: {
+    color: T.muted,
+    fontSize: 11,
+    fontFamily: VibeFonts.regular,
+    marginTop: 2,
+  },
+
+  /* ── Form Inputs ── */
+  fieldLabel: {
     fontSize: 12,
     fontFamily: VibeFonts.bold,
-    color: VibeColors.textMuted,
-    marginTop: 4,
+    color: T.muted,
+    marginTop: 6,
+    marginBottom: 6,
   },
-  hint: { fontSize: 11, fontFamily: VibeFonts.medium, color: VibeColors.textMuted },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderRadius: Radius.md,
+    backgroundColor: "rgba(255, 255, 255, 0.04)",
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: VibeColors.bgGlassBorder,
-    paddingHorizontal: Spacing.md,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    paddingHorizontal: 14,
     height: 48,
+    marginBottom: 10,
   },
-  inputIcon: { marginRight: Spacing.sm },
+  inputIcon: {
+    marginRight: 10,
+  },
   input: {
     flex: 1,
-    color: VibeColors.text,
+    color: "#FFFFFF",
     fontFamily: VibeFonts.medium,
     fontSize: 14,
   },
+  bioHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 4,
+    marginBottom: 6,
+  },
+  charCount: {
+    fontSize: 11,
+    fontFamily: VibeFonts.medium,
+    color: T.soft,
+  },
   bioContainer: {
-    height: 100,
+    height: 96,
     alignItems: "flex-start",
-    paddingVertical: Spacing.sm,
+    paddingVertical: 10,
   },
   bioInput: {
     height: "100%",
     textAlignVertical: "top",
   },
+  row2: {
+    flexDirection: "row",
+    gap: 12,
+  },
+
+  /* ── Chips ── */
   chipRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
+    marginTop: 2,
+    marginBottom: 6,
   },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(255, 255, 255, 0.04)",
   },
   chipText: {
     fontSize: 12,
     fontFamily: VibeFonts.semiBold,
-    color: VibeColors.textMuted,
+    color: T.muted,
   },
-  chipTextActive: {
-    color: "#fff",
+  counterBadge: {
+    backgroundColor: "rgba(212, 247, 44, 0.12)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+  },
+  counterBadgeText: {
+    color: T.gold,
+    fontSize: 11,
     fontFamily: VibeFonts.bold,
   },
-  row2: { flexDirection: "row", gap: 10 },
-  saveWrap: { marginTop: Spacing.sm, marginBottom: Spacing.xl },
-  saveBtn: {
-    height: 52,
-    borderRadius: Radius.lg,
+
+  /* ── Bottom Save Action ── */
+  bottomSaveWrap: {
+    marginTop: 8,
+    marginBottom: 30,
+  },
+  saveActionBtn: {
+    borderRadius: 18,
+    overflow: "hidden",
+    shadowColor: T.gold,
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
+  saveActionGrad: {
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 8,
+    paddingVertical: 15,
   },
-  saveText: { color: "#fff", fontSize: 15, fontFamily: VibeFonts.bold },
+  saveActionText: {
+    color: "#070A14",
+    fontSize: 16,
+    fontFamily: VibeFonts.extraBold,
+  },
 });
